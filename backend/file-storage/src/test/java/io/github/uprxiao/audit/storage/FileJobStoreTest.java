@@ -50,4 +50,23 @@ class FileJobStoreTest {
             assertTrue(Files.exists(temporaryDirectory.resolve("instance.lock")));
         }
     }
+
+    @Test
+    void recoveryIsolatesCorruptedStateInsteadOfGuessing() throws Exception {
+        FileJobStore store = new FileJobStore(temporaryDirectory);
+        ScanJob valid = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK,
+                Instant.parse("2026-08-12T00:00:00Z"));
+        store.save(StoredScanJob.from(valid));
+        UUID corruptedId = UUID.randomUUID();
+        Path corruptedDirectory = temporaryDirectory.resolve("jobs").resolve(corruptedId.toString());
+        Files.createDirectories(corruptedDirectory);
+        Files.writeString(corruptedDirectory.resolve("job.json"), "{not-json");
+
+        JobRecoveryService.RecoveryResult result = new JobRecoveryService(temporaryDirectory).recover();
+
+        assertEquals(1, result.recovered().size());
+        assertEquals(valid.id(), result.recovered().get(0).scanId());
+        assertEquals(1, result.corrupted().size());
+        assertEquals("CORRUPTED_STATE", result.corrupted().get(0).reasonCode());
+    }
 }

@@ -11,8 +11,11 @@ public record ExecutionResult(
         Instant startedAt,
         Instant completedAt,
         Duration duration,
+        long processId,
         Path stdout,
         Path stderr,
+        boolean stdoutTruncated,
+        boolean stderrTruncated,
         String message) {
 
     public enum Status {
@@ -30,6 +33,9 @@ public record ExecutionResult(
             throw new IllegalArgumentException("completion cannot precede start");
         }
         duration = duration == null ? Duration.between(startedAt, completedAt) : duration;
+        if (processId < 1) {
+            throw new IllegalArgumentException("processId must be positive");
+        }
         Objects.requireNonNull(stdout, "stdout");
         Objects.requireNonNull(stderr, "stderr");
         message = message == null ? "" : message;
