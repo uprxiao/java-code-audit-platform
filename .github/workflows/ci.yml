@@ -37,3 +37,8 @@ jobs:
           ./mvnw -B clean verify
           -Daudit.semgrep.executable="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep"
           -Daudit.semgrep.rules="$GITHUB_WORKSPACE/config/rules/semgrep/java-audit.yaml"
+
+      - name: Start the packaged Java 17 JAR
+        env:
+          AUDIT_SEMGREP_EXECUTABLE: ${{ github.workspace }}/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep
+        run: ./scripts/smoke-start-jar.sh
