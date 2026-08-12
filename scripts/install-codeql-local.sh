@@ -17,7 +17,7 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "Unsupported CodeQL host: $(uname -s)-$(uname -m)" >&2; exit 2 ;;
 esac
 
-INSTALL_ROOT="${AUDIT_CODEQL_INSTALL_ROOT:-$REPOSITORY_ROOT/tools/local/codeql-$VERSION}"
+INSTALL_ROOT="${AUDIT_CODEQL_INSTALL_ROOT:-$REPOSITORY_ROOT/tools/local/codeql-v$VERSION}"
 DOWNLOAD_ROOT="${AUDIT_CODEQL_DOWNLOAD_ROOT:-$REPOSITORY_ROOT/tools/local/downloads}"
 PACK_ROOT="${AUDIT_CODEQL_PACK_ROOT:-$REPOSITORY_ROOT/tools/local/codeql-packs}"
 ARCHIVE="$DOWNLOAD_ROOT/$ASSET"

@@ -126,7 +126,7 @@ tools:
 CodeQL 不是常驻服务。安装后由 Java 进程调用 CLI：
 
 ```text
-tools/local/codeql/
+tools/local/codeql-v2.26.2/
 ├── codeql
 ├── java/
 ├── qlpacks/
@@ -135,7 +135,7 @@ tools/local/codeql/
 
 规则：
 
-- 路径由配置指定，默认 `tools/local/codeql/codeql`；
+- 路径由配置指定，V1默认 `tools/local/codeql-v2.26.2/codeql`（其下的 CLI 文件仍名为 `codeql`）；
 - 目录被 `.gitignore` 排除；
 - 启动时检查 CLI 和查询包版本兼容；
 - 目标项目必须通过使用资格策略；

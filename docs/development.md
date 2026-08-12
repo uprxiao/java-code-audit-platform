@@ -36,5 +36,5 @@ git lfs install
 - M0-M3串行建立公共协议、Fake Scanner和Semgrep纵向链路；
 - 只有达到G1门槛才创建多个worktree；
 - 本地运行数据放入被忽略的独立data目录；
-- CodeQL放入`tools/local/codeql`，不提交；
+- CodeQL放入版本化的`tools/local/codeql-v2.26.2`，不提交；
 - 工具版本升级必须更新manifest、Fixture并跨平台回归。
