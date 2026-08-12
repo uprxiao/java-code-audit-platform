@@ -61,6 +61,7 @@ flowchart LR
 - [Worktree 策略](worktree-strategy.md)：分支职责、创建时机、合并和冲突控制。
 - [测试策略](testing-strategy.md)：单元、契约、真实工具、并发、安全和跨平台测试。
 - [验收标准](acceptance-criteria.md)：V1 Definition of Done。
+- [验收证据索引](acceptance-evidence.md)：两平台真实介质、CI Run、测试契约和性能基线。
 
 ## 变更控制
 

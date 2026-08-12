@@ -268,6 +268,17 @@ I1失败先集中修复，不继续扩展Standard。
 
 执行总目标后，本文件增加里程碑状态表，只允许：`PENDING`、`IN_PROGRESS`、`BLOCKED`、`DONE`。完成必须链接到提交、测试证据或发布产物；不能仅凭“代码已写”标记完成。
 
+| 里程碑 | 状态 | 提交/证据 |
+| --- | --- | --- |
+| M0 规范冻结 | DONE | `docs/v1/` 冻结文档和 Accepted ADR |
+| M1 公共领域与 Schema | DONE | `78ce4ce`，Finding/Job/Plan/Schema 契约测试 |
+| M2 Fake 执行基础 | DONE | `e7ac0b4`，进程树、大日志、超时/取消测试 |
+| M3 Semgrep 纵向切片 | DONE | `7a25dc7`，后续扩展为 Quick 六引擎 `a4c6a54` |
+| G1 并行门槛 | DONE | 公共契约冻结后使用 worktree 完成 execution/reporting/scanners 三轨，各轨独立 verify |
+| M4 Standard/Deep | DONE | Standard `b4d5919`，CodeQL `0a47866`，完整集成 `7bfc291` |
+| M5 系统硬化 | DONE | 报告/数据库/恢复/介质硬化 `c80f404`…`ccf5623`，194 tests 零失败 |
+| M6 跨平台介质与发布 | DONE | [验收证据索引](acceptance-evidence.md)，Mac 三档、Linux Standard/Deep 真实 E2E |
+
 ## 7. 需要再次请求用户决策的条件
 
 - 改变冻结产品范围；

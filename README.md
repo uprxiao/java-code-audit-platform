@@ -2,7 +2,7 @@
 
 面向 Java 17 Maven 项目的个人 Web 代码审计工具。用户上传源码 ZIP 或提供 SVN 当前快照地址后，平台在本机编排多个扫描器，统一归类、分级、去重并导出 HTML、JSON、SARIF、SBOM 和原始证据。
 
-> 当前状态：V1 实现已集成到 `codex/v1-integration`。Quick、Standard、Deep、ZIP/SVN、并发调度和统一报告均已接入；最终完成状态以 [V1 验收标准](docs/v1/acceptance-criteria.md) 和证据索引为准。
+> 当前状态：V1 已完成。Quick、Standard、Deep、ZIP/SVN、并发调度和统一报告已在 macOS ARM64 与 Ubuntu 22.04 x86_64 通过真实介质验收；详见 [V1 验收标准](docs/v1/acceptance-criteria.md) 和 [验收证据索引](docs/v1/acceptance-evidence.md)。
 
 ## V1 形态
 
@@ -110,6 +110,7 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 - [Worktree策略](docs/v1/worktree-strategy.md)
 - [测试策略](docs/v1/testing-strategy.md)
 - [验收标准](docs/v1/acceptance-criteria.md)
+- [验收证据索引](docs/v1/acceptance-evidence.md)
 - [早期代码审计组件调研](docs/code-audit-capabilities.md)（背景资料，非V1规范）
 
 ## 许可证
