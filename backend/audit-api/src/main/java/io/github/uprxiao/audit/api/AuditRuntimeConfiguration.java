@@ -128,12 +128,24 @@ class AuditRuntimeConfiguration {
             AtomicFileWriter files,
             Clock clock,
             SingleInstanceLock lock,
+            ToolInstallationHealth semgrepHealth,
             @Value("${audit.maven.executable:mvn}") String mavenExecutable,
             @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes)
             throws IOException, InterruptedException {
         return new StartupPrerequisiteChecker(
                 paths, processes, files, new ObjectMapper().findAndRegisterModules(), clock,
-                mavenExecutable, minimumDiskBytes).checkAndPersist();
+                mavenExecutable, minimumDiskBytes, semgrepHealth).checkAndPersist();
+    }
+
+    @Bean
+    ToolInstallationHealth semgrepHealth(
+            AuditRuntimePaths paths,
+            LocalProcessExecutionBackend processes,
+            Clock clock,
+            @Value("${audit.tools.semgrep-version:1.170.0}") String expectedVersion)
+            throws IOException, InterruptedException {
+        return new SemgrepIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock, expectedVersion).check();
     }
 
     @Bean

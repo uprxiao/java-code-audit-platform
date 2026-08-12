@@ -13,6 +13,7 @@ audit:
   data-root: ${AUDIT_DATA_ROOT:./data}
   tools:
     semgrep-executable: ${AUDIT_SEMGREP_EXECUTABLE:./tools/downloads/bin/semgrep}
+    semgrep-version: ${AUDIT_SEMGREP_VERSION:1.170.0}
   maven:
     executable: ${AUDIT_MAVEN_EXECUTABLE:mvn}
   rules:

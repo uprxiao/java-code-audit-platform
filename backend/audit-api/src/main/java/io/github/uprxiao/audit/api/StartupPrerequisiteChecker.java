@@ -35,6 +35,7 @@ final class StartupPrerequisiteChecker {
     private final Clock clock;
     private final String mavenExecutable;
     private final long minimumDiskBytes;
+    private final ToolInstallationHealth semgrep;
 
     StartupPrerequisiteChecker(
             AuditRuntimePaths paths,
@@ -43,7 +44,8 @@ final class StartupPrerequisiteChecker {
             ObjectMapper json,
             Clock clock,
             String mavenExecutable,
-            long minimumDiskBytes) {
+            long minimumDiskBytes,
+            ToolInstallationHealth semgrep) {
         this.paths = paths;
         this.processes = processes;
         this.files = files;
@@ -51,6 +53,7 @@ final class StartupPrerequisiteChecker {
         this.clock = clock;
         this.mavenExecutable = mavenExecutable;
         this.minimumDiskBytes = minimumDiskBytes;
+        this.semgrep = semgrep;
     }
 
     StartupHealthSnapshot checkAndPersist() throws IOException, InterruptedException {
@@ -88,6 +91,7 @@ final class StartupPrerequisiteChecker {
                 System.getProperty("java.version", "unknown"),
                 mavenVersion,
                 mavenJavaVersion,
+                List.of(semgrep),
                 usableDiskBytes,
                 minimumDiskBytes,
                 clock.instant());

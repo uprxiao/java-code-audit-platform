@@ -10,6 +10,7 @@ import io.github.uprxiao.audit.storage.NioAtomicFileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -24,7 +25,7 @@ class StartupPrerequisiteCheckerTest {
                 temporaryDirectory, temporaryDirectory.resolve("semgrep"), temporaryDirectory.resolve("rules"));
         StartupPrerequisiteChecker checker = new StartupPrerequisiteChecker(
                 paths, new LocalProcessExecutionBackend(), new NioAtomicFileWriter(),
-                new ObjectMapper().findAndRegisterModules(), Clock.systemUTC(), "mvn", 1);
+                new ObjectMapper().findAndRegisterModules(), Clock.systemUTC(), "mvn", 1, missingSemgrep(paths));
 
         StartupHealthSnapshot snapshot = checker.checkAndPersist();
 
@@ -40,8 +41,15 @@ class StartupPrerequisiteCheckerTest {
                 temporaryDirectory, temporaryDirectory.resolve("semgrep"), temporaryDirectory.resolve("rules"));
         StartupPrerequisiteChecker checker = new StartupPrerequisiteChecker(
                 paths, new LocalProcessExecutionBackend(), new NioAtomicFileWriter(),
-                new ObjectMapper().findAndRegisterModules(), Clock.systemUTC(), "mvn", Long.MAX_VALUE);
+                new ObjectMapper().findAndRegisterModules(), Clock.systemUTC(), "mvn", Long.MAX_VALUE,
+                missingSemgrep(paths));
 
         assertThrows(IllegalStateException.class, checker::checkAndPersist);
+    }
+
+    private ToolInstallationHealth missingSemgrep(AuditRuntimePaths paths) {
+        return new ToolInstallationHealth(
+                "semgrep", "UNAVAILABLE", "", paths.semgrepExecutable(), "",
+                "EXECUTABLE_NOT_FOUND", "test fixture", Instant.EPOCH);
     }
 }

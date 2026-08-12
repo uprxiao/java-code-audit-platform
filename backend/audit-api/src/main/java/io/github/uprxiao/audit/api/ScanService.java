@@ -73,6 +73,7 @@ public final class ScanService {
     private final SemgrepAdapter semgrep;
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
+    private final ToolInstallationHealth semgrepHealth;
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
 
     ScanService(
@@ -89,7 +90,8 @@ public final class ScanService {
             LocalProcessExecutionBackend processes,
             SemgrepAdapter semgrep,
             ReportGenerator reports,
-            JobTemporaryFileCleaner cleaner) {
+            JobTemporaryFileCleaner cleaner,
+            ToolInstallationHealth semgrepHealth) {
         this.paths = paths;
         this.jobs = jobs;
         this.executor = executor;
@@ -104,6 +106,7 @@ public final class ScanService {
         this.semgrep = semgrep;
         this.reports = reports;
         this.cleaner = cleaner;
+        this.semgrepHealth = semgrepHealth;
     }
 
     public CreateScanResponse submitZip(InputStream source, String originalName, ZipScanRequest request) throws IOException {
@@ -193,13 +196,10 @@ public final class ScanService {
     }
 
     public Map<String, Object> toolHealth() {
-        boolean semgrepAvailable = Files.isExecutable(paths.semgrepExecutable());
+        boolean semgrepAvailable = semgrepHealth.available();
         return Map.of(
                 "status", semgrepAvailable ? "UP" : "DEGRADED",
-                "tools", List.of(Map.of(
-                        "id", "semgrep",
-                        "available", semgrepAvailable,
-                        "path", paths.semgrepExecutable().toString())),
+                "tools", List.of(semgrepHealth),
                 "profiles", Map.of(
                         "QUICK", semgrepAvailable ? "PARTIAL_M3" : "UNAVAILABLE",
                         "STANDARD", "UNAVAILABLE",
@@ -343,9 +343,9 @@ public final class ScanService {
     }
 
     private ToolContext toolContext() {
-        boolean available = Files.isExecutable(paths.semgrepExecutable());
         return new ToolContext(paths.semgrepExecutable().getParent(), Map.of(
-                SemgrepAdapter.ID, new ToolContext.ToolInstallation(paths.semgrepExecutable(), "1.170.0", available)));
+                SemgrepAdapter.ID, new ToolContext.ToolInstallation(
+                        paths.semgrepExecutable(), semgrepHealth.version(), semgrepHealth.available())));
     }
 
     private RuntimeScan require(UUID scanId) {
