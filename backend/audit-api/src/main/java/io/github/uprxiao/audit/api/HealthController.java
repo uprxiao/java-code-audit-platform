@@ -10,13 +10,20 @@ import org.springframework.web.bind.annotation.RestController;
 class HealthController {
 
     private final ScanService scans;
+    private final StartupHealthSnapshot startup;
 
-    HealthController(ScanService scans) {
+    HealthController(ScanService scans, StartupHealthSnapshot startup) {
         this.scans = scans;
+        this.startup = startup;
     }
 
     @GetMapping({"/health", "/tools", "/profiles"})
     Map<String, Object> health() {
-        return scans.toolHealth();
+        Map<String, Object> toolHealth = scans.toolHealth();
+        return Map.of(
+                "status", toolHealth.get("status"),
+                "startup", startup,
+                "tools", toolHealth.get("tools"),
+                "profiles", toolHealth.get("profiles"));
     }
 }

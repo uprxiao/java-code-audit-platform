@@ -10,9 +10,12 @@ import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
+import io.github.uprxiao.audit.storage.AtomicFileWriter;
 import io.github.uprxiao.audit.storage.JobStore;
 import io.github.uprxiao.audit.storage.JobTemporaryFileCleaner;
 import io.github.uprxiao.audit.storage.SingleInstanceLock;
+import io.github.uprxiao.audit.storage.NioAtomicFileWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -47,6 +50,11 @@ class AuditRuntimeConfiguration {
     @Bean
     JobStore jobStore(AuditRuntimePaths paths) {
         return new FileJobStore(paths.dataRoot());
+    }
+
+    @Bean
+    AtomicFileWriter atomicFileWriter() {
+        return new NioAtomicFileWriter();
     }
 
     @Bean(destroyMethod = "shutdown")
@@ -111,6 +119,21 @@ class AuditRuntimeConfiguration {
     @Bean
     LocalProcessExecutionBackend processExecutionBackend() {
         return new LocalProcessExecutionBackend();
+    }
+
+    @Bean
+    StartupHealthSnapshot startupHealthSnapshot(
+            AuditRuntimePaths paths,
+            LocalProcessExecutionBackend processes,
+            AtomicFileWriter files,
+            Clock clock,
+            SingleInstanceLock lock,
+            @Value("${audit.maven.executable:mvn}") String mavenExecutable,
+            @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes)
+            throws IOException, InterruptedException {
+        return new StartupPrerequisiteChecker(
+                paths, processes, files, new ObjectMapper().findAndRegisterModules(), clock,
+                mavenExecutable, minimumDiskBytes).checkAndPersist();
     }
 
     @Bean
