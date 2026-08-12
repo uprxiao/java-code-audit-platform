@@ -2,6 +2,7 @@ package io.github.uprxiao.audit.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +23,16 @@ class AuditApplicationTest {
 
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void overallHealthIsDegradedWhenStandardDataOrControlledDeepIsUnavailable() throws Exception {
+        mvc.perform(get("/api/v1/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DEGRADED"))
+                .andExpect(jsonPath("$.profiles.QUICK").exists())
+                .andExpect(jsonPath("$.profiles.STANDARD").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.profiles.DEEP").value("UNAVAILABLE"));
     }
 
     @Test

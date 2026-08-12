@@ -616,11 +616,12 @@ public final class ScanService {
     }
 
     public Map<String, Object> toolHealth() {
-        boolean quickAvailable = scanners.available(ScanProfile.QUICK);
+        Map<String, String> profiles = scanners.profileAvailability();
+        boolean allProfilesAvailable = profiles.values().stream().allMatch("AVAILABLE"::equals);
         return Map.of(
-                "status", quickAvailable ? "UP" : "DEGRADED",
+                "status", allProfilesAvailable ? "UP" : "DEGRADED",
                 "tools", scanners.health(),
-                "profiles", scanners.profileAvailability());
+                "profiles", profiles);
     }
 
     void forget(UUID scanId) {
@@ -960,6 +961,7 @@ public final class ScanService {
             }
             Path engineOutput = runtime.layout.rawEngine(CodeqlAdapter.ID.value());
             ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
+                    runtime.layout.safeResolve("codeql-db/database"),
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             CodeqlWorkflow.Result result = codeql.execute(
                     adapter, context, scanners.tools(),

@@ -146,6 +146,15 @@ class StandardProfileApiE2ETest {
         assertEquals("SUCCEEDED", codeql.path("status").asText());
         assertEquals("2.26.2", codeql.path("toolVersion").asText());
         assertTrue(codeql.path("rawArtifactAvailable").asBoolean());
+        byte[] archive = mvc.perform(get("/api/v1/scans/{scanId}/reports/archive",
+                        created.path("scanId").asText()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        assertTrue(zipEntries(archive).stream().noneMatch(entry -> entry.contains("codeql-db")
+                || entry.contains("/database/") || entry.endsWith("/database")));
+        JsonNode manifest = json.readTree(findReportEntry(archive, "manifest.json"));
+        assertTrue(java.util.stream.StreamSupport.stream(manifest.path("files").spliterator(), false)
+                .map(file -> file.path("path").asText())
+                .noneMatch(path -> path.contains("codeql-db") || path.contains("/database/")));
     }
 
     @Test
@@ -242,6 +251,16 @@ class StandardProfileApiE2ETest {
             for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null;) result.add(entry.getName());
         }
         return result;
+    }
+
+    private byte[] findReportEntry(byte[] archive, String name) throws Exception {
+        try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(
+                new java.io.ByteArrayInputStream(archive))) {
+            for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null;) {
+                if (name.equals(entry.getName())) return zip.readAllBytes();
+            }
+        }
+        throw new AssertionError("archive entry is missing: " + name);
     }
 
     private Map<String, String> singleModuleFiles(boolean failBuild) {
