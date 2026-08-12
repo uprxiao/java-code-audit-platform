@@ -1,6 +1,8 @@
 # Local Process Runner（目标模块）
 
-该占位目录将在V1中演进为`local-process-runner`：负责使用Java `ProcessBuilder`执行本机Maven和扫描器，处理日志、超时、取消、进程树和资源许可。
+执行层已实现在 `backend/local-process-runner`。该历史目录仅保留迁移说明，不参与构建或运行。
+
+`local-process-runner` 使用 Java `ProcessBuilder` 和参数数组执行系统 Maven 与扫描器，已覆盖并发排空 stdout/stderr、有界日志、超时、取消和子进程树终止。
 
 V1不实现容器或远程Runner。详细契约见：
 
