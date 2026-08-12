@@ -10,9 +10,9 @@
 | 应用形态 | 同一 Spring Boot JAR，Java class major 61 |
 | macOS | ARM64，JDK 17.0.18，Maven 3.9.12 |
 | Linux | GitHub-hosted Ubuntu 22.04 x86_64，Temurin JDK 17，Maven 3.9.12 |
-| Mac 最终包 | `dist/acceptance-final/java-code-audit-platform-0.1.0-v1-final-darwin-arm64.zip` |
-| Mac 包 SHA256 | `752622bd7a4812691ca71f6062263fd705e5372e9daba3263f9074b9933ad5f1` |
-| Mac 包大小 | 320 MB（不含动态漏洞库和 CodeQL） |
+| Mac 最终包 | `dist/v1-release-final/java-code-audit-platform-0.1.0-v1-darwin-arm64.zip` |
+| Mac 包 SHA256 | `15f3473eff87d8dfd78d5970d24aef2486005aae6d3f9cfc3740802fe82f9dc4` |
+| Mac 包大小 | 321 MB（不含动态漏洞库和 CodeQL） |
 | 动态数据 | Trivy 通用+Java 库约 2.6 GB；Dependency-Check 验收库 13 MB |
 | CodeQL | CLI 2.26.2 + `codeql/java-queries` 1.11.7，本机安装，不再分发 |
 
@@ -29,11 +29,11 @@ Log4Shell PURL/CVE 解析契约。它带 `productionUseProhibited=true` 和 `ACC
 
 | Profile | Scan ID | 引擎 | 终态 | 耗时 | unique/raw | 附加断言 |
 | --- | --- | ---: | --- | ---: | --- | --- |
-| Quick | `0296a3f0-e41b-4add-ae10-b9bb49be0e71` | 6 | COMPLETED | 9.427 s | 0/0 | ZIP可解、canary无泄漏、源码已清理 |
-| Standard | `a4afa434-b677-4188-8533-c87d900ed415` | 14 | COMPLETED | 96.778 s | 17/17 | Maven、SBOM、依赖漏洞、字节码引擎全成功 |
-| Deep | `7fee2c75-dab2-418e-ad11-8cba32b3bbca` | 15 | COMPLETED | 40.649 s | 18/18 | CodeQL真实命中，显式 Source→Propagation→Sink |
+| Quick | `e29eae85-7e33-4661-81e5-93d22389adaf` | 6 | COMPLETED | 9.536 s | 0/0 | ZIP可解、canary无泄漏、源码已清理 |
+| Standard | `e48f8c14-5b5b-4591-a7de-66ee78bc5fd2` | 14 | COMPLETED | 96.730 s | 17/17 | Maven、SBOM、依赖漏洞、字节码引擎全成功 |
+| Deep | `79647d6a-390d-463d-b063-8b6b0ae2bb3e` | 15 | COMPLETED | 42.182 s | 18/18 | CodeQL真实命中，显式 Source→Propagation→Sink |
 
-证据在 gitignored 的 `v1-acceptance-evidence/macos-final/`，每个任务包含
+证据在 gitignored 的 `v1-acceptance-evidence/macos-release-final/`，每个任务包含
 health/tools/profiles/create/scan/engines/findings/report.zip 和 `SHA256SUMS`。
 
 成功后任务目录另外递归检查：不存在 `source`、`workspace`、`repository`、`target`、
@@ -76,9 +76,9 @@ health/tools/profiles/create/scan/engines/findings/report.zip 和 `SHA256SUMS`�
 
 数字是固定验收 Fixture 的热缓存基线，不是对任意业务仓库的 SLA。
 
-- Mac：Quick 9.427 s，Standard 96.778 s，Deep 40.649 s；
+- Mac：Quick 9.536 s，Standard 96.730 s，Deep 42.182 s；
 - Linux：Quick 7.102 s，Standard 29.337 s，Deep 76.263 s；
-- Mac 介质 320 MB，Trivy 双库约 2.6 GB；
+- Mac 介质 321 MB，Trivy 双库约 2.6 GB；
 - 并发稳定性用 20 任务 Fake DAG 做确定性断言，不用脆弱的真工具时序证明资源不超卖；
 - `config/application-high-capacity.yaml` 面向 112 CPU/1 TiB，`HighCapacityConfigurationTest` 验证绑定和约束。
 
