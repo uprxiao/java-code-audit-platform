@@ -7,7 +7,7 @@ case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) PLATFORM="linux-x86_64" ;;
   *) echo "Unsupported smoke host: $(uname -s)-$(uname -m)" >&2; exit 2 ;;
 esac
-QUICK_ROOT="${AUDIT_QUICK_TOOL_PACK_ROOT:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/quick}"
+QUICK_ROOT="${1:-${AUDIT_QUICK_TOOL_PACK_ROOT:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/quick}}"
 JAVA_EXECUTABLE="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 JAVA_EXECUTABLE="${JAVA_EXECUTABLE:-$(command -v java)}"
 

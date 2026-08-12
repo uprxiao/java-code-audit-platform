@@ -1,1 +1,1 @@
-[{"category":"SECRET_EXPOSURE","severity":"P1","ruleFamily":"HARDCODED_SECRET","path":"src/main/java/example/Secrets.java","line":5,"redacted":true}]
+[{"category":"SECRET_EXPOSURE","severity":"P1","ruleFamily":"SECRET","path":"src/main/java/example/Secrets.java","line":5,"redacted":true}]

@@ -46,7 +46,7 @@ class PmdCpdAdapterTest {
         assertEquals(1, result.findings().size());
         var finding = result.findings().get(0);
         assertEquals(IssueCategory.DUPLICATION, finding.category());
-        assertEquals("DUPLICATE_CODE", finding.ruleFamily());
+        assertEquals("DUPLICATION", finding.ruleFamily());
         assertEquals(2, ((java.util.List<?>) finding.evidence().get(0).properties().get("occurrences")).size());
     }
 

@@ -65,7 +65,7 @@ class GitleaksAdapterTest {
         assertEquals(1, result.findings().size());
         var finding = result.findings().get(0);
         assertEquals(IssueCategory.SECRET_EXPOSURE, finding.category());
-        assertEquals("HARDCODED_SECRET", finding.ruleFamily());
+        assertEquals("SECRET", finding.ruleFamily());
         assertTrue(finding.snippet().redacted());
         assertFalse(finding.toString().contains("AUDIT_SECRET"));
         assertEquals(EngineStatus.SUCCEEDED, result.coverage().status());

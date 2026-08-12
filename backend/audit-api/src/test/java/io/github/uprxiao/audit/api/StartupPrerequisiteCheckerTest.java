@@ -29,10 +29,11 @@ class StartupPrerequisiteCheckerTest {
 
         StartupHealthSnapshot snapshot = checker.checkAndPersist();
 
-        assertEquals("UP", snapshot.status());
+        assertEquals("DEGRADED", snapshot.status());
         assertTrue(snapshot.mavenVersion().startsWith("3."));
         assertEquals("17", snapshot.mavenJavaVersion());
-        assertTrue(Files.readString(temporaryDirectory.resolve("health/startup.json")).contains("\"status\":\"UP\""));
+        assertTrue(Files.readString(temporaryDirectory.resolve("health/startup.json"))
+                .contains("\"status\":\"DEGRADED\""));
     }
 
     @Test

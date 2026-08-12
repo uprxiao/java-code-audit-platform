@@ -1,6 +1,11 @@
 package io.github.uprxiao.audit.api;
 
 import io.github.uprxiao.audit.adapter.semgrep.SemgrepAdapter;
+import io.github.uprxiao.audit.adapter.checkstyle.CheckstyleAdapter;
+import io.github.uprxiao.audit.adapter.gitleaks.GitleaksAdapter;
+import io.github.uprxiao.audit.adapter.pmd.PmdAdapter;
+import io.github.uprxiao.audit.adapter.pmd.PmdCpdAdapter;
+import io.github.uprxiao.audit.adapter.trivy.TrivyRepositoryAdapter;
 import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
 import io.github.uprxiao.audit.intake.MavenArgumentValidator;
@@ -8,6 +13,8 @@ import io.github.uprxiao.audit.intake.SafeZipExtractor;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
+import io.github.uprxiao.audit.orchestrator.FairDagScheduler;
+import io.github.uprxiao.audit.orchestrator.SchedulerConfiguration;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
@@ -23,6 +30,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -38,11 +49,22 @@ class AuditRuntimeConfiguration {
     AuditRuntimePaths runtimePaths(
             @Value("${audit.data-root:./data}") String dataRoot,
             @Value("${audit.tools.semgrep-executable:./tools/downloads/bin/semgrep}") String semgrepExecutable,
-            @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules) {
+            @Value("${audit.tools.quick-root:}") String configuredQuickRoot,
+            @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules,
+            @Value("${audit.rules.gitleaks:./config/rules/gitleaks/gitleaks.toml}") String gitleaksRules,
+            @Value("${audit.rules.pmd:./config/rules/pmd/java-audit.xml}") String pmdRules,
+            @Value("${audit.rules.checkstyle:./config/rules/checkstyle/java-audit.xml}") String checkstyleRules) {
+        String quickRoot = configuredQuickRoot.isBlank()
+                ? "./tools/downloads/tool-pack/" + currentPlatform() + "/quick"
+                : configuredQuickRoot;
         return new AuditRuntimePaths(
                 Path.of(dataRoot).toAbsolutePath().normalize(),
                 Path.of(semgrepExecutable).toAbsolutePath().normalize(),
-                Path.of(semgrepRules).toAbsolutePath().normalize());
+                Path.of(semgrepRules).toAbsolutePath().normalize(),
+                Path.of(quickRoot).toAbsolutePath().normalize(),
+                Path.of(gitleaksRules).toAbsolutePath().normalize(),
+                Path.of(pmdRules).toAbsolutePath().normalize(),
+                Path.of(checkstyleRules).toAbsolutePath().normalize());
     }
 
     @Bean(destroyMethod = "close")
@@ -90,6 +112,26 @@ class AuditRuntimeConfiguration {
                     throw new ScanJobQueueFullException(
                             executor.getQueue().size(), queueCapacity, Duration.ofSeconds(retryAfterSeconds));
                 });
+    }
+
+    @Bean(destroyMethod = "close")
+    FairDagScheduler engineScheduler(
+            @Value("${audit.concurrency.max-queued-scan-jobs:20}") int queued,
+            @Value("${audit.concurrency.max-concurrent-scan-jobs:2}") int jobs,
+            @Value("${audit.concurrency.max-concurrent-engines:4}") int engines,
+            @Value("${audit.concurrency.max-engines-per-scan:2}") int perScan,
+            @Value("${audit.concurrency.weighted-permits:8}") int weighted,
+            @Value("${audit.concurrency.tool-limits.maven:1}") int maven,
+            @Value("${audit.concurrency.tool-limits.dependency-check:1}") int dependencyCheck,
+            @Value("${audit.concurrency.tool-limits.codeql:1}") int codeql,
+            @Value("${audit.concurrency.retry-after-seconds:30}") long retryAfterSeconds) {
+        return new FairDagScheduler(new SchedulerConfiguration(
+                queued, jobs, engines, perScan, weighted,
+                Map.of(
+                        new io.github.uprxiao.audit.scanner.EngineId("maven"), maven,
+                        new io.github.uprxiao.audit.scanner.EngineId("dependency-check"), dependencyCheck,
+                        new io.github.uprxiao.audit.scanner.EngineId("codeql"), codeql),
+                Duration.ofSeconds(retryAfterSeconds)));
     }
 
     @Bean
@@ -145,13 +187,13 @@ class AuditRuntimeConfiguration {
             AtomicFileWriter files,
             Clock clock,
             SingleInstanceLock lock,
-            ToolInstallationHealth semgrepHealth,
+            QuickScannerRegistry scanners,
             @Value("${audit.maven.executable:mvn}") String mavenExecutable,
             @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes)
             throws IOException, InterruptedException {
         return new StartupPrerequisiteChecker(
                 paths, processes, files, new ObjectMapper().findAndRegisterModules(), clock,
-                mavenExecutable, minimumDiskBytes, semgrepHealth).checkAndPersist();
+                mavenExecutable, minimumDiskBytes, scanners.health()).checkAndPersist();
     }
 
     @Bean
@@ -168,6 +210,27 @@ class AuditRuntimeConfiguration {
     @Bean
     SemgrepAdapter semgrepAdapter(AuditRuntimePaths paths) {
         return new SemgrepAdapter(paths.semgrepRules());
+    }
+
+    @Bean
+    QuickScannerRegistry quickScannerRegistry(
+            AuditRuntimePaths paths,
+            LocalProcessExecutionBackend processes,
+            Clock clock,
+            SemgrepAdapter semgrep,
+            ToolInstallationHealth semgrepHealth) throws IOException, InterruptedException {
+        List<ToolInstallationHealth> health = new ArrayList<>();
+        health.add(semgrepHealth);
+        health.addAll(new QuickToolIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock).checkAll());
+        List<io.github.uprxiao.audit.scanner.ScannerAdapter> adapters = List.of(
+                new GitleaksAdapter(paths.gitleaksRules()),
+                semgrep,
+                new PmdAdapter(paths.pmdRules(), paths.pmdHome()),
+                new PmdCpdAdapter(paths.pmdHome()),
+                new CheckstyleAdapter(paths.checkstyleRules(), paths.checkstyleJar()),
+                new TrivyRepositoryAdapter(paths.trivyCache()));
+        return new QuickScannerRegistry(adapters, health, paths);
     }
 
     @Bean
@@ -192,5 +255,17 @@ class AuditRuntimeConfiguration {
     @Bean
     JobRetentionService jobRetentionService(AuditRuntimePaths paths, RetentionPolicy policy) {
         return new JobRetentionService(paths.dataRoot(), policy);
+    }
+
+    private static String currentPlatform() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        if (os.contains("mac") && (arch.equals("aarch64") || arch.equals("arm64"))) {
+            return "darwin-arm64";
+        }
+        if (os.contains("linux") && (arch.equals("amd64") || arch.equals("x86_64"))) {
+            return "linux-x86_64";
+        }
+        throw new IllegalStateException("unsupported V1 platform: " + os + "/" + arch);
     }
 }

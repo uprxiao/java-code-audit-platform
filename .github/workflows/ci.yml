@@ -32,13 +32,20 @@ jobs:
       - name: Assemble native Linux Semgrep pack
         run: ./scripts/build-semgrep-pack.sh linux-x86_64
 
+      - name: Assemble and smoke native Linux Quick tool pack
+        run: |
+          ./scripts/build-quick-tool-pack.sh linux-x86_64
+          ./scripts/run-quick-tools-smoke.sh "$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick"
+
       - name: Verify all modules and real Semgrep API flow
         run: >-
           ./mvnw -B clean verify
+          -Daudit.quick.root="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick"
           -Daudit.semgrep.executable="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep"
           -Daudit.semgrep.rules="$GITHUB_WORKSPACE/config/rules/semgrep/java-audit.yaml"
 
       - name: Start the packaged Java 17 JAR
         env:
           AUDIT_SEMGREP_EXECUTABLE: ${{ github.workspace }}/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep
+          AUDIT_QUICK_TOOL_ROOT: ${{ github.workspace }}/tools/downloads/tool-pack/linux-x86_64/quick
         run: ./scripts/smoke-start-jar.sh

@@ -4,6 +4,7 @@ set -euo pipefail
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JAR_PATH="${1:-$REPOSITORY_ROOT/backend/audit-api/target/audit-api-0.1.0-SNAPSHOT.jar}"
 SEMGREP_EXECUTABLE="${AUDIT_SEMGREP_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/bin/semgrep}"
+QUICK_TOOL_ROOT="${AUDIT_QUICK_TOOL_ROOT:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)/quick}"
 SMOKE_PORT="${AUDIT_SMOKE_PORT:-18080}"
 
 if [[ ! -f "$JAR_PATH" ]]; then
@@ -12,6 +13,10 @@ if [[ ! -f "$JAR_PATH" ]]; then
 fi
 if [[ ! -x "$SEMGREP_EXECUTABLE" ]]; then
   echo "Semgrep executable is missing: $SEMGREP_EXECUTABLE" >&2
+  exit 2
+fi
+if [[ ! -f "$QUICK_TOOL_ROOT/quick-pack-metadata.json" ]]; then
+  echo "Quick tool pack is missing: $QUICK_TOOL_ROOT" >&2
   exit 2
 fi
 if ! command -v java >/dev/null 2>&1 || ! command -v javap >/dev/null 2>&1 \
@@ -53,7 +58,11 @@ java -jar "$JAR_PATH" \
   --audit.data-root="$SMOKE_ROOT/data" \
   --audit.storage.minimum-free-bytes=1 \
   --audit.tools.semgrep-executable="$SEMGREP_EXECUTABLE" \
+  --audit.tools.quick-root="$QUICK_TOOL_ROOT" \
   --audit.rules.semgrep="$REPOSITORY_ROOT/config/rules/semgrep/java-audit.yaml" \
+  --audit.rules.gitleaks="$REPOSITORY_ROOT/config/rules/gitleaks/gitleaks.toml" \
+  --audit.rules.pmd="$REPOSITORY_ROOT/config/rules/pmd/java-audit.xml" \
+  --audit.rules.checkstyle="$REPOSITORY_ROOT/config/rules/checkstyle/java-audit.xml" \
   >"$SERVER_LOG" 2>&1 &
 SERVER_PID="$!"
 

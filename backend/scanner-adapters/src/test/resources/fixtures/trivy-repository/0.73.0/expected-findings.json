@@ -1,1 +1,1 @@
-[{"category":"CONFIG_IAC_SECURITY","severity":"P1","ruleFamily":"DS-0017","path":"Dockerfile","line":2},{"category":"SECRET_EXPOSURE","severity":"P1","ruleFamily":"HARDCODED_SECRET","path":"secret.txt","line":1,"redacted":true}]
+[{"category":"CONFIG_IAC_SECURITY","severity":"P1","ruleFamily":"DS_0017","path":"Dockerfile","line":2},{"category":"SECRET_EXPOSURE","severity":"P1","ruleFamily":"SECRET","path":"secret.txt","line":1,"redacted":true}]

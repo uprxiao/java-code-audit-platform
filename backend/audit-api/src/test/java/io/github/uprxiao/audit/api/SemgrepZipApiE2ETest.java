@@ -34,16 +34,21 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@EnabledIfSystemProperty(named = "audit.semgrep.executable", matches = ".+")
+@EnabledIfSystemProperty(named = "audit.quick.root", matches = ".+")
 class SemgrepZipApiE2ETest {
 
     private static final Path DATA_ROOT = createDataRoot();
+    private static final Path REPOSITORY_ROOT = Path.of("../..").toAbsolutePath().normalize();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("audit.data-root", () -> DATA_ROOT.toString());
         registry.add("audit.tools.semgrep-executable", () -> System.getProperty("audit.semgrep.executable"));
+        registry.add("audit.tools.quick-root", () -> System.getProperty("audit.quick.root"));
         registry.add("audit.rules.semgrep", () -> System.getProperty("audit.semgrep.rules"));
+        registry.add("audit.rules.gitleaks", () -> REPOSITORY_ROOT.resolve("config/rules/gitleaks/gitleaks.toml").toString());
+        registry.add("audit.rules.pmd", () -> REPOSITORY_ROOT.resolve("config/rules/pmd/java-audit.xml").toString());
+        registry.add("audit.rules.checkstyle", () -> REPOSITORY_ROOT.resolve("config/rules/checkstyle/java-audit.xml").toString());
         registry.add("audit.concurrency.max-concurrent-scan-jobs", () -> "1");
         registry.add("audit.concurrency.max-queued-scan-jobs", () -> "2");
     }
@@ -70,16 +75,18 @@ class SemgrepZipApiE2ETest {
         String scanId = created.path("scanId").asText();
         assertNotNull(location);
         assertEquals("QUEUED", created.path("status").asText());
+        assertEquals(6, created.path("plannedEngines").size());
 
         JsonNode terminal = waitForTerminal(location);
         assertEquals("COMPLETED", terminal.path("status").asText(), terminal.toPrettyString());
-        assertEquals(2, terminal.path("summary").path("uniqueFindingCount").asInt());
+        assertTrue(terminal.path("summary").path("uniqueFindingCount").asInt() >= 2);
+        assertEquals(6, terminal.path("progress").path("enginesTotal").asInt());
         assertFalse(terminal.path("summary").path("partial").asBoolean());
 
         MvcResult findings = mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId))
                 .andExpect(status().isOk()).andReturn();
         JsonNode findingArray = json.readTree(findings.getResponse().getContentAsByteArray());
-        assertEquals(2, findingArray.size());
+        assertTrue(findingArray.size() >= 2);
         assertTrue(java.util.stream.StreamSupport.stream(findingArray.spliterator(), false)
                 .anyMatch(finding -> finding.path("ruleFamily").asText().equals("SQL_INJECTION")));
 
@@ -88,7 +95,8 @@ class SemgrepZipApiE2ETest {
                 .andExpect(header().string("Content-Type", MediaType.APPLICATION_JSON_VALUE))
                 .andReturn();
         JsonNode reportJson = json.readTree(report.getResponse().getContentAsByteArray());
-        assertEquals(2, reportJson.path("summary").path("uniqueFindingCount").asInt());
+        assertTrue(reportJson.path("summary").path("uniqueFindingCount").asInt() >= 2);
+        assertEquals(6, reportJson.path("engines").size());
 
         MvcResult archive = mvc.perform(get("/api/v1/scans/{scanId}/reports/archive", scanId))
                 .andExpect(status().isOk()).andReturn();
@@ -96,6 +104,11 @@ class SemgrepZipApiE2ETest {
         assertTrue(archiveEntries.contains("report.html"));
         assertTrue(archiveEntries.contains("report.json"));
         assertTrue(archiveEntries.contains("raw/semgrep/report.json"));
+        assertTrue(archiveEntries.contains("raw/gitleaks/report.json"));
+        assertTrue(archiveEntries.contains("raw/pmd/report.json"));
+        assertTrue(archiveEntries.contains("raw/pmd-cpd/report.xml"));
+        assertTrue(archiveEntries.contains("raw/checkstyle/report.xml"));
+        assertTrue(archiveEntries.contains("raw/trivy-repository/report.json"));
         assertFalse(archiveEntries.stream().anyMatch(name -> name.contains("source") || name.contains("workspace")));
 
         Path jobRoot = DATA_ROOT.resolve("jobs").resolve(scanId);

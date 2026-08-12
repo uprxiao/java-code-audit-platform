@@ -35,7 +35,7 @@ final class StartupPrerequisiteChecker {
     private final Clock clock;
     private final String mavenExecutable;
     private final long minimumDiskBytes;
-    private final ToolInstallationHealth semgrep;
+    private final List<ToolInstallationHealth> tools;
 
     StartupPrerequisiteChecker(
             AuditRuntimePaths paths,
@@ -46,6 +46,18 @@ final class StartupPrerequisiteChecker {
             String mavenExecutable,
             long minimumDiskBytes,
             ToolInstallationHealth semgrep) {
+        this(paths, processes, files, json, clock, mavenExecutable, minimumDiskBytes, List.of(semgrep));
+    }
+
+    StartupPrerequisiteChecker(
+            AuditRuntimePaths paths,
+            LocalProcessExecutionBackend processes,
+            AtomicFileWriter files,
+            ObjectMapper json,
+            Clock clock,
+            String mavenExecutable,
+            long minimumDiskBytes,
+            List<ToolInstallationHealth> tools) {
         this.paths = paths;
         this.processes = processes;
         this.files = files;
@@ -53,7 +65,7 @@ final class StartupPrerequisiteChecker {
         this.clock = clock;
         this.mavenExecutable = mavenExecutable;
         this.minimumDiskBytes = minimumDiskBytes;
-        this.semgrep = semgrep;
+        this.tools = List.copyOf(tools);
     }
 
     StartupHealthSnapshot checkAndPersist() throws IOException, InterruptedException {
@@ -85,13 +97,13 @@ final class StartupPrerequisiteChecker {
         String mavenVersion = extractMavenVersion(output);
         String mavenJavaVersion = extractMavenJavaVersion(output);
         StartupHealthSnapshot snapshot = new StartupHealthSnapshot(
-                "UP",
+                tools.stream().allMatch(ToolInstallationHealth::available) ? "UP" : "DEGRADED",
                 System.getProperty("os.name", "unknown"),
                 System.getProperty("os.arch", "unknown"),
                 System.getProperty("java.version", "unknown"),
                 mavenVersion,
                 mavenJavaVersion,
-                List.of(semgrep),
+                tools,
                 usableDiskBytes,
                 minimumDiskBytes,
                 clock.instant());

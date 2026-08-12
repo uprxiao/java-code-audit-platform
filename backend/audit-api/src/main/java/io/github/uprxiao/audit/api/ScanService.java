@@ -1,6 +1,5 @@
 package io.github.uprxiao.audit.api;
 
-import io.github.uprxiao.audit.adapter.semgrep.SemgrepAdapter;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.EngineTaskState;
 import io.github.uprxiao.audit.finding.FailureDetails;
@@ -21,18 +20,28 @@ import io.github.uprxiao.audit.intake.StagedUpload;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
+import io.github.uprxiao.audit.orchestrator.DefaultScanPlanner;
+import io.github.uprxiao.audit.orchestrator.EngineAction;
+import io.github.uprxiao.audit.orchestrator.EngineExecutionResult;
+import io.github.uprxiao.audit.orchestrator.FairDagScheduler;
+import io.github.uprxiao.audit.orchestrator.ScanEngine;
+import io.github.uprxiao.audit.orchestrator.ScanExecutionPlanFactory;
+import io.github.uprxiao.audit.orchestrator.ScanJobHandle;
+import io.github.uprxiao.audit.orchestrator.ScanJobListener;
+import io.github.uprxiao.audit.orchestrator.ScanPlan;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.report.ReportGenerationOptions;
 import io.github.uprxiao.audit.report.ReportInput;
 import io.github.uprxiao.audit.scanner.Applicability;
+import io.github.uprxiao.audit.scanner.EngineId;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
 import io.github.uprxiao.audit.scanner.ExecutionSpec;
 import io.github.uprxiao.audit.scanner.NormalizationResult;
 import io.github.uprxiao.audit.scanner.RawArtifactSet;
 import io.github.uprxiao.audit.scanner.ScanContext;
-import io.github.uprxiao.audit.scanner.ToolContext;
+import io.github.uprxiao.audit.scanner.ScannerAdapter;
 import io.github.uprxiao.audit.storage.JobDirectoryLayout;
 import io.github.uprxiao.audit.storage.JobStore;
 import io.github.uprxiao.audit.storage.JobTemporaryFileCleaner;
@@ -46,11 +55,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,10 +84,12 @@ public final class ScanService {
     private final MavenProjectInspector projects;
     private final MavenArgumentValidator mavenArguments;
     private final LocalProcessExecutionBackend processes;
-    private final SemgrepAdapter semgrep;
+    private final QuickScannerRegistry scanners;
+    private final FairDagScheduler scheduler;
+    private final DefaultScanPlanner planner = new DefaultScanPlanner();
+    private final ScanExecutionPlanFactory executionPlans = new ScanExecutionPlanFactory();
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
-    private final ToolInstallationHealth semgrepHealth;
     private final StorageCapacityGuard storageCapacity;
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
 
@@ -90,10 +105,10 @@ public final class ScanService {
             MavenProjectInspector projects,
             MavenArgumentValidator mavenArguments,
             LocalProcessExecutionBackend processes,
-            SemgrepAdapter semgrep,
+            QuickScannerRegistry scanners,
+            FairDagScheduler scheduler,
             ReportGenerator reports,
             JobTemporaryFileCleaner cleaner,
-            ToolInstallationHealth semgrepHealth,
             StorageCapacityGuard storageCapacity) {
         this.paths = paths;
         this.jobs = jobs;
@@ -106,10 +121,10 @@ public final class ScanService {
         this.projects = projects;
         this.mavenArguments = mavenArguments;
         this.processes = processes;
-        this.semgrep = semgrep;
+        this.scanners = scanners;
+        this.scheduler = scheduler;
         this.reports = reports;
         this.cleaner = cleaner;
-        this.semgrepHealth = semgrepHealth;
         this.storageCapacity = storageCapacity;
     }
 
@@ -119,6 +134,14 @@ public final class ScanService {
         if (request.profile() != ScanProfile.QUICK) {
             throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
                     "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");
+        }
+        if (!scanners.available()) {
+            List<String> unavailable = scanners.health().stream()
+                    .filter(tool -> !tool.available())
+                    .map(tool -> tool.id() + ":" + tool.reasonCode())
+                    .toList();
+            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
+                    "QUICK 所需工具未完整通过版本和完整性检查。", Map.of("unavailable", unavailable));
         }
         UUID scanId = ids.nextId();
         JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), scanId);
@@ -132,8 +155,13 @@ public final class ScanService {
         }
         Instant now = clock.instant();
         ScanJob job = ScanJob.queued(scanId, SourceType.ZIP, request.profile(), now);
-        EngineTaskState semgrepTask = EngineTaskState.pending(SemgrepAdapter.ID.value(), now);
-        RuntimeScan runtime = new RuntimeScan(layout, job, Map.of(SemgrepAdapter.ID.value(), semgrepTask), staged, request);
+        ScanPlan plan = planner.plan(request.profile());
+        Map<String, EngineTaskState> engineStates = new LinkedHashMap<>();
+        for (ScanEngine engine : plan.engines()) {
+            scanners.require(engine.id());
+            engineStates.put(engine.id().value(), EngineTaskState.pending(engine.id().value(), now));
+        }
+        RuntimeScan runtime = new RuntimeScan(layout, job, Map.copyOf(engineStates), staged, request, plan);
         persist(runtime);
         scans.put(scanId, runtime);
         Runnable workItem = () -> run(runtime, originalName);
@@ -157,7 +185,8 @@ public final class ScanService {
                             "queueLength", executor.getQueue().size(),
                             "queueCapacity", executor.getQueue().size() + executor.getQueue().remainingCapacity()));
         }
-        return new CreateScanResponse(scanId, job.status(), job.profile(), job.createdAt(), List.of("semgrep"));
+        return new CreateScanResponse(scanId, job.status(), job.profile(), job.createdAt(),
+                plan.engines().stream().map(engine -> engine.id().value()).toList());
     }
 
     public ScanView view(UUID scanId) {
@@ -205,6 +234,9 @@ public final class ScanService {
                 accepted = false;
             } else {
                 runtime.cancelRequested.set(true);
+                if (runtime.schedulerHandle != null) {
+                    runtime.schedulerHandle.cancel();
+                }
                 accepted = true;
                 if (runtime.job.status() == ScanStatus.QUEUED && executor.remove(runtime.workItem)) {
                     cancelRuntime(runtime);
@@ -231,12 +263,12 @@ public final class ScanService {
     }
 
     public Map<String, Object> toolHealth() {
-        boolean semgrepAvailable = semgrepHealth.available();
+        boolean quickAvailable = scanners.available();
         return Map.of(
-                "status", semgrepAvailable ? "UP" : "DEGRADED",
-                "tools", List.of(semgrepHealth),
+                "status", quickAvailable ? "UP" : "DEGRADED",
+                "tools", scanners.health(),
                 "profiles", Map.of(
-                        "QUICK", semgrepAvailable ? "PARTIAL_M3" : "UNAVAILABLE",
+                        "QUICK", quickAvailable ? "AVAILABLE" : "UNAVAILABLE",
                         "STANDARD", "UNAVAILABLE",
                         "DEEP", "UNAVAILABLE"));
     }
@@ -263,62 +295,64 @@ public final class ScanService {
                     "",
                     "sha256:" + runtime.staged.sha256());
             ProjectContext project = projects.inspect(extracted, source, runtime.request.profile());
+            runtime.project = project;
             transition(runtime, ScanStatus.PREFLIGHT, null);
-            Applicability applicability = semgrep.checkApplicability(project, toolContext());
-            if (applicability.status() != Applicability.Status.APPLICABLE) {
-                throw new SourceIntakeException(applicability.reasonCode(), applicability.detail());
-            }
-            transitionEngine(runtime, EngineStatus.READY, null);
             transition(runtime, ScanStatus.RUNNING, null);
-            transitionEngine(runtime, EngineStatus.RUNNING, null);
 
-            Path engineOutput = runtime.layout.rawEngine(SemgrepAdapter.ID.value());
-            ScanContext scanContext = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
-                    runtime.request.mavenProfiles(), runtime.request.mavenProperties());
-            ExecutionSpec specification = semgrep.prepare(scanContext, toolContext());
-            ExecutionResult execution = processes.execute(specification, runtime.cancelRequested::get);
-            if (execution.status() == ExecutionResult.Status.CANCELLED) {
+            Map<ScanEngine, EngineAction> actions = new LinkedHashMap<>();
+            for (ScanEngine engine : runtime.plan.engines()) {
+                ScannerAdapter adapter = scanners.require(engine.id());
+                actions.put(engine, token -> executeScanner(runtime, project, adapter, token));
+            }
+            ScanJobHandle handle = scheduler.submit(executionPlans.create(
+                    runtime.job.id(), runtime.plan, null, actions, listener(runtime)));
+            runtime.schedulerHandle = handle;
+            var executionResult = handle.completion().get();
+            if (executionResult.disposition()
+                    == io.github.uprxiao.audit.orchestrator.ScanJobExecutionResult.Disposition.CANCELLED) {
                 cancelRuntime(runtime);
                 return;
             }
-            RawArtifactSet raw = new RawArtifactSet(SemgrepAdapter.ID,
-                    Map.of("report", engineOutput.resolve("report.json")), execution);
-            NormalizationResult normalized = semgrep.normalize(scanContext, raw);
-            synchronized (runtime) {
-                runtime.findings = normalized.findings();
-                runtime.coverage = new ScanCoverage(
-                        project.manifest().modules().size(), 0, project.manifest().modules().size(),
-                        List.of("**/target/**", "**/.git/**"), List.of(normalized.coverage()));
+            if (runtime.persistenceFailure != null) {
+                throw runtime.persistenceFailure;
             }
-            if (normalized.coverage().status() == EngineStatus.PARTIAL) {
-                transitionEngine(runtime, EngineStatus.PARTIAL,
-                        new FailureDetails("SEMGREP_PARTIAL_ERRORS", "Semgrep completed with parser warnings",
-                                Map.of("warnings", normalized.warnings())));
-            } else {
-                transitionEngine(runtime, EngineStatus.SUCCEEDED, null);
+
+            List<NormalizationResult> normalizedResults = runtime.normalized.values().stream().toList();
+            List<Finding> allFindings = normalizedResults.stream()
+                    .flatMap(result -> result.findings().stream()).toList();
+            List<io.github.uprxiao.audit.finding.EngineCoverage> engineCoverage = coverage(runtime, project);
+            List<String> warnings = normalizedResults.stream()
+                    .flatMap(result -> result.warnings().stream()).toList();
+            synchronized (runtime) {
+                runtime.findings = allFindings;
+                runtime.coverage = new ScanCoverage(
+                        project.manifest().modules().size(), 0,
+                        engineCoverage.stream().anyMatch(value -> value.modulesScanned() > 0)
+                                ? project.manifest().modules().size() : 0,
+                        List.of("**/target/**", "**/.git/**"), engineCoverage);
             }
             transition(runtime, ScanStatus.FINALIZING, null);
             Instant reportCompletedAt = clock.instant();
-            ScanStatus finalStatus = normalized.coverage().status() == EngineStatus.PARTIAL
-                    ? ScanStatus.COMPLETED_WITH_ERRORS : ScanStatus.COMPLETED;
+            ScanStatus finalStatus = runtime.engines.values().stream()
+                    .allMatch(task -> task.status() == EngineStatus.SUCCEEDED)
+                            ? ScanStatus.COMPLETED : ScanStatus.COMPLETED_WITH_ERRORS;
             ReportInput reportInput = new ReportInput(
                     runtime.job.id(), runtime.job.profile(), finalStatus, runtime.job.createdAt(), reportCompletedAt,
                     Map.of(
                             "type", "ZIP",
                             "displayName", source.displayName(),
                             "sha256", source.contentSha256()),
-                    normalized.findings(), runtime.coverage,
+                    allFindings, runtime.coverage,
                     Map.of("components", 0, "vulnerableComponents", 0),
                     Map.of("status", "NOT_REQUIRED", "mavenProfiles", runtime.request.mavenProfiles()),
                     Map.of(
                             "mavenVersion", "system",
-                            "tools", List.of(Map.of("id", "semgrep", "version",
-                                    normalized.findings().stream().findFirst()
-                                            .flatMap(finding -> finding.evidence().stream().findFirst())
-                                            .map(evidence -> evidence.engineVersion()).orElse("1.170.0"))),
-                            "rules", List.of(Map.of("id", "java-audit", "sha256", "sha256:" + sha256(paths.semgrepRules()))),
+                            "tools", scanners.health().stream().map(tool -> Map.<String, Object>of(
+                                    "id", tool.id(), "version", tool.version(), "sha256", tool.sha256(),
+                                    "status", tool.status())).toList(),
+                            "rules", ruleManifest(),
                             "databases", List.of()),
-                    runtime.coverage.excludedPaths(), normalized.warnings(), configFingerprint());
+                    runtime.coverage.excludedPaths(), warnings, configFingerprint());
             ReportBundle bundle = reports.generate(
                     reportInput, runtime.layout.root(),
                     ReportGenerationOptions.withSensitiveValues(sensitiveRequestValues(runtime.request)));
@@ -327,7 +361,7 @@ public final class ScanService {
             }
             cleaner.cleanSuccessfulJob(runtime.layout);
             FailureDetails partial = finalStatus == ScanStatus.COMPLETED_WITH_ERRORS
-                    ? new FailureDetails("PARTIAL_ENGINE_RESULT", "one or more engines completed partially", Map.of())
+                    ? new FailureDetails("PARTIAL_ENGINE_RESULT", "one or more engines did not fully succeed", Map.of())
                     : null;
             synchronized (runtime) {
                 runtime.job = runtime.job.transitionTo(finalStatus, clock.instant(), partial);
@@ -344,6 +378,8 @@ public final class ScanService {
             } else {
                 fail(runtime, new FailureDetails("SCAN_INTERRUPTED", "scan worker was interrupted", Map.of()));
             }
+        } catch (ExecutionException exception) {
+            fail(runtime, failure(exception.getCause() instanceof Exception cause ? cause : exception));
         } catch (Exception exception) {
             if (runtime.cancelRequested.get()) {
                 cancelRuntime(runtime);
@@ -353,15 +389,122 @@ public final class ScanService {
         }
     }
 
+    private EngineExecutionResult executeScanner(
+            RuntimeScan runtime,
+            ProjectContext project,
+            ScannerAdapter adapter,
+            io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        EngineId id = adapter.descriptor().id();
+        try {
+            Applicability applicability = adapter.checkApplicability(project, scanners.tools());
+            if (applicability.status() != Applicability.Status.APPLICABLE) {
+                return EngineExecutionResult.failed(applicability.reasonCode(), applicability.detail());
+            }
+            Path engineOutput = runtime.layout.rawEngine(id.value());
+            ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
+                    runtime.request.mavenProfiles(), runtime.request.mavenProperties());
+            ExecutionSpec specification = adapter.prepare(context, scanners.tools());
+            ExecutionResult execution = processes.execute(specification,
+                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+            runtime.executions.put(id, execution);
+            if (execution.status() == ExecutionResult.Status.CANCELLED) {
+                return EngineExecutionResult.cancelled();
+            }
+            if (execution.status() == ExecutionResult.Status.TIMED_OUT) {
+                return EngineExecutionResult.timedOut("ENGINE_TIMEOUT", execution.message());
+            }
+            if (execution.status() == ExecutionResult.Status.FAILED) {
+                return EngineExecutionResult.failed("ENGINE_PROCESS_FAILED", execution.message());
+            }
+            String relativeArtifact = specification.expectedArtifacts().stream().findFirst()
+                    .orElseThrow(() -> new IOException("scanner did not declare a report artifact"))
+                    .relativePath();
+            RawArtifactSet raw = new RawArtifactSet(id,
+                    Map.of("report", engineOutput.resolve(relativeArtifact)), execution);
+            NormalizationResult normalized = adapter.normalize(context, raw);
+            runtime.normalized.put(id, normalized);
+            return normalized.coverage().status() == EngineStatus.PARTIAL
+                    ? EngineExecutionResult.partial(
+                            normalized.coverage().reasonCode().isBlank()
+                                    ? "ENGINE_PARTIAL" : normalized.coverage().reasonCode(),
+                            String.join("; ", normalized.warnings()))
+                    : EngineExecutionResult.succeeded();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return runtime.cancelRequested.get() || cancellationToken.isCancellationRequested()
+                    ? EngineExecutionResult.cancelled()
+                    : EngineExecutionResult.failed("ENGINE_INTERRUPTED", exception.getMessage());
+        } catch (Exception exception) {
+            return EngineExecutionResult.failed("ENGINE_EXECUTION_FAILED",
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
+    private ScanJobListener listener(RuntimeScan runtime) {
+        return new ScanJobListener() {
+            @Override
+            public void onEngineStateChanged(
+                    UUID scanId, EngineId engineId, EngineStatus status, FailureDetails failure) {
+                synchronized (runtime) {
+                    EngineTaskState current = runtime.engines.get(engineId.value());
+                    if (current == null || current.status().isTerminal()) {
+                        return;
+                    }
+                    try {
+                        EngineTaskState updated = current.transitionTo(status, clock.instant(), failure);
+                        Map<String, EngineTaskState> states = new LinkedHashMap<>(runtime.engines);
+                        states.put(engineId.value(), updated);
+                        runtime.engines = Map.copyOf(states);
+                        runtime.job = runtime.job.touch(clock.instant());
+                        persist(runtime);
+                    } catch (IOException exception) {
+                        runtime.persistenceFailure = exception;
+                    }
+                }
+            }
+        };
+    }
+
+    private List<io.github.uprxiao.audit.finding.EngineCoverage> coverage(
+            RuntimeScan runtime, ProjectContext project) {
+        int modules = project.manifest().modules().size();
+        List<io.github.uprxiao.audit.finding.EngineCoverage> result = new ArrayList<>();
+        for (ScanEngine engine : runtime.plan.engines()) {
+            NormalizationResult normalized = runtime.normalized.get(engine.id());
+            if (normalized != null) {
+                result.add(normalized.coverage());
+                continue;
+            }
+            EngineTaskState state = runtime.engines.get(engine.id().value());
+            ExecutionResult execution = runtime.executions.get(engine.id());
+            result.add(new io.github.uprxiao.audit.finding.EngineCoverage(
+                    engine.id().value(), state.status(), modules, modules, 0, 0,
+                    execution == null ? Duration.ZERO : execution.duration(),
+                    state.failure() == null ? state.status().name() : state.failure().code(),
+                    rawArtifact(runtime.layout, engine.id().value())));
+        }
+        return List.copyOf(result);
+    }
+
+    private String rawArtifact(JobDirectoryLayout layout, String engineId) {
+        Path root = layout.rawEngine(engineId);
+        for (String name : List.of("report.json", "report.xml")) {
+            if (Files.isRegularFile(root.resolve(name))) {
+                return "raw/" + engineId + "/" + name;
+            }
+        }
+        return "";
+    }
+
     private void cancelRuntime(RuntimeScan runtime) {
         synchronized (runtime) {
             if (runtime.job.status().isTerminal()) {
                 return;
             }
-            EngineTaskState engine = runtime.engines.get(SemgrepAdapter.ID.value());
-            if (engine != null && !engine.status().isTerminal()) {
-                runtime.engines = Map.of(engine.engineId(), engine.transitionTo(EngineStatus.CANCELLED, clock.instant()));
-            }
+            Map<String, EngineTaskState> states = new LinkedHashMap<>();
+            runtime.engines.forEach((id, engine) -> states.put(id, engine.status().isTerminal()
+                    ? engine : engine.transitionTo(EngineStatus.CANCELLED, clock.instant())));
+            runtime.engines = Map.copyOf(states);
             runtime.job = runtime.job.transitionTo(ScanStatus.CANCELLED, clock.instant());
             try {
                 persist(runtime);
@@ -373,10 +516,17 @@ public final class ScanService {
 
     private void fail(RuntimeScan runtime, FailureDetails failure) {
         synchronized (runtime) {
-            EngineTaskState engine = runtime.engines.get(SemgrepAdapter.ID.value());
-            if (engine != null && engine.status() == EngineStatus.RUNNING) {
-                runtime.engines = Map.of(engine.engineId(), engine.transitionTo(EngineStatus.FAILED, clock.instant(), failure));
-            }
+            Map<String, EngineTaskState> states = new LinkedHashMap<>();
+            runtime.engines.forEach((id, engine) -> {
+                if (engine.status().isTerminal()) {
+                    states.put(id, engine);
+                } else if (engine.status() == EngineStatus.RUNNING) {
+                    states.put(id, engine.transitionTo(EngineStatus.FAILED, clock.instant(), failure));
+                } else {
+                    states.put(id, engine.transitionTo(EngineStatus.SKIPPED, clock.instant(), failure));
+                }
+            });
+            runtime.engines = Map.copyOf(states);
             if (!runtime.job.status().isTerminal()) {
                 try {
                     runtime.job = runtime.job.transitionTo(ScanStatus.FAILED, clock.instant(), failure);
@@ -407,22 +557,6 @@ public final class ScanService {
         }
     }
 
-    private void transitionEngine(RuntimeScan runtime, EngineStatus next, FailureDetails failure) throws IOException {
-        synchronized (runtime) {
-            EngineTaskState current = runtime.engines.get(SemgrepAdapter.ID.value());
-            EngineTaskState updated = current.transitionTo(next, clock.instant(), failure);
-            runtime.engines = Map.of(SemgrepAdapter.ID.value(), updated);
-            runtime.job = runtime.job.touch(clock.instant());
-            persist(runtime);
-        }
-    }
-
-    private ToolContext toolContext() {
-        return new ToolContext(paths.semgrepExecutable().getParent(), Map.of(
-                SemgrepAdapter.ID, new ToolContext.ToolInstallation(
-                        paths.semgrepExecutable(), semgrepHealth.version(), semgrepHealth.available())));
-    }
-
     private RuntimeScan require(UUID scanId) {
         RuntimeScan runtime = scans.get(scanId);
         if (runtime == null) {
@@ -440,7 +574,31 @@ public final class ScanService {
     }
 
     private String configFingerprint() throws IOException {
-        return "sha256:" + sha256(paths.semgrepRules());
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (Path rule : ruleFiles()) {
+                digest.update(Files.readAllBytes(rule));
+            }
+            return "sha256:" + HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by Java 17", exception);
+        }
+    }
+
+    private List<Map<String, Object>> ruleManifest() throws IOException {
+        return List.of(
+                ruleEntry("semgrep-java-audit", "config/rules/semgrep/java-audit.yaml", paths.semgrepRules()),
+                ruleEntry("gitleaks-java-audit", "config/rules/gitleaks/gitleaks.toml", paths.gitleaksRules()),
+                ruleEntry("pmd-java-audit", "config/rules/pmd/java-audit.xml", paths.pmdRules()),
+                ruleEntry("checkstyle-java-audit", "config/rules/checkstyle/java-audit.xml", paths.checkstyleRules()));
+    }
+
+    private Map<String, Object> ruleEntry(String id, String portablePath, Path rule) throws IOException {
+        return Map.of("id", id, "path", portablePath, "sha256", "sha256:" + sha256(rule));
+    }
+
+    private List<Path> ruleFiles() {
+        return List.of(paths.semgrepRules(), paths.gitleaksRules(), paths.pmdRules(), paths.checkstyleRules());
     }
 
     private List<String> sensitiveRequestValues(ZipScanRequest request) {
@@ -475,25 +633,33 @@ public final class ScanService {
         private final JobDirectoryLayout layout;
         private final StagedUpload staged;
         private final ZipScanRequest request;
+        private final ScanPlan plan;
         private ScanJob job;
         private Map<String, EngineTaskState> engines;
         private List<Finding> findings = List.of();
         private ScanCoverage coverage;
         private ReportBundle bundle;
         private final AtomicBoolean cancelRequested = new AtomicBoolean();
+        private final Map<EngineId, NormalizationResult> normalized = new ConcurrentHashMap<>();
+        private final Map<EngineId, ExecutionResult> executions = new ConcurrentHashMap<>();
         private Runnable workItem;
+        private volatile ScanJobHandle schedulerHandle;
+        private volatile IOException persistenceFailure;
+        private volatile ProjectContext project;
 
         private RuntimeScan(
                 JobDirectoryLayout layout,
                 ScanJob job,
                 Map<String, EngineTaskState> engines,
                 StagedUpload staged,
-                ZipScanRequest request) {
+                ZipScanRequest request,
+                ScanPlan plan) {
             this.layout = layout;
             this.job = job;
             this.engines = engines;
             this.staged = staged;
             this.request = request;
+            this.plan = plan;
         }
     }
 }
