@@ -23,6 +23,7 @@ import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
+import io.github.uprxiao.audit.report.ReportGenerationOptions;
 import io.github.uprxiao.audit.report.ReportInput;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.CancellationToken;
@@ -276,7 +277,9 @@ public final class ScanService {
                             "rules", List.of(Map.of("id", "java-audit", "sha256", "sha256:" + sha256(paths.semgrepRules()))),
                             "databases", List.of()),
                     runtime.coverage.excludedPaths(), normalized.warnings(), configFingerprint());
-            ReportBundle bundle = reports.generate(reportInput, runtime.layout.root());
+            ReportBundle bundle = reports.generate(
+                    reportInput, runtime.layout.root(),
+                    ReportGenerationOptions.withSensitiveValues(sensitiveRequestValues(runtime.request)));
             synchronized (runtime) {
                 runtime.bundle = bundle;
             }
@@ -370,6 +373,14 @@ public final class ScanService {
 
     private String configFingerprint() throws IOException {
         return "sha256:" + sha256(paths.semgrepRules());
+    }
+
+    private List<String> sensitiveRequestValues(ZipScanRequest request) {
+        return request.mavenProperties().entrySet().stream()
+                .filter(entry -> mavenArguments.isSensitiveProperty(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
     }
 
     private String sha256(Path file) throws IOException {
