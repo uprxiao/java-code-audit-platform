@@ -2,7 +2,7 @@
 
 面向 Java 17 Maven 项目的个人 Web 代码审计工具。用户上传源码 ZIP 或提供 SVN 当前快照地址后，平台在本机编排多个扫描器，统一归类、分级、去重并导出 HTML、JSON、SARIF、SBOM 和原始证据。
 
-> 当前状态：V1 范围与开发计划已经冻结，代码仍处于领域骨架阶段。后续实现以 [`docs/v1/`](docs/v1/README.md) 为唯一规范来源。
+> 当前状态：V1 正按 [`docs/v1/`](docs/v1/README.md) 实施。Quick 六引擎、并发调度、统一报告和 Mac/Linux 真实验收已完成；Standard、SVN 和 Deep 正在开发，未宣称 V1 已全部验收。
 
 ## V1 形态
 
@@ -50,11 +50,12 @@ V1 直接在宿主机运行 Maven。跳过测试并不能阻止 Maven 插件和�
 
 ```text
 backend/
-  audit-api/          REST入口（骨架）
-  finding-core/       统一领域模型（骨架）
-  scan-orchestrator/  扫描计划（骨架）
-  scan-runner/        将演进为本地进程执行模块
-  report-service/     报告模块（占位）
+  audit-api/           REST、任务索引、恢复与扫描集成
+  finding-core/        统一 Finding、指纹、分级、去重与脱敏
+  scan-orchestrator/   YAML 扫描计划、公平 DAG 和资源许可
+  local-process-runner/安全本地进程、Maven、超时/取消
+  scanner-adapters/    扫描器命令和 Parser 适配层
+  report-service/      HTML、JSON、SARIF、manifest 与归档
 config/
   profiles/           Quick/Standard/Deep目标配置
   rules/              规则与抑制配置
@@ -72,11 +73,16 @@ tools/                工具分发与本地安装约定
 
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
-mvn clean verify
-mvn -pl backend/audit-api -am spring-boot:run
+./mvnw clean verify
+./scripts/build-semgrep-pack.sh darwin-arm64
+./scripts/build-quick-tool-pack.sh darwin-arm64
+
+export AUDIT_SEMGREP_EXECUTABLE="$PWD/tools/downloads/tool-pack/darwin-arm64/semgrep/semgrep/bin/semgrep"
+export AUDIT_QUICK_TOOL_ROOT="$PWD/tools/downloads/tool-pack/darwin-arm64/quick"
+./mvnw -pl backend/audit-api -am spring-boot:run
 ```
 
-当前 `POST /api/v1/scans` 仍是骨架接口，不执行真实扫描。目标 API 见[API 契约](docs/v1/api-contract.md)。
+当前可用 `POST /api/v1/scans/zip` 执行真实 Quick 扫描；进度、引擎、Finding、取消、删除和报告下载接口见 [API 契约](docs/v1/api-contract.md)。
 
 ## 核心文档
 
