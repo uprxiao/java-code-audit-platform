@@ -21,6 +21,7 @@ scanner-cache/
 tools/local/
 tools/downloads/
 tools/downloads
+tools/local
 .tool-pack-staging/
 .m2/
 v1-acceptance-evidence/

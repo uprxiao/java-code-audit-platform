@@ -53,6 +53,37 @@ class ScanExecutionPlanFactoryTest {
                 () -> factory.create(UUID.randomUUID(), plan, null, Map.of()));
     }
 
+    @Test
+    void mapsProcessFamiliesToSharedToolPermits() {
+        ScanPlan plan = new ScanPlan(ScanProfile.DEEP, List.of(
+                planned(ScanEngine.MAVEN_DEPENDENCY_ANALYSIS, true),
+                planned(ScanEngine.MAVEN_ENFORCER, true),
+                planned(ScanEngine.CYCLONEDX, true),
+                planned(ScanEngine.DEPENDENCY_CHECK, true),
+                planned(ScanEngine.CODEQL, true),
+                planned(ScanEngine.SEMGREP, false)));
+        Map<ScanEngine, EngineAction> actions = new java.util.EnumMap<>(ScanEngine.class);
+        plan.plannedEngines().forEach(engine -> actions.put(engine.engine(), token -> EngineExecutionResult.succeeded()));
+
+        ScheduledScanJob scheduled = factory.create(
+                UUID.randomUUID(), plan, token -> EngineExecutionResult.succeeded(), actions);
+        Map<io.github.uprxiao.audit.scanner.EngineId, io.github.uprxiao.audit.scanner.EngineId> permits =
+                scheduled.engines().stream().collect(java.util.stream.Collectors.toMap(
+                        ScheduledEngineTask::id, ScheduledEngineTask::toolPermit));
+
+        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+                permits.get(ScanEngine.MAVEN_DEPENDENCY_ANALYSIS.id()));
+        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+                permits.get(ScanEngine.MAVEN_ENFORCER.id()));
+        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+                permits.get(ScanEngine.CYCLONEDX.id()));
+        assertEquals(ScanExecutionPlanFactory.DEPENDENCY_CHECK_TOOL_PERMIT,
+                permits.get(ScanEngine.DEPENDENCY_CHECK.id()));
+        assertEquals(ScanExecutionPlanFactory.CODEQL_TOOL_PERMIT,
+                permits.get(ScanEngine.CODEQL.id()));
+        assertEquals(ScanEngine.SEMGREP.id(), permits.get(ScanEngine.SEMGREP.id()));
+    }
+
     private PlannedEngine planned(ScanEngine engine, boolean build) {
         return new PlannedEngine(
                 engine, build, ResourceClass.MEDIUM, 2, 1024, Duration.ofMinutes(5), List.of());

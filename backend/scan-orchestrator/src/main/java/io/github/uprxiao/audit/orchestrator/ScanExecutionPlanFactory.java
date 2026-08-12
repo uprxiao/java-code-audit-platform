@@ -13,6 +13,8 @@ public final class ScanExecutionPlanFactory {
 
     public static final EngineId MAVEN_BUILD = new EngineId("maven-build");
     public static final EngineId MAVEN_TOOL_PERMIT = new EngineId("maven");
+    public static final EngineId DEPENDENCY_CHECK_TOOL_PERMIT = new EngineId("dependency-check");
+    public static final EngineId CODEQL_TOOL_PERMIT = new EngineId("codeql");
 
     public ScheduledScanJob create(
             UUID scanId,
@@ -43,7 +45,7 @@ public final class ScanExecutionPlanFactory {
                 dependencies.add(MAVEN_BUILD);
             }
             tasks.add(new ScheduledEngineTask(
-                    engine.engine().id(), dependencies, engine.weight(), engine.engine().id(), action));
+                    engine.engine().id(), dependencies, engine.weight(), toolPermit(engine.engine()), action));
         }
         return new ScheduledScanJob(scanId, tasks, listener);
     }
@@ -54,5 +56,14 @@ public final class ScanExecutionPlanFactory {
             EngineAction mavenBuild,
             Map<ScanEngine, EngineAction> actions) {
         return create(scanId, plan, mavenBuild, actions, ScanJobListener.NONE);
+    }
+
+    private EngineId toolPermit(ScanEngine engine) {
+        return switch (engine) {
+            case MAVEN_DEPENDENCY_ANALYSIS, MAVEN_ENFORCER, CYCLONEDX -> MAVEN_TOOL_PERMIT;
+            case DEPENDENCY_CHECK -> DEPENDENCY_CHECK_TOOL_PERMIT;
+            case CODEQL -> CODEQL_TOOL_PERMIT;
+            default -> engine.id();
+        };
     }
 }
