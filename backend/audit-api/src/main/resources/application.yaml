@@ -29,3 +29,8 @@ audit:
     max-compression-ratio: ${AUDIT_MAX_COMPRESSION_RATIO:100}
   storage:
     minimum-free-bytes: ${AUDIT_MINIMUM_FREE_BYTES:53687091200}
+  retention:
+    successful-results: ${AUDIT_SUCCESSFUL_RETENTION:30d}
+    failed-results: ${AUDIT_FAILED_RETENTION:7d}
+    failed-workspace: ${AUDIT_FAILED_WORKSPACE_RETENTION:24h}
+    cleanup-interval: ${AUDIT_CLEANUP_INTERVAL:1h}

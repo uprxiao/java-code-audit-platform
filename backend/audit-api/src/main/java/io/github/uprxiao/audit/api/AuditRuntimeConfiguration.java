@@ -12,13 +12,16 @@ import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
 import io.github.uprxiao.audit.storage.AtomicFileWriter;
 import io.github.uprxiao.audit.storage.JobStore;
+import io.github.uprxiao.audit.storage.JobRetentionService;
 import io.github.uprxiao.audit.storage.JobTemporaryFileCleaner;
+import io.github.uprxiao.audit.storage.RetentionPolicy;
 import io.github.uprxiao.audit.storage.SingleInstanceLock;
 import io.github.uprxiao.audit.storage.NioAtomicFileWriter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -168,5 +171,19 @@ class AuditRuntimeConfiguration {
     @Bean
     JobTemporaryFileCleaner temporaryFileCleaner() {
         return new JobTemporaryFileCleaner();
+    }
+
+    @Bean
+    RetentionPolicy retentionPolicy(
+            @Value("${audit.retention.successful-results:30d}") Duration successfulResults,
+            @Value("${audit.retention.failed-results:7d}") Duration failedResults,
+            @Value("${audit.retention.failed-workspace:24h}") Duration failedWorkspace,
+            @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes) {
+        return new RetentionPolicy(successfulResults, failedResults, failedWorkspace, minimumDiskBytes);
+    }
+
+    @Bean
+    JobRetentionService jobRetentionService(AuditRuntimePaths paths, RetentionPolicy policy) {
+        return new JobRetentionService(paths.dataRoot(), policy);
     }
 }
