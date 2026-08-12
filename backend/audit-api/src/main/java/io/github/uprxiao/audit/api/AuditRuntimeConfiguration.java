@@ -2,6 +2,8 @@ package io.github.uprxiao.audit.api;
 
 import io.github.uprxiao.audit.adapter.semgrep.SemgrepAdapter;
 import io.github.uprxiao.audit.adapter.checkstyle.CheckstyleAdapter;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlWorkflow;
 import io.github.uprxiao.audit.adapter.gitleaks.GitleaksAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdCpdAdapter;
@@ -66,6 +68,10 @@ class AuditRuntimeConfiguration {
             @Value("${audit.tools.quick-root:}") String configuredQuickRoot,
             @Value("${audit.tools.standard-analysis-root:./tools/downloads/tool-pack/common/standard-analysis}")
                     String standardAnalysisRoot,
+            @Value("${audit.tools.codeql-executable:./tools/local/codeql-v2.26.2/codeql/codeql}")
+                    String codeqlExecutable,
+            @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}")
+                    String codeqlQuerySuite,
             @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules,
             @Value("${audit.rules.gitleaks:./config/rules/gitleaks/gitleaks.toml}") String gitleaksRules,
             @Value("${audit.rules.pmd:./config/rules/pmd/java-audit.xml}") String pmdRules,
@@ -80,6 +86,8 @@ class AuditRuntimeConfiguration {
                 Path.of(semgrepRules).toAbsolutePath().normalize(),
                 Path.of(quickRoot).toAbsolutePath().normalize(),
                 Path.of(standardAnalysisRoot).toAbsolutePath().normalize(),
+                Path.of(codeqlExecutable).toAbsolutePath().normalize(),
+                Path.of(codeqlQuerySuite).toAbsolutePath().normalize(),
                 Path.of(gitleaksRules).toAbsolutePath().normalize(),
                 Path.of(pmdRules).toAbsolutePath().normalize(),
                 Path.of(checkstyleRules).toAbsolutePath().normalize(),
@@ -252,6 +260,11 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
+    CodeqlWorkflow codeqlWorkflow(LocalProcessExecutionBackend processes) {
+        return new CodeqlWorkflow(processes);
+    }
+
+    @Bean
     StartupHealthSnapshot startupHealthSnapshot(
             AuditRuntimePaths paths,
             LocalProcessExecutionBackend processes,
@@ -300,6 +313,11 @@ class AuditRuntimeConfiguration {
                 paths, processes, clock, mavenExecutable,
                 System.getenv().getOrDefault("PATH", "/usr/bin:/bin")).checkAll();
         health.addAll(standardHealth);
+        ToolInstallationHealth codeqlHealth = new CodeqlToolIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock).check();
+        health.add(codeqlHealth);
+        Path resolvedMaven = StandardAnalysisToolIntegrityChecker.resolveExecutable(
+                mavenExecutable, System.getenv().getOrDefault("PATH", "/usr/bin:/bin"));
         List<io.github.uprxiao.audit.scanner.ScannerAdapter> adapters = List.of(
                 new GitleaksAdapter(paths.gitleaksRules()),
                 semgrep,
@@ -310,7 +328,11 @@ class AuditRuntimeConfiguration {
                 new SpotBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
                 new FindSecBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
                 new MavenDependencyAnalysisAdapter(paths.mavenLocalRepository()),
-                new MavenEnforcerAdapter(paths.mavenLocalRepository()));
+                new MavenEnforcerAdapter(paths.mavenLocalRepository()),
+                new CodeqlAdapter(
+                        paths.codeqlQuerySuite(),
+                        resolvedMaven == null ? Path.of("/codeql-maven-unavailable") : resolvedMaven,
+                        Path.of(System.getProperty("java.home"))));
         boolean mavenAvailable = standardHealth.stream()
                 .filter(tool -> tool.id().startsWith("maven-"))
                 .allMatch(ToolInstallationHealth::available);

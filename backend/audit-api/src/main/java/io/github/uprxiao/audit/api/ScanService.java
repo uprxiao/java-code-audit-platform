@@ -2,6 +2,7 @@ package io.github.uprxiao.audit.api;
 
 import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
 import io.github.uprxiao.audit.finding.EngineStatus;
+import io.github.uprxiao.audit.finding.ConservativeFindingDeduplicator;
 import io.github.uprxiao.audit.finding.EngineTaskState;
 import io.github.uprxiao.audit.finding.FailureDetails;
 import io.github.uprxiao.audit.finding.Finding;
@@ -39,6 +40,8 @@ import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.process.MavenBuildRequest;
 import io.github.uprxiao.audit.process.MavenBuildResult;
 import io.github.uprxiao.audit.process.MavenProcessAdapter;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlWorkflow;
 import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.report.ReportGenerationOptions;
@@ -100,8 +103,10 @@ public final class ScanService {
     private final FairDagScheduler scheduler;
     private final DefaultScanPlanner planner;
     private final ScanExecutionPlanFactory executionPlans = new ScanExecutionPlanFactory();
+    private final ConservativeFindingDeduplicator deduplicator = new ConservativeFindingDeduplicator();
     private final MavenProcessAdapter maven;
     private final Duration mavenBuildTimeout;
+    private final CodeqlWorkflow codeql;
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
@@ -126,6 +131,7 @@ public final class ScanService {
             FairDagScheduler scheduler,
             DefaultScanPlanner planner,
             MavenProcessAdapter maven,
+            CodeqlWorkflow codeql,
             @org.springframework.beans.factory.annotation.Value("${audit.maven.build-timeout:20m}")
                     Duration mavenBuildTimeout,
             ReportGenerator reports,
@@ -148,6 +154,7 @@ public final class ScanService {
         this.scheduler = scheduler;
         this.planner = planner;
         this.maven = maven;
+        this.codeql = codeql;
         this.mavenBuildTimeout = mavenBuildTimeout;
         this.reports = reports;
         this.cleaner = cleaner;
@@ -571,6 +578,8 @@ public final class ScanService {
                 ScannerAdapter adapter = scanners.require(engine.id());
                 if (engine == ScanEngine.FINDSECBUGS) {
                     actions.put(engine, token -> executeSharedFindSecBugs(runtime, project, adapter, token));
+                } else if (engine == ScanEngine.CODEQL) {
+                    actions.put(engine, token -> executeCodeql(runtime, project, (CodeqlAdapter) adapter, token));
                 } else {
                     actions.put(engine, token -> executeScanner(runtime, project, adapter, token));
                 }
@@ -591,15 +600,21 @@ public final class ScanService {
             }
 
             List<NormalizationResult> normalizedResults = runtime.normalized.values().stream().toList();
-            List<Finding> allFindings = normalizedResults.stream()
+            List<Finding> normalizedFindings = normalizedResults.stream()
                     .flatMap(result -> result.findings().stream()).toList();
+            List<Finding> activeFindings = deduplicator.deduplicate(
+                    normalizedFindings.stream().filter(finding -> !finding.suppressed()).toList()).findings();
+            List<Finding> suppressedFindings = deduplicator.deduplicate(
+                    normalizedFindings.stream().filter(Finding::suppressed).toList()).findings();
+            List<Finding> allFindings = java.util.stream.Stream.concat(
+                    activeFindings.stream(), suppressedFindings.stream()).toList();
             List<io.github.uprxiao.audit.finding.EngineCoverage> engineCoverage = coverage(runtime, project);
             List<String> warnings = normalizedResults.stream()
                     .flatMap(result -> result.warnings().stream()).toList();
             synchronized (runtime) {
                 runtime.findings = allFindings;
                 runtime.coverage = new ScanCoverage(
-                        project.manifest().modules().size(), 0,
+                        project.manifest().modules().size(), modulesBuilt(runtime, project),
                         engineCoverage.stream().anyMatch(value -> value.modulesScanned() > 0)
                                 ? project.manifest().modules().size() : 0,
                         List.of("**/target/**", "**/.git/**"), engineCoverage);
@@ -609,11 +624,12 @@ public final class ScanService {
             ScanStatus finalStatus = runtime.engines.values().stream()
                     .allMatch(task -> task.status() == EngineStatus.SUCCEEDED)
                             ? ScanStatus.COMPLETED : ScanStatus.COMPLETED_WITH_ERRORS;
+            Map<String, Object> sbomSummary = finalizeSbom(runtime, activeFindings);
             ReportInput reportInput = new ReportInput(
                     runtime.job.id(), runtime.job.profile(), finalStatus, runtime.job.createdAt(), reportCompletedAt,
                     reportSource(source),
                     allFindings, runtime.coverage,
-                    Map.of("components", 0, "vulnerableComponents", 0),
+                    sbomSummary,
                     mavenBuildSummary(runtime),
                     Map.of(
                             "mavenVersion", "system",
@@ -791,6 +807,51 @@ public final class ScanService {
                     : EngineExecutionResult.failed("MAVEN_BUILD_INTERRUPTED", "Maven build was interrupted");
         } catch (Exception exception) {
             return EngineExecutionResult.failed("MAVEN_BUILD_FAILED",
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
+    private EngineExecutionResult executeCodeql(
+            RuntimeScan runtime,
+            ProjectContext project,
+            CodeqlAdapter adapter,
+            io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        try {
+            Applicability applicability = adapter.checkApplicability(project, scanners.tools());
+            if (applicability.status() != Applicability.Status.APPLICABLE) {
+                return EngineExecutionResult.failed(applicability.reasonCode(), applicability.detail());
+            }
+            Path engineOutput = runtime.layout.rawEngine(CodeqlAdapter.ID.value());
+            ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
+                    runtime.request.mavenProfiles(), runtime.request.mavenProperties());
+            CodeqlWorkflow.Result result = codeql.execute(
+                    adapter, context, scanners.tools(),
+                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+            runtime.executions.put(CodeqlAdapter.ID, result.analysis());
+            NormalizationResult normalized = adapter.normalize(context, result.artifacts());
+            runtime.normalized.put(CodeqlAdapter.ID, normalized);
+            return normalized.coverage().status() == EngineStatus.PARTIAL
+                    ? EngineExecutionResult.partial(
+                            normalized.coverage().reasonCode().isBlank()
+                                    ? "ENGINE_PARTIAL" : normalized.coverage().reasonCode(),
+                            String.join("; ", normalized.warnings()))
+                    : EngineExecutionResult.succeeded();
+        } catch (CodeqlWorkflow.CodeqlWorkflowException exception) {
+            runtime.executions.put(CodeqlAdapter.ID, exception.execution());
+            return switch (exception.execution().status()) {
+                case CANCELLED -> EngineExecutionResult.cancelled();
+                case TIMED_OUT -> EngineExecutionResult.timedOut(
+                        "CODEQL_" + exception.phase().name() + "_TIMEOUT", exception.getMessage());
+                case FAILED, SUCCEEDED -> EngineExecutionResult.failed(
+                        "CODEQL_" + exception.phase().name() + "_FAILED", exception.getMessage());
+            };
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return runtime.cancelRequested.get() || cancellationToken.isCancellationRequested()
+                    ? EngineExecutionResult.cancelled()
+                    : EngineExecutionResult.failed("CODEQL_INTERRUPTED", "CodeQL workflow was interrupted");
+        } catch (Exception exception) {
+            return EngineExecutionResult.failed("CODEQL_EXECUTION_FAILED",
                     exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
         }
     }
@@ -1037,6 +1098,60 @@ public final class ScanService {
                         "status", module.status().name())).toList(),
                 "durationMillis", result.execution().duration().toMillis(),
                 "artifact", "raw/maven-build/stdout.log");
+    }
+
+    private int modulesBuilt(RuntimeScan runtime, ProjectContext project) {
+        if (runtime.mavenBuild == null || runtime.mavenBuild.status() != MavenBuildResult.Status.SUCCEEDED) {
+            return 0;
+        }
+        if (runtime.mavenBuild.modules().isEmpty()) {
+            // Maven may omit the Reactor Summary for a single module; success means that module built.
+            return project.manifest().modules().size() == 1 ? 1 : 0;
+        }
+        long successful = runtime.mavenBuild.modules().stream()
+                .filter(module -> module.status() == io.github.uprxiao.audit.process.MavenModuleResult.Status.SUCCESS)
+                .count();
+        // The root aggregator may be present in Maven's summary but is already one manifest module.
+        return (int) Math.min(project.manifest().modules().size(), successful);
+    }
+
+    private Map<String, Object> finalizeSbom(RuntimeScan runtime, List<Finding> activeFindings) throws IOException {
+        Path raw = runtime.layout.rawEngine("cyclonedx").resolve("sbom/bom.json");
+        if (!Files.isRegularFile(raw)) {
+            return Map.of(
+                    "status", runtime.job.profile() == ScanProfile.QUICK ? "NOT_REQUIRED" : "UNAVAILABLE",
+                    "components", 0,
+                    "vulnerableComponents", 0);
+        }
+        Path target = runtime.layout.safeResolve("sbom/bom.json");
+        if (Files.exists(target)) {
+            throw new IOException("SBOM final target already exists");
+        }
+        byte[] bom = Files.readAllBytes(raw);
+        Path temporary = runtime.layout.safeResolve("sbom/bom.json.tmp");
+        Files.createDirectories(target.getParent());
+        Files.write(temporary, bom, java.nio.file.StandardOpenOption.CREATE_NEW);
+        try {
+            Files.move(temporary, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+            Files.move(temporary, target);
+        }
+        com.fasterxml.jackson.databind.JsonNode document = json.readTree(bom);
+        int components = document.path("components").isArray() ? document.path("components").size() : 0;
+        long vulnerableComponents = activeFindings.stream()
+                .filter(finding -> finding.category() == io.github.uprxiao.audit.finding.IssueCategory.DEPENDENCY_VULNERABILITY)
+                .map(Finding::component)
+                .filter(java.util.Objects::nonNull)
+                .map(io.github.uprxiao.audit.finding.ComponentEvidence::purl)
+                .distinct()
+                .count();
+        return Map.of(
+                "status", "AVAILABLE",
+                "format", document.path("bomFormat").asText("CycloneDX"),
+                "specVersion", document.path("specVersion").asText(""),
+                "components", components,
+                "vulnerableComponents", vulnerableComponents,
+                "artifact", "sbom/bom.json");
     }
 
     private String redactedSvnLocation(String repositoryUrl) {

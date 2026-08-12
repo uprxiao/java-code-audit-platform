@@ -82,6 +82,13 @@
                 <directory>../../tools/standard-analysis/metadata</directory>
                 <targetPath>audit/tools/standard-analysis</targetPath>
             </resource>
+            <resource>
+                <directory>../../tools/manifest</directory>
+                <includes>
+                    <include>codeql-local.yaml</include>
+                </includes>
+                <targetPath>audit/tools</targetPath>
+            </resource>
         </resources>
         <plugins>
             <plugin>

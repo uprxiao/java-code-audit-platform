@@ -16,6 +16,8 @@ audit:
     semgrep-version: ${AUDIT_SEMGREP_VERSION:1.170.0}
     quick-root: ${AUDIT_QUICK_TOOL_ROOT:}
     standard-analysis-root: ${AUDIT_STANDARD_ANALYSIS_TOOL_ROOT:./tools/downloads/tool-pack/common/standard-analysis}
+    codeql-executable: ${AUDIT_CODEQL_EXECUTABLE:./tools/local/codeql-v2.26.2/codeql/codeql}
+    codeql-query-suite: ${AUDIT_CODEQL_QUERY_SUITE:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}
   maven:
     executable: ${AUDIT_MAVEN_EXECUTABLE:mvn}
     settings: ${AUDIT_MAVEN_SETTINGS:}

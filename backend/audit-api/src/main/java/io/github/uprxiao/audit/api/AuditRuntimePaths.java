@@ -8,6 +8,8 @@ record AuditRuntimePaths(
         Path semgrepRules,
         Path quickToolRoot,
         Path standardAnalysisToolRoot,
+        Path codeqlExecutable,
+        Path codeqlQuerySuite,
         Path gitleaksRules,
         Path pmdRules,
         Path checkstyleRules,
@@ -17,6 +19,9 @@ record AuditRuntimePaths(
         this(dataRoot, semgrepExecutable, semgrepRules,
                 Path.of("./tools/downloads/quick").toAbsolutePath().normalize(),
                 Path.of("./tools/downloads/tool-pack/common/standard-analysis").toAbsolutePath().normalize(),
+                Path.of("./tools/local/codeql-v2.26.2/codeql/codeql").toAbsolutePath().normalize(),
+                Path.of("./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls")
+                        .toAbsolutePath().normalize(),
                 Path.of("./config/rules/gitleaks/gitleaks.toml").toAbsolutePath().normalize(),
                 Path.of("./config/rules/pmd/java-audit.xml").toAbsolutePath().normalize(),
                 Path.of("./config/rules/checkstyle/java-audit.xml").toAbsolutePath().normalize(),

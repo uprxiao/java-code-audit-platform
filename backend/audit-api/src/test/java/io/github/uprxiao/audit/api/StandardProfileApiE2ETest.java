@@ -14,6 +14,7 @@ import io.github.uprxiao.audit.finding.ScanProfile;
 import io.github.uprxiao.audit.orchestrator.DefaultScanPlanner;
 import io.github.uprxiao.audit.process.MavenProcessAdapter;
 import io.github.uprxiao.audit.process.MavenProcessConfiguration;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlWorkflow;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.ArtifactValidation;
 import io.github.uprxiao.audit.scanner.EngineDescriptor;
@@ -297,6 +298,14 @@ class StandardProfileApiE2ETest {
                         failed ? 1 : 0, now, now.plusMillis(100), Duration.ofMillis(100), 123,
                         stdout, stderr, false, false, failed ? "process exited with code 1" : "");
             }, configuration);
+        }
+
+        @Bean
+        @Primary
+        CodeqlWorkflow fakeCodeqlWorkflow() {
+            return new CodeqlWorkflow((specification, cancellationToken) -> {
+                throw new AssertionError("CodeQL must remain unavailable in the Standard API contract test");
+            });
         }
     }
 
