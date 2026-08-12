@@ -910,6 +910,7 @@ public final class ScanService {
                     () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
             runtime.mavenBuild = result;
             runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
+            copyMavenBuildLogs(runtime, result.execution());
             return switch (result.status()) {
                 case SUCCEEDED -> EngineExecutionResult.succeeded();
                 case FAILED -> EngineExecutionResult.failed("MAVEN_BUILD_FAILED", result.execution().message());
@@ -925,6 +926,26 @@ public final class ScanService {
             return EngineExecutionResult.failed("MAVEN_BUILD_FAILED",
                     exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
         }
+    }
+
+    private void copyMavenBuildLogs(RuntimeScan runtime, ExecutionResult execution) throws IOException {
+        Path logs = runtime.layout.safeResolve("logs/engines");
+        Files.createDirectories(logs);
+        copyImmutableLog(runtime.layout.root(), execution.stdout(),
+                runtime.layout.safeResolve("logs/engines/maven-build-stdout.log"));
+        copyImmutableLog(runtime.layout.root(), execution.stderr(),
+                runtime.layout.safeResolve("logs/engines/maven-build-stderr.log"));
+    }
+
+    private void copyImmutableLog(Path jobRoot, Path source, Path target) throws IOException {
+        Path safeRoot = jobRoot.toAbsolutePath().normalize();
+        Path safeSource = source.toAbsolutePath().normalize();
+        Path safeTarget = target.toAbsolutePath().normalize();
+        if (!safeSource.startsWith(safeRoot) || !safeTarget.startsWith(safeRoot)
+                || Files.isSymbolicLink(safeSource) || !Files.isRegularFile(safeSource)) {
+            throw new IOException("unsafe process log path");
+        }
+        Files.copy(safeSource, safeTarget, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
     }
 
     private EngineExecutionResult executeCodeql(

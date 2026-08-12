@@ -120,6 +120,10 @@ class StandardProfileApiE2ETest {
             assertEquals("AVAILABLE", report.path("sbomSummary").path("status").asText());
             assertEquals(1, report.path("sbomSummary").path("components").asInt());
             assertTrue(report.path("summary").path("modules").path("built").asInt() > 0);
+            byte[] archive = mvc.perform(get("/api/v1/scans/{scanId}/reports/archive",
+                            created.path("scanId").asText()))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+            assertTrue(zipEntries(archive).contains("logs/engines/maven-build-stdout.log"));
         }
     }
 
@@ -228,6 +232,15 @@ class StandardProfileApiE2ETest {
     private Set<String> unique(JsonNode array) {
         Set<String> result = new HashSet<>();
         array.forEach(value -> result.add(value.asText()));
+        return result;
+    }
+
+    private Set<String> zipEntries(byte[] archive) throws Exception {
+        Set<String> result = new HashSet<>();
+        try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(
+                new java.io.ByteArrayInputStream(archive))) {
+            for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null;) result.add(entry.getName());
+        }
         return result;
     }
 
