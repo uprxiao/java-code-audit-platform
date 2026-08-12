@@ -1,62 +1,22 @@
-name: CI
+name: Deep Release Acceptance
 
 on:
-  push:
-    branches: [main, "codex/**"]
-  pull_request:
-  schedule:
-    - cron: "17 18 * * *"
   workflow_dispatch:
+    inputs:
+      accept_codeql_terms:
+        description: "I reviewed the current GitHub CodeQL Terms for this open-source repository"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
-  linux-jdk17-quick:
+  linux-jdk17-deep:
+    if: inputs.accept_codeql_terms == true
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
-    steps:
-      - name: Check out source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
-
-      - name: Set up pinned uv
-        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
-        with:
-          version: "0.10.4"
-          enable-cache: false
-
-      - name: Assemble native Linux Semgrep pack
-        run: ./scripts/build-semgrep-pack.sh linux-x86_64
-
-      - name: Assemble and smoke native Linux Quick tool pack
-        run: |
-          ./scripts/build-quick-tool-pack.sh linux-x86_64
-          ./scripts/run-quick-tools-smoke.sh "$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick"
-
-      - name: Verify all modules and real Semgrep API flow
-        run: >-
-          ./mvnw -B clean verify
-          -Daudit.quick.root="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick"
-          -Daudit.semgrep.executable="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep"
-          -Daudit.semgrep.rules="$GITHUB_WORKSPACE/config/rules/semgrep/java-audit.yaml"
-
-      - name: Start the packaged Java 17 JAR
-        env:
-          AUDIT_SEMGREP_EXECUTABLE: ${{ github.workspace }}/tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep
-          AUDIT_QUICK_TOOL_ROOT: ${{ github.workspace }}/tools/downloads/tool-pack/linux-x86_64/quick
-        run: ./scripts/smoke-start-jar.sh
-
-  linux-jdk17-standard:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -84,15 +44,13 @@ jobs:
           echo "AUDIT_MAVEN_EXECUTABLE=$MAVEN_EXECUTABLE" >> "$GITHUB_ENV"
           echo "$(dirname "$MAVEN_EXECUTABLE")" >> "$GITHUB_PATH"
 
-      - name: Assemble and smoke Linux Quick and Standard analysis packs
+      - name: Assemble all redistributable Linux tools
         run: |
           ./scripts/build-semgrep-pack.sh linux-x86_64
           ./scripts/build-quick-tool-pack.sh linux-x86_64
           ./scripts/run-quick-tools-smoke.sh "$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick"
           ./scripts/run-standard-analysis-smoke.sh
-
-      - name: Assemble Linux Standard supply pack
-        run: ./scripts/build-standard-supply-tool-pack.sh linux-x86_64
+          ./scripts/build-standard-supply-tool-pack.sh linux-x86_64
 
       - name: Build acceptance-only Dependency-Check data
         env:
@@ -112,14 +70,16 @@ jobs:
           test -s "$CACHE/db/trivy.db"
           test -s "$CACHE/java-db/trivy-java.db"
 
-      - name: Run every real Standard adapter smoke
-        env:
-          AUDIT_DEPENDENCY_CHECK_DATA: ${{ github.workspace }}/tools/downloads/databases/dependency-check-smoke
-          AUDIT_TRIVY_CACHE: ${{ github.workspace }}/tools/downloads/databases/trivy
-        run: |
-          ./scripts/run-standard-supply-smoke.sh
+      - name: Install controlled local CodeQL and locked Java queries
+        run: ./scripts/install-codeql-local.sh
 
-      - name: Verify all modules with real Linux tools
+      - name: Run real CodeQL Deep adapter smoke
+        env:
+          AUDIT_CODEQL_EXECUTABLE: ${{ github.workspace }}/tools/local/codeql-v2.26.2/codeql/codeql
+          AUDIT_CODEQL_QUERY_SUITE: ${{ github.workspace }}/tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls
+        run: ./scripts/run-codeql-deep-smoke.sh
+
+      - name: Verify all modules with every real Linux profile
         run: >-
           ./mvnw -B clean verify
           -Daudit.maven.executable="$AUDIT_MAVEN_EXECUTABLE"
@@ -135,26 +95,32 @@ jobs:
           -Daudit.dependency-check.data="$GITHUB_WORKSPACE/tools/downloads/databases/dependency-check-smoke"
           -Daudit.trivy.executable="$GITHUB_WORKSPACE/tools/downloads/tool-pack/linux-x86_64/quick/trivy/bin/trivy"
           -Daudit.trivy.cache="$GITHUB_WORKSPACE/tools/downloads/databases/trivy"
+          -Daudit.codeql.executable="$GITHUB_WORKSPACE/tools/local/codeql-v2.26.2/codeql/codeql"
+          -Daudit.codeql.querySuite="$GITHUB_WORKSPACE/tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls"
 
-      - name: Assemble and run the Linux Quick and Standard release
+      - name: Assemble and run the Linux Deep release
         shell: bash
         env:
           AUDIT_MINIMUM_FREE_BYTES: "1"
+          AUDIT_CODEQL_ENABLED: "true"
+          AUDIT_CODEQL_TERMS_ACCEPTED: "true"
         run: |
           set -euo pipefail
-          ./scripts/build-distribution.sh linux-x86_64 0.1.0-ci
-          ARCHIVE="$GITHUB_WORKSPACE/dist/java-code-audit-platform-0.1.0-ci-linux-x86_64.zip"
-          RUNTIME_ROOT="$(mktemp -d "$RUNNER_TEMP/java-audit-linux.XXXXXX")"
+          ./scripts/build-distribution.sh linux-x86_64 0.1.0-deep-ci
+          ARCHIVE="$GITHUB_WORKSPACE/dist/java-code-audit-platform-0.1.0-deep-ci-linux-x86_64.zip"
+          RUNTIME_ROOT="$(mktemp -d "$RUNNER_TEMP/java-audit-deep.XXXXXX")"
           unzip -q "$ARCHIVE" -d "$RUNTIME_ROOT"
-          BUNDLE="$RUNTIME_ROOT/java-code-audit-platform-0.1.0-ci-linux-x86_64"
+          BUNDLE="$RUNTIME_ROOT/java-code-audit-platform-0.1.0-deep-ci-linux-x86_64"
           mkdir -p "$BUNDLE/data/databases"
           cp -R "$GITHUB_WORKSPACE/tools/downloads/databases/dependency-check-smoke" \
             "$BUNDLE/data/databases/dependency-check"
           ln -s "$GITHUB_WORKSPACE/tools/downloads/databases/trivy" "$BUNDLE/data/databases/trivy"
           export AUDIT_PORT=18080
           export AUDIT_MAVEN_EXECUTABLE
-          export AUDIT_ACCEPTANCE_EVIDENCE_DIR="$RUNNER_TEMP/v1-acceptance-evidence/linux-quick-standard"
-          "$BUNDLE/bin/run.sh" >"$RUNNER_TEMP/java-audit-standard.log" 2>&1 &
+          export AUDIT_CODEQL_EXECUTABLE="$GITHUB_WORKSPACE/tools/local/codeql-v2.26.2/codeql/codeql"
+          export AUDIT_CODEQL_QUERY_SUITE="$GITHUB_WORKSPACE/tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls"
+          export AUDIT_ACCEPTANCE_EVIDENCE_DIR="$RUNNER_TEMP/v1-acceptance-evidence/linux-deep"
+          "$BUNDLE/bin/run.sh" >"$RUNNER_TEMP/java-audit-deep.log" 2>&1 &
           SERVER_PID=$!
           cleanup() {
             kill "$SERVER_PID" 2>/dev/null || true
@@ -163,13 +129,12 @@ jobs:
           trap cleanup EXIT
           for _attempt in {1..240}; do
             if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-              sed -n '1,260p' "$RUNNER_TEMP/java-audit-standard.log" >&2
+              sed -n '1,260p' "$RUNNER_TEMP/java-audit-deep.log" >&2
               exit 1
             fi
             curl -fsS "http://127.0.0.1:$AUDIT_PORT/api/v1/health" > /dev/null && break
             sleep 0.5
           done
           curl -fsS "http://127.0.0.1:$AUDIT_PORT/api/v1/health" > \
-            "$RUNNER_TEMP/v1-linux-health.json"
-          "$BUNDLE/bin/acceptance-test.sh" --quick
-          "$BUNDLE/bin/acceptance-test.sh" --standard
+            "$RUNNER_TEMP/v1-linux-deep-health.json"
+          "$BUNDLE/bin/acceptance-test.sh" --deep
