@@ -333,19 +333,8 @@ class AuditRuntimeConfiguration {
                 paths, processes, new ObjectMapper(), clock, mavenExecutable,
                 System.getenv().getOrDefault("PATH", "/usr/bin:/bin"), quickHealth).checkAll();
         health.addAll(supplyHealth);
-        ToolInstallationHealth codeqlHealth;
-        if (!codeqlEnabled || !codeqlTermsAccepted) {
-            codeqlHealth = new ToolInstallationHealth(
-                    "codeql", "UNAVAILABLE", "", paths.codeqlExecutable(), "",
-                    !codeqlEnabled ? "CODEQL_DISABLED" : "CODEQL_TERMS_NOT_ACCEPTED",
-                    !codeqlEnabled
-                            ? "Set AUDIT_CODEQL_ENABLED=true only for an authorized CodeQL deployment"
-                            : "Set AUDIT_CODEQL_TERMS_ACCEPTED=true after reviewing the CodeQL terms",
-                    clock.instant());
-        } else {
-            codeqlHealth = new CodeqlToolIntegrityChecker(
-                    paths, processes, new ObjectMapper(), clock).check();
-        }
+        ToolInstallationHealth codeqlHealth = controlledCodeqlHealth(
+                paths, processes, clock, codeqlEnabled, codeqlTermsAccepted);
         health.add(codeqlHealth);
         Path resolvedMaven = StandardAnalysisToolIntegrityChecker.resolveExecutable(
                 mavenExecutable, System.getenv().getOrDefault("PATH", "/usr/bin:/bin"));
@@ -372,6 +361,25 @@ class AuditRuntimeConfiguration {
                 .filter(tool -> tool.id().startsWith("maven-"))
                 .allMatch(ToolInstallationHealth::available);
         return new ScannerRegistry(adapters, health, paths, planner, mavenAvailable);
+    }
+
+    ToolInstallationHealth controlledCodeqlHealth(
+            AuditRuntimePaths paths,
+            LocalProcessExecutionBackend processes,
+            Clock clock,
+            boolean enabled,
+            boolean termsAccepted) throws IOException, InterruptedException {
+        if (!enabled || !termsAccepted) {
+            return new ToolInstallationHealth(
+                    "codeql", "UNAVAILABLE", "", paths.codeqlExecutable(), "",
+                    !enabled ? "CODEQL_DISABLED" : "CODEQL_TERMS_NOT_ACCEPTED",
+                    !enabled
+                            ? "Set AUDIT_CODEQL_ENABLED=true only for an authorized CodeQL deployment"
+                            : "Set AUDIT_CODEQL_TERMS_ACCEPTED=true after reviewing the CodeQL terms",
+                    clock.instant());
+        }
+        return new CodeqlToolIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock).check();
     }
 
     @Bean

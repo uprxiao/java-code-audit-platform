@@ -15,6 +15,7 @@ import io.github.uprxiao.audit.orchestrator.DefaultScanPlanner;
 import io.github.uprxiao.audit.process.MavenProcessAdapter;
 import io.github.uprxiao.audit.process.MavenProcessConfiguration;
 import io.github.uprxiao.audit.adapter.codeql.CodeqlWorkflow;
+import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.ArtifactValidation;
 import io.github.uprxiao.audit.scanner.EngineDescriptor;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -68,6 +70,7 @@ class StandardProfileApiE2ETest {
     private static final Path REPOSITORY_ROOT = Path.of("../..").toAbsolutePath().normalize();
     private static final Set<String> TERMINAL = Set.of(
             "COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCELLED", "INTERRUPTED");
+    private static final AtomicInteger CODEQL_PHASES = new AtomicInteger();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -85,6 +88,9 @@ class StandardProfileApiE2ETest {
     @Autowired
     MockMvc mvc;
 
+    @Autowired
+    ScanService scans;
+
     private final ObjectMapper json = new ObjectMapper();
 
     @Test
@@ -92,7 +98,7 @@ class StandardProfileApiE2ETest {
         JsonNode health = json.readTree(mvc.perform(get("/api/v1/health"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
         assertEquals("AVAILABLE", health.path("profiles").path("STANDARD").asText());
-        assertEquals("UNAVAILABLE", health.path("profiles").path("DEEP").asText());
+        assertEquals("AVAILABLE", health.path("profiles").path("DEEP").asText());
 
         for (Map<String, String> files : List.of(singleModuleFiles(false), multiModuleFiles())) {
             JsonNode created = submit(files, """
@@ -115,6 +121,27 @@ class StandardProfileApiE2ETest {
             assertEquals(1, report.path("sbomSummary").path("components").asInt());
             assertTrue(report.path("summary").path("modules").path("built").asInt() > 0);
         }
+    }
+
+    @Test
+    void deepWebFlowRunsBothCodeqlPhasesAndPublishesSarif() throws Exception {
+        CODEQL_PHASES.set(0);
+        JsonNode created = submit(singleModuleFiles(false),
+                "{\"displayName\":\"fake-deep\",\"profile\":\"DEEP\"}");
+        assertEquals(15, created.path("plannedEngines").size());
+        JsonNode terminal = waitForTerminal(created.path("scanId").asText());
+        assertEquals("COMPLETED", terminal.path("status").asText(), terminal.toPrettyString());
+        assertEquals(2, CODEQL_PHASES.get(), "CodeQL must execute database-create and database-analyze");
+        JsonNode sarif = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/reports/sarif",
+                        created.path("scanId").asText()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertEquals("2.1.0", sarif.path("version").asText());
+        JsonNode codeql = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/engines/codeql",
+                        created.path("scanId").asText()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertEquals("SUCCEEDED", codeql.path("status").asText());
+        assertEquals("2.26.2", codeql.path("toolVersion").asText());
+        assertTrue(codeql.path("rawArtifactAvailable").asBoolean());
     }
 
     @Test
@@ -153,6 +180,20 @@ class StandardProfileApiE2ETest {
                         .getBytes(StandardCharsets.UTF_8));
         mvc.perform(multipart("/api/v1/scans/zip").file(source).file(request))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void retentionTombstoneReturnsReportExpiredInsteadOfNotFound() throws Exception {
+        JsonNode created = submit(singleModuleFiles(false),
+                "{\"displayName\":\"expiring\",\"profile\":\"QUICK\"}");
+        waitForTerminal(created.path("scanId").asText());
+        java.util.UUID scanId = java.util.UUID.fromString(created.path("scanId").asText());
+
+        scans.forget(scanId);
+
+        JsonNode error = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/reports/json", scanId))
+                .andExpect(status().isGone()).andReturn().getResponse().getContentAsByteArray());
+        assertEquals("REPORT_EXPIRED", error.path("code").asText());
     }
 
     private JsonNode submit(Map<String, String> files, String requestJson) throws Exception {
@@ -266,6 +307,11 @@ class StandardProfileApiE2ETest {
                         engine.id().value(), "AVAILABLE", "fake", java, "fake-sha256", "", "",
                         Instant.parse("2026-08-12T00:00:00Z")));
             }
+            FakeCodeqlAssets codeql = codeqlAssets();
+            adapters.add(new CodeqlAdapter(codeql.querySuite(), codeql.maven(), Path.of(System.getProperty("java.home"))));
+            health.add(new ToolInstallationHealth(
+                    "codeql", "AVAILABLE", "2.26.2", java, "fake-codeql-sha256", "", "",
+                    Instant.parse("2026-08-12T00:00:00Z")));
             return new ScannerRegistry(adapters, health, paths, planner, true);
         }
 
@@ -310,9 +356,50 @@ class StandardProfileApiE2ETest {
         @Primary
         CodeqlWorkflow fakeCodeqlWorkflow() {
             return new CodeqlWorkflow((specification, cancellationToken) -> {
-                throw new AssertionError("CodeQL must remain unavailable in the Standard API contract test");
+                CODEQL_PHASES.incrementAndGet();
+                List<String> command = specification.command();
+                if (command.contains("create")) {
+                    Files.createDirectories(Path.of(command.get(command.size() - 1)));
+                } else if (command.contains("analyze")) {
+                    String output = command.stream().filter(value -> value.startsWith("--output="))
+                            .findFirst().orElseThrow().substring("--output=".length());
+                    Files.writeString(Path.of(output), """
+                            {"version":"2.1.0","runs":[{"tool":{"driver":{"name":"CodeQL",
+                             "semanticVersion":"2.26.2","rules":[]}},
+                             "invocations":[{"executionSuccessful":true}],"results":[]}]}
+                            """);
+                }
+                Path stdout = specification.workingDirectory().resolve("stdout.log");
+                Path stderr = specification.workingDirectory().resolve("stderr.log");
+                Files.createDirectories(specification.workingDirectory());
+                Files.writeString(stdout, "fake CodeQL phase");
+                Files.writeString(stderr, "");
+                Instant now = Instant.parse("2026-08-12T00:00:00Z");
+                return new ExecutionResult(ExecutionResult.Status.SUCCEEDED, 0, now, now.plusMillis(20),
+                        Duration.ofMillis(20), 1, stdout, stderr, false, false, "");
             });
         }
+
+        private FakeCodeqlAssets codeqlAssets() {
+            try {
+                Path root = DATA_ROOT.resolve("fake-codeql");
+                Path maven = root.resolve("bin/mvn");
+                Files.createDirectories(maven.getParent());
+                Files.writeString(maven, "#!/bin/sh\nexit 0\n");
+                maven.toFile().setExecutable(true, false);
+                Path pack = root.resolve("packs/codeql/java-queries/1.11.7");
+                Path suite = pack.resolve("codeql-suites/java-security-and-quality.qls");
+                Files.createDirectories(suite.getParent());
+                Files.writeString(pack.resolve("qlpack.yml"),
+                        "name: codeql/java-queries\nversion: 1.11.7\n");
+                Files.writeString(suite, "- description: fake pinned suite\n");
+                return new FakeCodeqlAssets(maven, suite);
+            } catch (java.io.IOException exception) {
+                throw new IllegalStateException(exception);
+            }
+        }
+
+        private record FakeCodeqlAssets(Path maven, Path querySuite) { }
     }
 
     private static final class FakeAdapter implements ScannerAdapter {

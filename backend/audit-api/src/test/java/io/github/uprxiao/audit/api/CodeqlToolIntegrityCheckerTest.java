@@ -2,6 +2,7 @@ package io.github.uprxiao.audit.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
@@ -30,5 +31,25 @@ class CodeqlToolIntegrityCheckerTest {
         assertEquals("UNAVAILABLE", health.status());
         assertEquals("EXECUTABLE_NOT_FOUND", health.reasonCode());
         assertFalse(health.available());
+    }
+
+    @Test
+    void authorizationAndTermsAreAuditableIndependentGates() throws Exception {
+        AuditRuntimePaths paths = new AuditRuntimePaths(
+                temporaryDirectory.resolve("gate-data"),
+                Path.of(System.getProperty("java.home"), "bin", "java"),
+                temporaryDirectory.resolve("rules"));
+        AuditRuntimeConfiguration configuration = new AuditRuntimeConfiguration();
+        LocalProcessExecutionBackend processes = new LocalProcessExecutionBackend();
+
+        ToolInstallationHealth disabled = configuration.controlledCodeqlHealth(
+                paths, processes, Clock.systemUTC(), false, false);
+        ToolInstallationHealth terms = configuration.controlledCodeqlHealth(
+                paths, processes, Clock.systemUTC(), true, false);
+
+        assertEquals("CODEQL_DISABLED", disabled.reasonCode());
+        assertEquals("CODEQL_TERMS_NOT_ACCEPTED", terms.reasonCode());
+        assertFalse(disabled.available());
+        assertTrue(disabled.detail().contains("AUDIT_CODEQL_ENABLED"));
     }
 }

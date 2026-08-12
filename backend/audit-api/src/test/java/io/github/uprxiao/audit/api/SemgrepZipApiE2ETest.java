@@ -91,6 +91,11 @@ class SemgrepZipApiE2ETest {
         assertTrue(findingArray.size() >= 2);
         assertTrue(java.util.stream.StreamSupport.stream(findingArray.spliterator(), false)
                 .anyMatch(finding -> finding.path("ruleFamily").asText().equals("SQL_INJECTION")));
+        mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId)
+                        .param("engine", "semgrep").param("text", "sql").param("page", "0").param("size", "1"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId).param("size", "201"))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/scans/{scanId}/findings/{findingId}",
                         scanId, findingArray.get(0).path("id").asText()))
                 .andExpect(status().isOk());
@@ -98,8 +103,12 @@ class SemgrepZipApiE2ETest {
         MvcResult engines = mvc.perform(get("/api/v1/scans/{scanId}/engines", scanId))
                 .andExpect(status().isOk()).andReturn();
         assertEquals(6, json.readTree(engines.getResponse().getContentAsByteArray()).size());
-        mvc.perform(get("/api/v1/scans/{scanId}/engines/semgrep", scanId))
-                .andExpect(status().isOk());
+        JsonNode engine = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/engines/semgrep", scanId))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertEquals("1.170.0", engine.path("toolVersion").asText());
+        assertTrue(engine.path("durationMillis").asLong() >= 0);
+        assertTrue(engine.path("rawArtifactAvailable").asBoolean());
+        assertTrue(engine.path("coverage").isObject());
 
         MvcResult report = mvc.perform(get("/api/v1/scans/{scanId}/reports/json", scanId))
                 .andExpect(status().isOk())
@@ -107,6 +116,9 @@ class SemgrepZipApiE2ETest {
                 .andReturn();
         JsonNode reportJson = json.readTree(report.getResponse().getContentAsByteArray());
         assertTrue(reportJson.path("summary").path("uniqueFindingCount").asInt() >= 2);
+        assertEquals(terminal.path("summary").path("uniqueFindingCount").asInt(),
+                reportJson.path("summary").path("uniqueFindingCount").asInt());
+        assertEquals(reportJson.path("summary").path("uniqueFindingCount").asInt(), findingArray.size());
         assertEquals(6, reportJson.path("engines").size());
 
         MvcResult archive = mvc.perform(get("/api/v1/scans/{scanId}/reports/archive", scanId))
