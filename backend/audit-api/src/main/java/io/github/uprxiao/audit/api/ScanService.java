@@ -75,6 +75,7 @@ import java.util.LinkedHashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -103,6 +104,7 @@ public final class ScanService {
     private final FairDagScheduler scheduler;
     private final DefaultScanPlanner planner;
     private final ScanExecutionPlanFactory executionPlans = new ScanExecutionPlanFactory();
+    private final ExecutionSpecPolicy executionPolicy = new ExecutionSpecPolicy();
     private final ConservativeFindingDeduplicator deduplicator = new ConservativeFindingDeduplicator();
     private final MavenProcessAdapter maven;
     private final Duration mavenBuildTimeout;
@@ -114,6 +116,7 @@ public final class ScanService {
     private final SvnSourceCheckout svnCheckout;
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
+    private final Set<UUID> expiredScans = ConcurrentHashMap.newKeySet();
 
     ScanService(
             AuditRuntimePaths paths,
@@ -382,6 +385,9 @@ public final class ScanService {
         Path reportJson = layout.report().resolve("report.json");
         if (Files.isRegularFile(reportJson)) {
             AuditReport report = json.readValue(reportJson.toFile(), AuditReport.class);
+            runtime.report = report;
+            runtime.activeFindings = report.findings();
+            runtime.suppressedFindings = report.suppressedFindings();
             runtime.findings = java.util.stream.Stream.concat(
                     report.findings().stream(), report.suppressedFindings().stream()).toList();
         }
@@ -412,10 +418,14 @@ public final class ScanService {
                             "enginesRunning", running,
                             "enginesWaiting", runtime.engines.size() - terminal - running),
                     Map.of(
-                            "uniqueFindingCount", runtime.findings.size(),
+                            "uniqueFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.size() : runtime.report.summary().uniqueFindingCount(),
+                            "suppressedCount", runtime.report == null
+                                    ? runtime.suppressedFindings.size() : runtime.report.summary().suppressedCount(),
                             "rawHitCount", runtime.coverage == null ? 0 : runtime.coverage.engines().stream()
                                     .mapToLong(engine -> engine.rawHitCount()).sum(),
                             "partial", !runtime.job.status().isTerminal()),
+                    mavenBuildSummary(runtime),
                     runtime.job.createdAt(), runtime.job.startedAt(), runtime.job.updatedAt(), runtime.job.completedAt(),
                     runtime.job.failure() == null ? Map.of() : Map.of(
                             "code", runtime.job.failure().code(),
@@ -429,39 +439,130 @@ public final class ScanService {
         }
     }
 
-    public List<Finding> findings(UUID scanId) {
+    public List<Finding> findings(
+            UUID scanId, String severity, String category, String engine, String module,
+            boolean suppressed, String text, int page, int size) {
+        if (page < 0 || size < 1 || size > 200) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.INVALID_REQUEST,
+                    "page 必须非负且 size 必须在 1 到 200 之间。");
+        }
         RuntimeScan runtime = require(scanId);
         synchronized (runtime) {
-            return List.copyOf(runtime.findings);
+            io.github.uprxiao.audit.finding.Severity severityValue = enumValue(
+                    io.github.uprxiao.audit.finding.Severity.class, severity, "severity");
+            io.github.uprxiao.audit.finding.IssueCategory categoryValue = enumValue(
+                    io.github.uprxiao.audit.finding.IssueCategory.class, category, "category");
+            String needle = text == null ? "" : text.toLowerCase(java.util.Locale.ROOT);
+            List<Finding> source = suppressed ? runtime.suppressedFindings : runtime.activeFindings;
+            List<Finding> filtered = source.stream()
+                    .filter(finding -> severityValue == null || finding.severity() == severityValue)
+                    .filter(finding -> categoryValue == null || finding.category() == categoryValue)
+                    .filter(finding -> engine == null || engine.isBlank() || finding.evidence().stream()
+                            .anyMatch(evidence -> engine.equalsIgnoreCase(evidence.engine())))
+                    .filter(finding -> module == null || module.isBlank()
+                            || module.equalsIgnoreCase(finding.module()))
+                    .filter(finding -> needle.isBlank() || findingText(finding).contains(needle))
+                    .sorted(java.util.Comparator.comparing(Finding::fingerprint).thenComparing(Finding::id))
+                    .toList();
+            long offset = (long) page * size;
+            if (offset >= filtered.size()) return List.of();
+            return List.copyOf(filtered.subList((int) offset, Math.min(filtered.size(), (int) offset + size)));
         }
     }
 
+    public List<Finding> findings(UUID scanId) {
+        return findings(scanId, null, null, null, null, false, null, 0, 50);
+    }
+
     public Finding finding(UUID scanId, String findingId) {
-        return findings(scanId).stream()
-                .filter(finding -> finding.id().equals(findingId))
+        RuntimeScan runtime = require(scanId);
+        List<Finding> all;
+        synchronized (runtime) {
+            all = runtime.findings;
+        }
+        return all.stream()
+                .filter(finding -> finding.id().equals(findingId) || finding.fingerprint().equals(findingId))
                 .findFirst()
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "问题记录不存在。"));
     }
 
-    public List<EngineTaskState> engines(UUID scanId) {
+    public List<EngineView> engines(UUID scanId) {
         RuntimeScan runtime = require(scanId);
         synchronized (runtime) {
             return runtime.engines.values().stream()
                     .sorted(java.util.Comparator.comparing(EngineTaskState::engineId))
+                    .map(state -> engineView(runtime, state))
                     .toList();
         }
     }
 
-    public EngineTaskState engine(UUID scanId, String engineId) {
+    public EngineView engine(UUID scanId, String engineId) {
         RuntimeScan runtime = require(scanId);
         synchronized (runtime) {
             EngineTaskState state = runtime.engines.get(engineId);
             if (state == null) {
                 throw new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "扫描引擎不存在。");
             }
-            return state;
+            return engineView(runtime, state);
         }
+    }
+
+    private EngineView engineView(RuntimeScan runtime, EngineTaskState state) {
+        EngineId id = new EngineId(state.engineId());
+        var planned = planned(runtime, id);
+        io.github.uprxiao.audit.finding.EngineCoverage coverage = runtime.normalized.containsKey(id)
+                ? runtime.normalized.get(id).coverage() : reportCoverage(runtime, id);
+        ExecutionResult execution = runtime.executions.get(id);
+        long waiting = state.startedAt() == null
+                ? Duration.between(state.createdAt(), state.completedAt() == null ? clock.instant() : state.completedAt())
+                        .toMillis()
+                : Duration.between(state.createdAt(), state.startedAt()).toMillis();
+        long duration = execution == null
+                ? state.startedAt() == null ? 0 : Duration.between(
+                        state.startedAt(), state.completedAt() == null ? clock.instant() : state.completedAt()).toMillis()
+                : execution.duration().toMillis();
+        Path raw = coverage == null || coverage.artifact().isBlank()
+                ? runtime.layout.rawEngine(id.value()) : runtime.layout.root().resolve(coverage.artifact()).normalize();
+        Path stdout = execution == null ? runtime.layout.rawEngine(id.value()).resolve("stdout.log") : execution.stdout();
+        Path stderr = execution == null ? runtime.layout.rawEngine(id.value()).resolve("stderr.log") : execution.stderr();
+        String version = scanners.health().stream().filter(tool -> tool.id().equals(id.value()))
+                .map(ToolInstallationHealth::version).findFirst().orElse("");
+        List<String> dependencies = new ArrayList<>(planned.dependsOn().stream()
+                .map(engine -> engine.id().value()).toList());
+        if (planned.requiresBuild()) dependencies.add(ScanExecutionPlanFactory.MAVEN_BUILD.value());
+        return new EngineView(
+                state.engineId(), state.status(), List.copyOf(dependencies), planned.requiresBuild(), version,
+                state.createdAt(), state.updatedAt(), state.startedAt(), state.completedAt(),
+                Math.max(0, waiting), Math.max(0, duration), coverage,
+                state.failure() == null ? Map.of() : Map.of(
+                        "code", state.failure().code(), "message", state.failure().message(),
+                        "details", state.failure().details()),
+                safeRegular(runtime.layout.root(), raw), safeRegular(runtime.layout.root(), stdout),
+                safeRegular(runtime.layout.root(), stderr));
+    }
+
+    private io.github.uprxiao.audit.finding.EngineCoverage reportCoverage(RuntimeScan runtime, EngineId id) {
+        if (runtime.report == null) return null;
+        Map<String, Object> value = runtime.report.engines().stream()
+                .filter(engine -> id.value().equals(engine.get("engine"))).findFirst().orElse(null);
+        if (value == null) return null;
+        return new io.github.uprxiao.audit.finding.EngineCoverage(
+                id.value(), EngineStatus.valueOf(String.valueOf(value.get("status"))),
+                integer(value.get("modulesDiscovered")), integer(value.get("applicableModules")),
+                integer(value.get("scannedModules")), integer(value.get("rawHitCount")),
+                Duration.ofMillis(integer(value.get("durationMs"))), String.valueOf(value.get("reasonCode")),
+                String.valueOf(value.get("artifact")));
+    }
+
+    private int integer(Object value) {
+        return value instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(value));
+    }
+
+    private boolean safeRegular(Path root, Path candidate) {
+        Path normalized = candidate.toAbsolutePath().normalize();
+        return normalized.startsWith(root.toAbsolutePath().normalize()) && Files.isRegularFile(normalized)
+                && !Files.isSymbolicLink(normalized);
     }
 
     public void delete(UUID scanId) throws IOException {
@@ -523,6 +624,19 @@ public final class ScanService {
     }
 
     void forget(UUID scanId) {
+        expiredScans.add(scanId);
+        try {
+            Path directory = Files.createDirectories(paths.dataRoot().resolve("tombstones"));
+            Path target = directory.resolve(scanId + ".json");
+            if (!Files.exists(target)) {
+                json.writerWithDefaultPrettyPrinter().writeValue(target.toFile(), Map.of(
+                        "scanId", scanId.toString(),
+                        "expiredAt", clock.instant().toString(),
+                        "reason", "RETENTION_EXPIRED"));
+            }
+        } catch (IOException ignored) {
+            // The in-memory tombstone still preserves 410 behavior for this process.
+        }
         scans.remove(scanId);
     }
 
@@ -609,8 +723,10 @@ public final class ScanService {
             List<Finding> allFindings = java.util.stream.Stream.concat(
                     activeFindings.stream(), suppressedFindings.stream()).toList();
             List<io.github.uprxiao.audit.finding.EngineCoverage> engineCoverage = coverage(runtime, project);
-            List<String> warnings = normalizedResults.stream()
-                    .flatMap(result -> result.warnings().stream()).toList();
+            List<String> warnings = new ArrayList<>(normalizedResults.stream()
+                    .flatMap(result -> result.warnings().stream()).toList());
+            scanners.health().stream().filter(tool -> "DEGRADED".equals(tool.status()))
+                    .forEach(tool -> warnings.add(tool.id() + ":" + tool.reasonCode() + ": " + tool.detail()));
             synchronized (runtime) {
                 runtime.findings = allFindings;
                 runtime.coverage = new ScanCoverage(
@@ -631,19 +747,18 @@ public final class ScanService {
                     allFindings, runtime.coverage,
                     sbomSummary,
                     mavenBuildSummary(runtime),
-                    Map.of(
-                            "mavenVersion", "system",
-                            "tools", scanners.health().stream().map(tool -> Map.<String, Object>of(
-                                    "id", tool.id(), "version", tool.version(), "sha256", tool.sha256(),
-                                    "status", tool.status())).toList(),
-                            "rules", ruleManifest(),
-                            "databases", List.of()),
+                    toolchainSummary(),
                     runtime.coverage.excludedPaths(), warnings, configFingerprint());
             ReportBundle bundle = reports.generate(
                     reportInput, runtime.layout.root(),
                     ReportGenerationOptions.withSensitiveValues(sensitiveRequestValues(runtime.request)));
             synchronized (runtime) {
                 runtime.bundle = bundle;
+                runtime.report = json.readValue(bundle.json().toFile(), AuditReport.class);
+                runtime.activeFindings = runtime.report.findings();
+                runtime.suppressedFindings = runtime.report.suppressedFindings();
+                runtime.findings = java.util.stream.Stream.concat(
+                        runtime.activeFindings.stream(), runtime.suppressedFindings.stream()).toList();
             }
             cleaner.cleanSuccessfulJob(runtime.layout);
             FailureDetails partial = finalStatus == ScanStatus.COMPLETED_WITH_ERRORS
@@ -695,7 +810,8 @@ public final class ScanService {
             ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
                     engineTemporary,
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
-            ExecutionSpec specification = adapter.prepare(context, scanners.tools());
+            ExecutionSpec specification = executionPolicy.apply(planned(runtime, id),
+                    adapter.prepare(context, scanners.tools()));
             ExecutionResult execution = processes.execute(specification,
                     () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
             runtime.executions.put(id, execution);
@@ -826,7 +942,8 @@ public final class ScanService {
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             CodeqlWorkflow.Result result = codeql.execute(
                     adapter, context, scanners.tools(),
-                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested(),
+                    specification -> executionPolicy.apply(planned(runtime, CodeqlAdapter.ID), specification));
             runtime.executions.put(CodeqlAdapter.ID, result.analysis());
             NormalizationResult normalized = adapter.normalize(context, result.artifacts());
             runtime.normalized.put(CodeqlAdapter.ID, normalized);
@@ -883,6 +1000,13 @@ public final class ScanService {
                 }
             }
         };
+    }
+
+    private io.github.uprxiao.audit.orchestrator.PlannedEngine planned(RuntimeScan runtime, EngineId id) {
+        return runtime.plan.plannedEngines().stream()
+                .filter(engine -> engine.engine().id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("engine is absent from the YAML plan: " + id));
     }
 
     /**
@@ -1021,6 +1145,11 @@ public final class ScanService {
     private RuntimeScan require(UUID scanId) {
         RuntimeScan runtime = scans.get(scanId);
         if (runtime == null) {
+            if (expiredScans.contains(scanId)
+                    || Files.isRegularFile(paths.dataRoot().resolve("tombstones").resolve(scanId + ".json"))) {
+                throw new ApiException(HttpStatus.GONE, ApiErrorCode.REPORT_EXPIRED,
+                        "扫描任务的保留期已结束，报告已清理。");
+            }
             throw new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "扫描任务不存在。");
         }
         return runtime;
@@ -1086,6 +1215,9 @@ public final class ScanService {
     private Map<String, Object> mavenBuildSummary(RuntimeScan runtime) {
         MavenBuildResult result = runtime.mavenBuild;
         if (result == null) {
+            if (runtime.report != null && runtime.report.build() != null && !runtime.report.build().isEmpty()) {
+                return runtime.report.build();
+            }
             return Map.of(
                     "status", "NOT_REQUIRED",
                     "mavenProfiles", runtime.request.mavenProfiles());
@@ -1098,6 +1230,29 @@ public final class ScanService {
                         "status", module.status().name())).toList(),
                 "durationMillis", result.execution().duration().toMillis(),
                 "artifact", "raw/maven-build/stdout.log");
+    }
+
+    private Map<String, Object> toolchainSummary() throws IOException {
+        List<Map<String, Object>> databases = scanners.health().stream()
+                .filter(tool -> !tool.database().isEmpty())
+                .map(tool -> {
+                    Map<String, Object> value = new LinkedHashMap<>(tool.database());
+                    value.put("engine", tool.id());
+                    value.put("status", tool.status());
+                    return Map.copyOf(value);
+                }).toList();
+        String mavenVersion = scanners.health().stream()
+                .filter(tool -> "cyclonedx".equals(tool.id()))
+                .map(ToolInstallationHealth::detail)
+                .flatMap(detail -> detail.lines().filter(line -> line.startsWith("Apache Maven ")).findFirst().stream())
+                .findFirst().orElse("unavailable");
+        return Map.of(
+                "mavenVersion", mavenVersion,
+                "tools", scanners.health().stream().map(tool -> Map.<String, Object>of(
+                        "id", tool.id(), "version", tool.version(), "sha256", tool.sha256(),
+                        "status", tool.status())).toList(),
+                "rules", ruleManifest(),
+                "databases", databases);
     }
 
     private int modulesBuilt(RuntimeScan runtime, ProjectContext project) {
@@ -1252,6 +1407,22 @@ public final class ScanService {
         return cleaned.length() > 200 ? cleaned.substring(0, 200) : cleaned;
     }
 
+    private <E extends Enum<E>> E enumValue(Class<E> type, String value, String parameter) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Enum.valueOf(type, value.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.INVALID_REQUEST,
+                    parameter + " 过滤值无效。");
+        }
+    }
+
+    private String findingText(Finding finding) {
+        return String.join(" ", finding.id(), finding.fingerprint(), finding.ruleFamily(), finding.titleZh(),
+                finding.titleOriginal(), finding.descriptionZh(), finding.messageOriginal(), finding.module())
+                .toLowerCase(java.util.Locale.ROOT);
+    }
+
     private String safeSvnDisplayName(String repositoryUrl) {
         String path = java.net.URI.create(repositoryUrl).getPath();
         if (path == null || path.isBlank() || "/".equals(path)) {
@@ -1273,6 +1444,9 @@ public final class ScanService {
         private ScanJob job;
         private Map<String, EngineTaskState> engines;
         private List<Finding> findings = List.of();
+        private List<Finding> activeFindings = List.of();
+        private List<Finding> suppressedFindings = List.of();
+        private AuditReport report;
         private ScanCoverage coverage;
         private ReportBundle bundle;
         private final AtomicBoolean cancelRequested = new AtomicBoolean();

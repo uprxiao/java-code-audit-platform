@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /** Runs CodeQL's database-create and database-analyze phases without a shell or a user command string. */
 public final class CodeqlWorkflow {
@@ -26,16 +27,23 @@ public final class CodeqlWorkflow {
 
     public Result execute(CodeqlAdapter adapter, ScanContext context, ToolContext tools,
             CancellationToken cancellationToken) throws IOException, InterruptedException {
+        return execute(adapter, context, tools, cancellationToken, UnaryOperator.identity());
+    }
+
+    public Result execute(CodeqlAdapter adapter, ScanContext context, ToolContext tools,
+            CancellationToken cancellationToken, UnaryOperator<ExecutionSpec> executionPolicy)
+            throws IOException, InterruptedException {
         Objects.requireNonNull(adapter, "adapter");
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(tools, "tools");
         cancellationToken = cancellationToken == null ? CancellationToken.NONE : cancellationToken;
+        executionPolicy = Objects.requireNonNull(executionPolicy, "executionPolicy");
 
-        ExecutionSpec createSpec = adapter.prepareDatabaseCreation(context, tools);
+        ExecutionSpec createSpec = executionPolicy.apply(adapter.prepareDatabaseCreation(context, tools));
         ExecutionResult createResult = executionBackend.execute(createSpec, cancellationToken);
         requireSuccess(Phase.DATABASE_CREATE, createResult);
 
-        ExecutionSpec analyzeSpec = adapter.prepareAnalysis(context, tools);
+        ExecutionSpec analyzeSpec = executionPolicy.apply(adapter.prepareAnalysis(context, tools));
         ExecutionResult analyzeResult = executionBackend.execute(analyzeSpec, cancellationToken);
         requireSuccess(Phase.DATABASE_ANALYZE, analyzeResult);
         RawArtifactSet artifacts = new RawArtifactSet(CodeqlAdapter.ID,

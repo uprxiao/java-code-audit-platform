@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -60,8 +61,17 @@ class ScanController {
     }
 
     @GetMapping("/{scanId}/findings")
-    List<Finding> findings(@PathVariable UUID scanId) {
-        return scans.findings(scanId);
+    List<Finding> findings(
+            @PathVariable UUID scanId,
+            @RequestParam(required = false) String severity,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String engine,
+            @RequestParam(required = false) String module,
+            @RequestParam(defaultValue = "false") boolean suppressed,
+            @RequestParam(required = false) String text,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return scans.findings(scanId, severity, category, engine, module, suppressed, text, page, size);
     }
 
     @GetMapping("/{scanId}/findings/{findingId}")
@@ -70,12 +80,12 @@ class ScanController {
     }
 
     @GetMapping("/{scanId}/engines")
-    List<io.github.uprxiao.audit.finding.EngineTaskState> engines(@PathVariable UUID scanId) {
+    List<EngineView> engines(@PathVariable UUID scanId) {
         return scans.engines(scanId);
     }
 
     @GetMapping("/{scanId}/engines/{engineId}")
-    io.github.uprxiao.audit.finding.EngineTaskState engine(
+    EngineView engine(
             @PathVariable UUID scanId, @PathVariable String engineId) {
         return scans.engine(scanId, engineId);
     }

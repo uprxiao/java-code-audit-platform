@@ -108,6 +108,12 @@ class StandardProfileApiE2ETest {
             assertEquals(14, engines.size());
             assertTrue(java.util.stream.StreamSupport.stream(engines.spliterator(), false)
                     .allMatch(engine -> "SUCCEEDED".equals(engine.path("status").asText())));
+            JsonNode report = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/reports/json",
+                            created.path("scanId").asText()))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+            assertEquals("AVAILABLE", report.path("sbomSummary").path("status").asText());
+            assertEquals(1, report.path("sbomSummary").path("components").asInt());
+            assertTrue(report.path("summary").path("modules").path("built").asInt() > 0);
         }
     }
 
@@ -330,7 +336,11 @@ class StandardProfileApiE2ETest {
         @Override
         public ExecutionSpec prepare(ScanContext context, ToolContext tools) throws java.io.IOException {
             Files.createDirectories(context.engineOutputDirectory());
-            String report = descriptor.id().value().equals("spotbugs") ? "report.xml" : "report.json";
+            String report = switch (descriptor.id().value()) {
+                case "spotbugs" -> "report.xml";
+                case "cyclonedx" -> "sbom/bom.json";
+                default -> "report.json";
+            };
             Path java = Path.of(System.getProperty("java.home"), "bin", "java");
             String classpath = System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
             return new ExecutionSpec(

@@ -4,14 +4,18 @@ import io.github.uprxiao.audit.adapter.semgrep.SemgrepAdapter;
 import io.github.uprxiao.audit.adapter.checkstyle.CheckstyleAdapter;
 import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
 import io.github.uprxiao.audit.adapter.codeql.CodeqlWorkflow;
+import io.github.uprxiao.audit.adapter.cyclonedx.CycloneDxAdapter;
+import io.github.uprxiao.audit.adapter.dependencycheck.DependencyCheckAdapter;
 import io.github.uprxiao.audit.adapter.gitleaks.GitleaksAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdCpdAdapter;
 import io.github.uprxiao.audit.adapter.maven.MavenDependencyAnalysisAdapter;
 import io.github.uprxiao.audit.adapter.maven.MavenEnforcerAdapter;
+import io.github.uprxiao.audit.adapter.osv.OsvScannerAdapter;
 import io.github.uprxiao.audit.adapter.spotbugs.FindSecBugsAdapter;
 import io.github.uprxiao.audit.adapter.spotbugs.SpotBugsAdapter;
 import io.github.uprxiao.audit.adapter.trivy.TrivyRepositoryAdapter;
+import io.github.uprxiao.audit.adapter.trivy.TrivyArtifactAdapter;
 import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
 import io.github.uprxiao.audit.intake.MavenArgumentValidator;
@@ -68,6 +72,9 @@ class AuditRuntimeConfiguration {
             @Value("${audit.tools.quick-root:}") String configuredQuickRoot,
             @Value("${audit.tools.standard-analysis-root:./tools/downloads/tool-pack/common/standard-analysis}")
                     String standardAnalysisRoot,
+            @Value("${audit.tools.standard-supply-root:}") String configuredStandardSupplyRoot,
+            @Value("${audit.tools.vulnerability-data-root:${audit.data-root:./data}/databases}")
+                    String vulnerabilityDataRoot,
             @Value("${audit.tools.codeql-executable:./tools/local/codeql-v2.26.2/codeql/codeql}")
                     String codeqlExecutable,
             @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}")
@@ -80,12 +87,17 @@ class AuditRuntimeConfiguration {
         String quickRoot = configuredQuickRoot.isBlank()
                 ? "./tools/downloads/tool-pack/" + currentPlatform() + "/quick"
                 : configuredQuickRoot;
+        String standardSupplyRoot = configuredStandardSupplyRoot.isBlank()
+                ? "./tools/downloads/tool-pack/" + currentPlatform() + "/standard-supply"
+                : configuredStandardSupplyRoot;
         return new AuditRuntimePaths(
                 Path.of(dataRoot).toAbsolutePath().normalize(),
                 Path.of(semgrepExecutable).toAbsolutePath().normalize(),
                 Path.of(semgrepRules).toAbsolutePath().normalize(),
                 Path.of(quickRoot).toAbsolutePath().normalize(),
                 Path.of(standardAnalysisRoot).toAbsolutePath().normalize(),
+                Path.of(standardSupplyRoot).toAbsolutePath().normalize(),
+                Path.of(vulnerabilityDataRoot).toAbsolutePath().normalize(),
                 Path.of(codeqlExecutable).toAbsolutePath().normalize(),
                 Path.of(codeqlQuerySuite).toAbsolutePath().normalize(),
                 Path.of(gitleaksRules).toAbsolutePath().normalize(),
@@ -304,17 +316,36 @@ class AuditRuntimeConfiguration {
             DefaultScanPlanner planner,
             SemgrepAdapter semgrep,
             ToolInstallationHealth semgrepHealth,
-            @Value("${audit.maven.executable:mvn}") String mavenExecutable) throws IOException, InterruptedException {
+            @Value("${audit.maven.executable:mvn}") String mavenExecutable,
+            @Value("${audit.tools.codeql-enabled:false}") boolean codeqlEnabled,
+            @Value("${audit.tools.codeql-terms-accepted:false}") boolean codeqlTermsAccepted)
+            throws IOException, InterruptedException {
         List<ToolInstallationHealth> health = new ArrayList<>();
         health.add(semgrepHealth);
-        health.addAll(new QuickToolIntegrityChecker(
-                paths, processes, new ObjectMapper(), clock).checkAll());
+        List<ToolInstallationHealth> quickHealth = new QuickToolIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock).checkAll();
+        health.addAll(quickHealth);
         List<ToolInstallationHealth> standardHealth = new StandardAnalysisToolIntegrityChecker(
                 paths, processes, clock, mavenExecutable,
                 System.getenv().getOrDefault("PATH", "/usr/bin:/bin")).checkAll();
         health.addAll(standardHealth);
-        ToolInstallationHealth codeqlHealth = new CodeqlToolIntegrityChecker(
-                paths, processes, new ObjectMapper(), clock).check();
+        List<ToolInstallationHealth> supplyHealth = new StandardSupplyToolIntegrityChecker(
+                paths, processes, new ObjectMapper(), clock, mavenExecutable,
+                System.getenv().getOrDefault("PATH", "/usr/bin:/bin"), quickHealth).checkAll();
+        health.addAll(supplyHealth);
+        ToolInstallationHealth codeqlHealth;
+        if (!codeqlEnabled || !codeqlTermsAccepted) {
+            codeqlHealth = new ToolInstallationHealth(
+                    "codeql", "UNAVAILABLE", "", paths.codeqlExecutable(), "",
+                    !codeqlEnabled ? "CODEQL_DISABLED" : "CODEQL_TERMS_NOT_ACCEPTED",
+                    !codeqlEnabled
+                            ? "Set AUDIT_CODEQL_ENABLED=true only for an authorized CodeQL deployment"
+                            : "Set AUDIT_CODEQL_TERMS_ACCEPTED=true after reviewing the CodeQL terms",
+                    clock.instant());
+        } else {
+            codeqlHealth = new CodeqlToolIntegrityChecker(
+                    paths, processes, new ObjectMapper(), clock).check();
+        }
         health.add(codeqlHealth);
         Path resolvedMaven = StandardAnalysisToolIntegrityChecker.resolveExecutable(
                 mavenExecutable, System.getenv().getOrDefault("PATH", "/usr/bin:/bin"));
@@ -327,8 +358,12 @@ class AuditRuntimeConfiguration {
                 new TrivyRepositoryAdapter(paths.trivyCache()),
                 new SpotBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
                 new FindSecBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
+                new DependencyCheckAdapter(paths.dependencyCheckData()),
+                new OsvScannerAdapter(),
                 new MavenDependencyAnalysisAdapter(paths.mavenLocalRepository()),
                 new MavenEnforcerAdapter(paths.mavenLocalRepository()),
+                new CycloneDxAdapter(),
+                new TrivyArtifactAdapter(paths.vulnerabilityTrivyCache()),
                 new CodeqlAdapter(
                         paths.codeqlQuerySuite(),
                         resolvedMaven == null ? Path.of("/codeql-maven-unavailable") : resolvedMaven,

@@ -8,6 +8,8 @@ record AuditRuntimePaths(
         Path semgrepRules,
         Path quickToolRoot,
         Path standardAnalysisToolRoot,
+        Path standardSupplyToolRoot,
+        Path vulnerabilityDataRoot,
         Path codeqlExecutable,
         Path codeqlQuerySuite,
         Path gitleaksRules,
@@ -19,6 +21,8 @@ record AuditRuntimePaths(
         this(dataRoot, semgrepExecutable, semgrepRules,
                 Path.of("./tools/downloads/quick").toAbsolutePath().normalize(),
                 Path.of("./tools/downloads/tool-pack/common/standard-analysis").toAbsolutePath().normalize(),
+                Path.of("./tools/downloads/tool-pack/darwin-arm64/standard-supply").toAbsolutePath().normalize(),
+                Path.of("./tools/downloads/databases").toAbsolutePath().normalize(),
                 Path.of("./tools/local/codeql-v2.26.2/codeql/codeql").toAbsolutePath().normalize(),
                 Path.of("./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls")
                         .toAbsolutePath().normalize(),
@@ -54,6 +58,34 @@ record AuditRuntimePaths(
 
     Path findSecBugsPlugin() {
         return standardAnalysisToolRoot.resolve("findsecbugs/lib/findsecbugs-plugin-1.14.0.jar");
+    }
+
+    Path dependencyCheckToolDirectory() {
+        return standardSupplyToolRoot.resolve("dependency-check");
+    }
+
+    Path dependencyCheckExecutable() {
+        return dependencyCheckToolDirectory().resolve("dependency-check/bin/dependency-check.sh");
+    }
+
+    Path dependencyCheckData() {
+        return vulnerabilityDataRoot.resolve("dependency-check");
+    }
+
+    Path osvScannerToolDirectory() {
+        return standardSupplyToolRoot.resolve("osv-scanner");
+    }
+
+    Path osvScannerExecutable() {
+        return osvScannerToolDirectory().resolve("bin/osv-scanner");
+    }
+
+    Path cycloneDxMetadata() {
+        return standardSupplyToolRoot.resolve("cyclonedx/pack-metadata.json");
+    }
+
+    Path vulnerabilityTrivyCache() {
+        return vulnerabilityDataRoot.resolve("trivy");
     }
 
     Path mavenLocalRepository() {

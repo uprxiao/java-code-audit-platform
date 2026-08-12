@@ -14,6 +14,7 @@ public record ScanView(
         ScanPhase phase,
         Map<String, Integer> progress,
         Map<String, Object> summary,
+        Map<String, Object> build,
         Instant createdAt,
         Instant startedAt,
         Instant updatedAt,
