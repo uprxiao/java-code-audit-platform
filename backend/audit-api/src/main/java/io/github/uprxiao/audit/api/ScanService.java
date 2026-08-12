@@ -12,6 +12,7 @@ import io.github.uprxiao.audit.finding.ScanProfile;
 import io.github.uprxiao.audit.finding.ScanStatus;
 import io.github.uprxiao.audit.finding.SourceType;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
+import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.ProjectContext;
 import io.github.uprxiao.audit.intake.SafeZipExtractor;
 import io.github.uprxiao.audit.intake.SourceDescriptor;
@@ -67,6 +68,7 @@ public final class ScanService {
     private final SafeZipExtractor archives;
     private final ZipExtractionLimits zipLimits;
     private final MavenProjectInspector projects;
+    private final MavenArgumentValidator mavenArguments;
     private final LocalProcessExecutionBackend processes;
     private final SemgrepAdapter semgrep;
     private final ReportGenerator reports;
@@ -83,6 +85,7 @@ public final class ScanService {
             SafeZipExtractor archives,
             ZipExtractionLimits zipLimits,
             MavenProjectInspector projects,
+            MavenArgumentValidator mavenArguments,
             LocalProcessExecutionBackend processes,
             SemgrepAdapter semgrep,
             ReportGenerator reports,
@@ -96,6 +99,7 @@ public final class ScanService {
         this.archives = archives;
         this.zipLimits = zipLimits;
         this.projects = projects;
+        this.mavenArguments = mavenArguments;
         this.processes = processes;
         this.semgrep = semgrep;
         this.reports = reports;
@@ -103,6 +107,7 @@ public final class ScanService {
     }
 
     public CreateScanResponse submitZip(InputStream source, String originalName, ZipScanRequest request) throws IOException {
+        mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
         if (request.profile() != ScanProfile.QUICK) {
             throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
                     "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");

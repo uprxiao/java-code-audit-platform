@@ -3,6 +3,7 @@ package io.github.uprxiao.audit.api;
 import io.github.uprxiao.audit.adapter.semgrep.SemgrepAdapter;
 import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
+import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.SafeZipExtractor;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
@@ -100,6 +101,11 @@ class AuditRuntimeConfiguration {
     @Bean
     MavenProjectInspector mavenProjectInspector() {
         return new MavenProjectInspector();
+    }
+
+    @Bean
+    MavenArgumentValidator mavenArgumentValidator() {
+        return new MavenArgumentValidator();
     }
 
     @Bean

@@ -33,8 +33,11 @@ final class ApiExceptionHandler {
 
     @ExceptionHandler(SourceIntakeException.class)
     ResponseEntity<ApiErrorResponse> intake(SourceIntakeException exception, HttpServletRequest request) {
-        HttpStatus status = exception.code().equals("ARCHIVE_LIMIT_EXCEEDED")
-                ? HttpStatus.PAYLOAD_TOO_LARGE : HttpStatus.UNPROCESSABLE_ENTITY;
+        HttpStatus status = switch (exception.code()) {
+            case "ARCHIVE_LIMIT_EXCEEDED" -> HttpStatus.PAYLOAD_TOO_LARGE;
+            case "INVALID_MAVEN_ARGUMENT" -> HttpStatus.BAD_REQUEST;
+            default -> HttpStatus.UNPROCESSABLE_ENTITY;
+        };
         ApiErrorCode code;
         try {
             code = ApiErrorCode.valueOf(exception.code());
