@@ -68,6 +68,18 @@ class ScannerRegistryTest {
     }
 
     @Test
+    void codeqlHealthOpensDeepWithoutChangingQuickOrStandard() {
+        List<String> deep = planner.plan(ScanProfile.DEEP).engines().stream()
+                .map(engine -> engine.id().value()).toList();
+        ScannerRegistry registry = registry(deep, true);
+
+        assertEquals(15, registry.adapters().size());
+        assertTrue(registry.available(ScanProfile.QUICK));
+        assertTrue(registry.available(ScanProfile.STANDARD));
+        assertTrue(registry.available(ScanProfile.DEEP));
+    }
+
+    @Test
     void rejectsDuplicateLogicalAdaptersAndHealthEntries() {
         ScannerAdapter duplicate = new StubAdapter("semgrep");
         List<ToolInstallationHealth> health = List.of(health("semgrep"));
