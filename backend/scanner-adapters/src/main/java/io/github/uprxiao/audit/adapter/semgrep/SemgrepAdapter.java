@@ -9,9 +9,13 @@ import io.github.uprxiao.audit.finding.EngineCoverage;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.Finding;
 import io.github.uprxiao.audit.finding.FindingEvidence;
+import io.github.uprxiao.audit.finding.FindingFingerprintService;
 import io.github.uprxiao.audit.finding.IssueCategory;
 import io.github.uprxiao.audit.finding.ReviewState;
 import io.github.uprxiao.audit.finding.Severity;
+import io.github.uprxiao.audit.finding.SeverityMappingRequest;
+import io.github.uprxiao.audit.finding.SeverityMappingResult;
+import io.github.uprxiao.audit.finding.SeverityMappingService;
 import io.github.uprxiao.audit.finding.SourceLocation;
 import io.github.uprxiao.audit.finding.VulnerabilityIdentifiers;
 import io.github.uprxiao.audit.intake.ProjectContext;
@@ -53,6 +57,8 @@ public final class SemgrepAdapter implements ScannerAdapter {
 
     private final Path rulesFile;
     private final ObjectMapper json;
+    private final FindingFingerprintService fingerprints = new FindingFingerprintService();
+    private final SeverityMappingService severities = new SeverityMappingService();
 
     public SemgrepAdapter(Path rulesFile) {
         this(rulesFile, new ObjectMapper());
@@ -178,20 +184,32 @@ public final class SemgrepAdapter implements ScannerAdapter {
         int endColumn = result.path("end").path("col").asInt();
         String message = extra.path("message").asText(ruleId);
         String ruleFamily = metadata.path("rule_family").asText(ruleId).toUpperCase(Locale.ROOT);
-        String fingerprint = fingerprint(ruleFamily + "|" + portable(relativePath) + "|" + normalizedMessage(message));
         SourceLocation location = new SourceLocation(portable(relativePath), startLine, startColumn, endLine, endColumn);
         CodeSnippet snippet = snippet(project.resolveProjectPath(portable(relativePath)), startLine, endLine);
+        IssueCategory category = enumValue(
+                IssueCategory.class, metadata.path("audit_category").asText(), IssueCategory.CORRECTNESS);
+        Confidence confidence = enumValue(
+                Confidence.class, metadata.path("confidence").asText(), Confidence.MEDIUM);
+        FindingFingerprintService.Fingerprint fingerprint = fingerprints.source(
+                ruleFamily, portable(relativePath), ruleId, "", message, snippet.text());
+        SeverityMappingResult severity = severities.map(new SeverityMappingRequest(
+                ID.value(), ruleFamily, category, extra.path("severity").asText(),
+                null, false, false, confidence));
+        Map<String, Object> properties = new java.util.LinkedHashMap<>(
+                json.convertValue(metadata, new TypeReference<Map<String, Object>>() { }));
+        properties.put("severityMappingId", severity.mappingId());
+        properties.put("severityMappingReason", severity.reason());
         FindingEvidence evidence = new FindingEvidence(
                 ID.value(), version, ruleId, extra.path("severity").asText(""),
                 "raw/semgrep/report.json", ruleId + ":" + index,
-                json.convertValue(metadata, new TypeReference<Map<String, Object>>() { }));
+                properties);
         return new Finding(
-                "F-" + fingerprint.substring("sha256:".length(), "sha256:".length() + 20),
-                fingerprint,
-                1,
-                enumValue(IssueCategory.class, metadata.path("audit_category").asText(), IssueCategory.CORRECTNESS),
-                severity(extra.path("severity").asText()),
-                enumValue(Confidence.class, metadata.path("confidence").asText(), Confidence.MEDIUM),
+                fingerprint.findingId(),
+                fingerprint.value(),
+                fingerprint.version(),
+                category,
+                severity.severity(),
+                confidence,
                 ruleFamily,
                 metadata.path("title_zh").asText(""),
                 message,
