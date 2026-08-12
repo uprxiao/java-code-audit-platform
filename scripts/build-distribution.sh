@@ -68,6 +68,8 @@ for python_alias in "${BUNDLE_ROOT}/tools/${PLATFORM}/semgrep/python"/*; do
 done
 cp -R "${QUICK_PACK}" "${BUNDLE_ROOT}/tools/${PLATFORM}/quick"
 if [[ -d "${STANDARD_COMMON}" ]]; then
+  require_file "${STANDARD_COMMON}/standard-analysis/spotbugs/LICENSE.txt"
+  require_file "${STANDARD_COMMON}/standard-analysis/findsecbugs/LICENSE"
   cp -R "${STANDARD_COMMON}" "${BUNDLE_ROOT}/tools/common"
 fi
 if [[ -d "${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/standard-supply" ]]; then

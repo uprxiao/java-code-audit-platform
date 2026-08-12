@@ -18,6 +18,8 @@ tools:
     entrypointSha256: 6fa340344fa433ff46c2985dab1010e8bc739f9395c983594a5240095e92abc8
     sourceUrl: https://github.com/find-sec-bugs/find-sec-bugs/releases/download/version-1.14.0/findsecbugs-cli-1.14.0.zip
     license: LGPL-3.0-only
+    licenseFile: tools/downloads/tool-pack/common/standard-analysis/findsecbugs/LICENSE
+    licenseSha256: da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768
     redistributionReviewed: true
     runtime: SpotBugs plugin on JDK 17
     parserSchemaVersion: 1

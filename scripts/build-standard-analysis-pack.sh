@@ -7,12 +7,14 @@ SPOTBUGS_ARCHIVE_SHA256="d464d56050cf1dbda032e9482e1188f7cd7b7646eaff79c2e6cbe4d
 FINDSECBUGS_ARCHIVE_SHA256="ff546e16e596ade5b6534a6da87881e569429bf46dfd8faed63ca63cdd69b4f8"
 SPOTBUGS_JAR_SHA256="710e8b98f1ae23cdb71aaaf07e8d71fb63b44f2bbbaa1df3c3ba0de62aba6ec9"
 FINDSECBUGS_PLUGIN_SHA256="6fa340344fa433ff46c2985dab1010e8bc739f9395c983594a5240095e92abc8"
+FINDSECBUGS_LICENSE_SHA256="da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
 
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOWNLOAD_ROOT="${REPOSITORY_ROOT}/tools/downloads/standard-analysis"
 PACK_ROOT="${REPOSITORY_ROOT}/tools/downloads/tool-pack/common/standard-analysis"
 SPOTBUGS_ARCHIVE="${DOWNLOAD_ROOT}/spotbugs-${SPOTBUGS_VERSION}.tgz"
 FINDSECBUGS_ARCHIVE="${DOWNLOAD_ROOT}/findsecbugs-cli-${FINDSECBUGS_VERSION}.zip"
+FINDSECBUGS_LICENSE="${DOWNLOAD_ROOT}/findsecbugs-LICENSE-${FINDSECBUGS_VERSION}"
 
 mkdir -p "${DOWNLOAD_ROOT}" "${PACK_ROOT}"
 
@@ -41,8 +43,12 @@ download \
 download \
   "https://github.com/find-sec-bugs/find-sec-bugs/releases/download/version-${FINDSECBUGS_VERSION}/findsecbugs-cli-${FINDSECBUGS_VERSION}.zip" \
   "${FINDSECBUGS_ARCHIVE}"
+download \
+  "https://raw.githubusercontent.com/find-sec-bugs/find-sec-bugs/version-${FINDSECBUGS_VERSION}/LICENSE" \
+  "${FINDSECBUGS_LICENSE}"
 verify_sha256 "${SPOTBUGS_ARCHIVE_SHA256}" "${SPOTBUGS_ARCHIVE}"
 verify_sha256 "${FINDSECBUGS_ARCHIVE_SHA256}" "${FINDSECBUGS_ARCHIVE}"
+verify_sha256 "${FINDSECBUGS_LICENSE_SHA256}" "${FINDSECBUGS_LICENSE}"
 
 STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/java-audit-standard-analysis.XXXXXX")"
 trap 'rm -rf "${STAGING_ROOT}"' EXIT
@@ -55,6 +61,7 @@ mkdir -p "${PACK_ROOT}/spotbugs" "${PACK_ROOT}/findsecbugs/lib"
 cp -R "${STAGING_ROOT}/spotbugs-${SPOTBUGS_VERSION}/." "${PACK_ROOT}/spotbugs/"
 cp "${STAGING_ROOT}/findsecbugs/lib/findsecbugs-plugin-${FINDSECBUGS_VERSION}.jar" \
   "${PACK_ROOT}/findsecbugs/lib/findsecbugs-plugin-${FINDSECBUGS_VERSION}.jar"
+cp "${FINDSECBUGS_LICENSE}" "${PACK_ROOT}/findsecbugs/LICENSE"
 verify_sha256 "${SPOTBUGS_JAR_SHA256}" "${PACK_ROOT}/spotbugs/lib/spotbugs.jar"
 verify_sha256 "${FINDSECBUGS_PLUGIN_SHA256}" \
   "${PACK_ROOT}/findsecbugs/lib/findsecbugs-plugin-${FINDSECBUGS_VERSION}.jar"
