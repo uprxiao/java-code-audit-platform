@@ -42,6 +42,7 @@ Finding Normalizer -> Deduplication -> Policy Evaluation -> Report Service
 
 - 在一次性容器或微虚拟机中执行不可信任务；
 - 提供 JDK 8/11/17/21 等构建镜像；
+- 平台控制面以 JDK 17 运行，Runner 按被扫描项目和扫描器要求独立选择 JDK；
 - 通过只读扫描器配置和受控缓存执行命令；
 - 输出原始报告、日志和覆盖元数据后立即销毁。
 

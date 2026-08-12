@@ -30,7 +30,7 @@
 
 - **快速扫描**：Gitleaks、Semgrep、PMD、CPD、Checkstyle、Trivy Repository；不依赖 Maven 构建成功。
 - **标准扫描**：快速扫描 + 隔离 Maven 构建 + SpotBugs/FindSecBugs、依赖检查、SBOM 和产物扫描。
-- **深度扫描**：标准扫描 + CodeQL，以及项目兼容时的 Error Prone/NullAway。
+- **深度扫描**：标准扫描 + 许可与使用策略允许时的 CodeQL，以及项目兼容时的 Error Prone/NullAway。
 
 ## 仓库结构
 
@@ -52,7 +52,7 @@ scripts/              本地开发与验证脚本
 
 ## 本地构建
 
-要求：JDK 21、Maven 3.9+。
+要求：JDK 17、Maven 3.9+。
 
 ```bash
 mvn verify
@@ -70,6 +70,7 @@ POST /api/v1/scans
 
 ## 文档
 
+- [代码审计能力全景与组件说明](docs/code-audit-capabilities.md)
 - [系统架构](docs/architecture.md)
 - [扫描流水线](docs/scanning-pipeline.md)
 - [本地开发](docs/development.md)
