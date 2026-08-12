@@ -109,6 +109,26 @@ if unzip -Z1 "${WORK_ROOT}/report.zip" | grep -E '(^|/)(workspace|source|target|
   exit 11
 fi
 
+# When the acceptance client is executed from the release on the same host,
+# also prove that successful finalization removed the mutable source/build
+# workspace. Remote acceptance can opt into the same check by pointing this
+# variable at the server's jobs directory.
+LOCAL_JOBS_ROOT="${AUDIT_ACCEPTANCE_JOB_ROOT:-${BUNDLE_ROOT}/data/jobs}"
+LOCAL_JOB_ROOT="${LOCAL_JOBS_ROOT}/${SCAN_ID}"
+if [[ -d "${LOCAL_JOB_ROOT}" ]]; then
+  FORBIDDEN_DIRECTORY="$(find "${LOCAL_JOB_ROOT}" -type d \
+    \( -name source -o -name workspace -o -name repository -o -name target \
+       -o -name codeql-db -o -name .m2 \) -print -quit)"
+  [[ -z "${FORBIDDEN_DIRECTORY}" ]] || {
+    echo "Successful task retained forbidden workspace directory: ${FORBIDDEN_DIRECTORY}" >&2
+    exit 12
+  }
+  if grep -R -F -q --exclude='*.zip' 'AUDIT_CANARY_SECRET_V1_RELEASE_FIXTURE' "${LOCAL_JOB_ROOT}"; then
+    echo "Acceptance canary leaked into the finalized task directory." >&2
+    exit 13
+  fi
+fi
+
 if [[ -n "${EVIDENCE_ROOT}" ]]; then
   PROFILE_DIRECTORY="$(printf '%s' "${PROFILE}" | tr '[:upper:]' '[:lower:]')"
   EVIDENCE_DIRECTORY="${EVIDENCE_ROOT}/${PROFILE_DIRECTORY}/${SCAN_ID}"
