@@ -1,0 +1,9 @@
+{
+  "count": 1,
+  "category": "DEPENDENCY_VULNERABILITY",
+  "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+  "identifiers": ["CVE-2021-44228", "GHSA-jfh8-c2jp-5v3q"],
+  "currentVersion": "2.14.1",
+  "fixedVersions": ["2.17.1", "2.12.4"],
+  "dependencyPath": ["supply-fixture", "pom.xml > org.apache.logging.log4j:log4j-core"]
+}

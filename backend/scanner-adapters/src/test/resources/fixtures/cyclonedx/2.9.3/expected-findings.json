@@ -1,0 +1,6 @@
+{
+  "findingCount": 0,
+  "componentCount": 1,
+  "assetPath": "sbom/bom.json",
+  "note": "SBOM inventory is not counted as a finding until a vulnerability or explicit policy violation exists."
+}

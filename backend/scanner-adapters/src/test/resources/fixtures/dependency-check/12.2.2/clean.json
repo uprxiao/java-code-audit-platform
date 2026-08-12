@@ -1,0 +1,13 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {
+    "dataSource": [{"name": "NVD API", "timestamp": "2026-08-10T00:00:00Z"}],
+    "analysisExceptions": []
+  },
+  "dependencies": [{
+    "fileName": "safe-1.0.jar",
+    "packages": [{"id": "pkg:maven/example/safe@1.0"}],
+    "projectReferences": ["supply-fixture"],
+    "vulnerabilities": []
+  }]
+}

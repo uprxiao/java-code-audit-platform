@@ -1,0 +1,13 @@
+{
+  "results": [{
+    "source": {"path": "@PROJECT_ROOT@/pom.xml", "type": "lockfile"},
+    "packages": [{
+      "package": {"name": "org.apache.logging.log4j:log4j-core", "version": "2.14.1", "ecosystem": "Maven"},
+      "groups": [{"ids": ["GHSA-jfh8-c2jp-5v3q"], "max_severity": "10.0"}],
+      "vulnerabilities": [
+        {"id": "GHSA-jfh8-c2jp-5v3q", "aliases": ["CVE-2021-44228"], "affected": [{"package": {"purl": "pkg:maven/org.apache.logging.log4j/log4j-core"}, "ranges": [{"events": [{"fixed": "2.17.1"}]}]}]},
+        {"summary": "entry without an id"}
+      ]
+    }]
+  }]
+}

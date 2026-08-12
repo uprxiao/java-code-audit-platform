@@ -97,7 +97,7 @@ tools:
     rules: config/rules/checkstyle/java-audit.xml
 
   - id: trivy
-    logicalEngines: [trivy-repository]
+    logicalEngines: [trivy-repository, trivy-artifact]
     version: 0.73.0
     upstreamCommit: 40c73e5d6166dcc0346a1ab4e94499d1572854e4
     distribution: locally-assembled-official-release
@@ -120,12 +120,110 @@ tools:
         entrypointSha256: 5b3ebab0f98d95196c85efc3a9d31a01520c96fa342e4e611f56db64c516df1d
         sourceArchiveSha256: 2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b
     parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/trivy-repository/0.73.0
+    additionalParserFixtures:
+      trivy-artifact: backend/scanner-adapters/src/test/resources/fixtures/trivy-artifact/0.73.0
     rules: config/rules/trivy/README.md
+
+  - id: dependency-check
+    logicalEngines: [dependency-check]
+    version: 12.2.2
+    upstreamCommit: b51290fd340722350b130c5c9549268969062756
+    distribution: locally-assembled-official-java-release
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: redistributable-with-license-and-notice
+    sourceUrl: https://github.com/dependency-check/DependencyCheck/releases/tag/v12.2.2
+    sourceArchiveSha256: bf07fefd81af3094c5f6850423b014df44db62ce2dbad0f79079a90df675e44a
+    expectedVersionOutput: "Dependency-Check Core version 12.2.2"
+    healthCheck: [--version]
+    runtime: JDK-17
+    dynamicData:
+      path: tools/downloads/databases/dependency-check
+      committed: false
+      required: true
+      missingBehavior: VULNERABILITY_DATABASE_UNAVAILABLE
+      updateNote: NVD API data is updated separately; NVD_API_KEY or a controlled NVD_DATAFEED_URL mirror is strongly recommended.
+    platforms:
+      common-java:
+        assemblyScript: scripts/build-standard-supply-tool-pack.sh
+        localPath: tools/downloads/tool-pack/{platform}/standard/dependency-check/dependency-check
+        entrypoint: bin/dependency-check.sh
+        entrypointSha256: d683a49ec335eeca93d8707f3e8ce21d7ba63a1e619a325c6518f89c25efcdc4
+        coreJarSha256: 1ebe55e542b2f4d2727380395843922381447dc8b9a4f1633e77096f47ebfb48
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/dependency-check/12.2.2
+
+  - id: osv-scanner
+    logicalEngines: [osv-scanner]
+    version: 2.3.8
+    upstreamCommit: 408fcd6f8707999a29e7ba45e15809764cf24f67
+    distribution: locally-assembled-official-release
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: redistributable-with-license-and-notice
+    sourceUrl: https://github.com/google/osv-scanner/releases/tag/v2.3.8
+    expectedVersionOutput: "osv-scanner version: 2.3.8"
+    healthCheck: [--version]
+    dynamicData:
+      mode: online-osv-dev-api
+      offlineDatabaseBundled: false
+      unavailableBehavior: FAILED_DATA_SOURCE_UNAVAILABLE
+      privacy: package coordinates and versions are sent; source code is not sent.
+    resolutionMode: direct Maven manifest dependencies with --no-resolve; transitive coverage comes from the CycloneDX and Trivy Artifact engines.
+    platforms:
+      darwin-arm64:
+        assemblyScript: scripts/build-standard-supply-tool-pack.sh
+        localPath: tools/downloads/tool-pack/darwin-arm64/standard/osv-scanner/bin/osv-scanner
+        launchMode: controlled-exit-code-wrapper
+        wrapperSource: scripts/tool-wrappers/osv-scanner-audit
+        entrypointSha256: b3005f98417f747ff617997c074f21527b4d9f464e77657fd9e2c030bd98c83b
+        upstreamBinarySha256: a8cd6507b06239f463a7642430cfd2d154882f150f6e30cdc0653e28dfc34216
+      linux-x86_64:
+        assemblyScript: scripts/build-standard-supply-tool-pack.sh
+        localPath: tools/downloads/tool-pack/linux-x86_64/standard/osv-scanner/bin/osv-scanner
+        launchMode: controlled-exit-code-wrapper
+        wrapperSource: scripts/tool-wrappers/osv-scanner-audit
+        entrypointSha256: b3005f98417f747ff617997c074f21527b4d9f464e77657fd9e2c030bd98c83b
+        upstreamBinarySha256: bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc
+    acceptedUpstreamExitCodes:
+      succeeded: [0]
+      findingsPresent: [1]
+      dataSourceOrFatalFailure: [128, 129]
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/osv-scanner/2.3.8
+
+  - id: cyclonedx
+    logicalEngines: [cyclonedx]
+    version: 2.9.3
+    upstreamCommit: 93e97e1c7e50b08cbba62549c2ed88c95202ed62
+    distribution: controlled-maven-plugin-coordinate
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: redistributable-with-license-and-notice
+    sourceUrl: https://github.com/CycloneDX/cyclonedx-maven-plugin/releases/tag/cyclonedx-maven-plugin-2.9.3
+    mavenCoordinate: org.cyclonedx:cyclonedx-maven-plugin:2.9.3
+    mavenArtifactSha256: c452d5eebe28bc86bef2e7c72d129f04f60877bef843eac8120f01fb655be293
+    healthCheck: [mvn, --batch-mode, "org.cyclonedx:cyclonedx-maven-plugin:2.9.3:help"]
+    runtime: JDK-17-and-system-Maven-3.9+
+    outputAsset: sbom/bom.json
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/cyclonedx/2.9.3
+
+standardSupply:
+  logicalEngines:
+    - dependency-check
+    - osv-scanner
+    - cyclonedx
+    - trivy-artifact
+  script: scripts/build-standard-supply-tool-pack.sh
+  smokeScript: scripts/run-standard-supply-smoke.sh
+  dataUpdateScript: scripts/update-standard-vulnerability-data.sh
+  fixtures:
+    trivy-artifact: backend/scanner-adapters/src/test/resources/fixtures/trivy-artifact/0.73.0
+  dataInvariant: A missing vulnerability database or unavailable online data source is a failed engine, never a clean zero-finding result.
 
 notes:
   - Tool-pack binaries and Python runtime remain under gitignored tools/downloads until release assembly.
   - Installed wheel metadata retains Semgrep and transitive dependency license files.
   - Quick tool pack assembly verifies official archive SHA256 before extraction and emits per-tool stable pack-metadata.json.
+  - Standard supply pack assembly verifies Dependency-Check and OSV official SHA256 values; CycloneDX is resolved by a pinned Maven coordinate and checked artifact hash.
   - Gitleaks and Trivy native entrypoint SHA256 values above were measured from both official platform archives.
   - Trivy 0.73.0 is pinned after the upstream March 2026 supply-chain incident; do not use latest tags or unverified setup actions.
   - PMD is BSD-style licensed; its official distribution LICENSE also carries required bundled dependency notices.

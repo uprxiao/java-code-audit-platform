@@ -1,0 +1,5 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {"dataSource": [], "analysisExceptions": ["NVD database unavailable"]},
+  "dependencies": []
+}

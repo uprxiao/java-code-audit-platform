@@ -1,0 +1,25 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {
+    "dataSource": [{"name": "NVD API", "timestamp": "2026-08-10T00:00:00Z"}],
+    "analysisExceptions": []
+  },
+  "dependencies": [{
+    "fileName": "log4j-core-2.14.1.jar",
+    "filePath": "target/dependency/log4j-core-2.14.1.jar",
+    "packages": [{"id": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}],
+    "projectReferences": ["supply-fixture", "org.apache.logging.log4j:log4j-core:2.14.1"],
+    "vulnerabilities": [{
+      "source": "NVD",
+      "name": "CVE-2021-44228",
+      "severity": "CRITICAL",
+      "cwes": ["CWE-20", "CWE-400", "CWE-502"],
+      "description": "Log4j JNDI message lookup vulnerability.",
+      "cvssv3": {"baseScore": 10.0},
+      "fixedVersions": ["2.17.1"],
+      "knownExploitedVulnerability": {"Name": "Known exploited Log4Shell"},
+      "publishedDate": "2021-12-10T00:00:00Z",
+      "references": [{"name": "GHSA-jfh8-c2jp-5v3q"}]
+    }]
+  }]
+}

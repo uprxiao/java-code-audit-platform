@@ -1,0 +1,7 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "components": [{"type": "library", "name": "log4j-core", "version": "2.14.1"}],
+  "dependencies": []
+}

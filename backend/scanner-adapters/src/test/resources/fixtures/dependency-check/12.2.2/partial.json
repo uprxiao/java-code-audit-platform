@@ -1,0 +1,16 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {
+    "dataSource": [{"name": "NVD API", "timestamp": "2026-08-10T00:00:00Z"}],
+    "analysisExceptions": ["one archive could not be analyzed"]
+  },
+  "dependencies": [{
+    "fileName": "log4j-core-2.14.1.jar",
+    "packages": [{"id": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}],
+    "projectReferences": ["supply-fixture"],
+    "vulnerabilities": [
+      {"name": "CVE-2021-44228", "severity": "CRITICAL", "cwes": ["CWE-502"], "fixedVersions": ["2.17.1"]},
+      {"severity": "HIGH"}
+    ]
+  }]
+}

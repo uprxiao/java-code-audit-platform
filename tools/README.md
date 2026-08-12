@@ -13,7 +13,7 @@ tools/
 ```
 
 当前仓库仍不提交第三方二进制。`scripts/build-semgrep-pack.sh` 和
-`scripts/build-quick-tool-pack.sh` 会从官方锁定地址在本地 `tools/downloads/tool-pack/`
+`scripts/build-quick-tool-pack.sh` 和 `scripts/build-standard-supply-tool-pack.sh` 会从官方锁定地址在本地 `tools/downloads/tool-pack/`
 组装可验证工具包；该目录被 gitignore。每个工具根目录的 `pack-metadata.json`
 是 ToolRegistry 可直接读取的版本、入口、SHA256、来源和许可证快照。
 

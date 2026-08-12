@@ -1,0 +1,14 @@
+{
+  "SchemaVersion": 2,
+  "CreatedAt": "2026-08-10T00:00:00Z",
+  "ArtifactName": "bom.json",
+  "ArtifactType": "cyclonedx",
+  "Errors": ["one component could not be analyzed"],
+  "Results": [{
+    "Target": "supply-fixture",
+    "Vulnerabilities": [
+      {"VulnerabilityID": "CVE-2021-44228", "PkgName": "org.apache.logging.log4j:log4j-core", "PkgIdentifier": {"PURL": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}, "InstalledVersion": "2.14.1", "Severity": "CRITICAL"},
+      {"VulnerabilityID": "CVE-2026-0001", "Severity": "HIGH"}
+    ]
+  }]
+}

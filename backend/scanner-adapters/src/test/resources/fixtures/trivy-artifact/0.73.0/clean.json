@@ -1,0 +1,7 @@
+{
+  "SchemaVersion": 2,
+  "CreatedAt": "2026-08-10T00:00:00Z",
+  "ArtifactName": "bom.json",
+  "ArtifactType": "cyclonedx",
+  "Results": []
+}
