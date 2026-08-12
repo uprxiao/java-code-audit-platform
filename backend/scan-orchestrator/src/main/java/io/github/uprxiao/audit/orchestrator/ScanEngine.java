@@ -15,9 +15,7 @@ public enum ScanEngine {
     MAVEN_ENFORCER(true),
     CYCLONEDX(true),
     TRIVY_ARTIFACT(true),
-    CODEQL(true),
-    ERROR_PRONE(true),
-    NULLAWAY(true);
+    CODEQL(true);
 
     private final boolean requiresBuild;
 

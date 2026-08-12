@@ -17,6 +17,12 @@ reports/
 scanner-cache/
 *.log
 
+# Local-only or dynamically downloaded scanner content
+tools/local/
+tools/downloads/
+.m2/
+v1-acceptance-evidence/
+
 node_modules/
 dist/
 coverage/

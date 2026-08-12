@@ -21,6 +21,10 @@ class DefaultScanPlannerTest {
 
     @Test
     void deepIncludesCodeQl() {
-        assertTrue(planner.plan(ScanProfile.DEEP).engines().contains(ScanEngine.CODEQL));
+        ScanPlan plan = planner.plan(ScanProfile.DEEP);
+
+        assertTrue(plan.engines().contains(ScanEngine.CODEQL));
+        assertFalse(plan.engines().stream().map(Enum::name).anyMatch("ERROR_PRONE"::equals));
+        assertFalse(plan.engines().stream().map(Enum::name).anyMatch("NULLAWAY"::equals));
     }
 }

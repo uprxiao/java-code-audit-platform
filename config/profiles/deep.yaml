@@ -2,7 +2,4 @@ name: deep
 extends: standard
 requiresBuild: true
 engines:
-  - error-prone
-optionalEngines:
   - codeql
-  - nullaway

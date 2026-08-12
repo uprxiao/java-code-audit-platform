@@ -24,9 +24,7 @@ public final class DefaultScanPlanner {
             ScanEngine.CYCLONEDX,
             ScanEngine.TRIVY_ARTIFACT);
 
-    private static final List<ScanEngine> DEEP_ENGINES = List.of(
-            ScanEngine.CODEQL,
-            ScanEngine.ERROR_PRONE);
+    private static final List<ScanEngine> DEEP_ENGINES = List.of(ScanEngine.CODEQL);
 
     public ScanPlan plan(ScanProfile profile) {
         List<ScanEngine> engines = new ArrayList<>(QUICK_ENGINES);

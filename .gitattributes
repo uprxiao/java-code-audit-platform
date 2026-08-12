@@ -1,0 +1,2 @@
+# Only redistributable third-party binaries may be placed here, after license review.
+tools/distributable/** filter=lfs diff=lfs merge=lfs -text

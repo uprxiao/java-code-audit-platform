@@ -1,84 +1,95 @@
 # Java Code Audit Platform
 
-面向 Java/Maven 开源项目的 Web 代码审计平台。用户上传源码 ZIP 或提供 SVN 地址后，平台在隔离环境中编排多个成熟扫描引擎，统一收集、归类、去重并导出审计报告。
+面向 Java 17 Maven 项目的个人 Web 代码审计工具。用户上传源码 ZIP 或提供 SVN 当前快照地址后，平台在本机编排多个扫描器，统一归类、分级、去重并导出 HTML、JSON、SARIF、SBOM 和原始证据。
 
-> 当前状态：项目初始化阶段。仓库先建立可迭代的架构边界和 Maven 代码骨架，扫描器接入将在后续里程碑逐步完成。
+> 当前状态：V1 范围与开发计划已经冻结，代码仍处于领域骨架阶段。后续实现以 [`docs/v1/`](docs/v1/README.md) 为唯一规范来源。
 
-## 项目目标
+## V1 形态
 
-- 一个 Web 入口完成源码提交、任务启动、进度查询和报告下载。
-- 覆盖代码质量、潜在 Bug、安全污点、依赖漏洞、密钥泄漏、供应链和配置安全。
-- 扫描器保持独立，通过统一编排和 Finding 模型整合结果。
-- 明确区分扫描成功、扫描失败、部分完成与真正的零问题。
-- 第一阶段不依赖 AI；AI 仅作为后续解释、误报复核和修复建议的可选能力。
+```text
+Java 17 Spring Boot JAR
+  + 可再分发扫描工具（Git LFS）
+  + 外部 YAML 配置
+  + 文件任务目录
+```
 
-## 计划接入的扫描能力
+- 不依赖 IDEA、数据库、Redis、MQ、Docker 或 Kubernetes；
+- JDK 17 和 Maven 3.9+ 由运行环境预装；
+- 扫描器由 Java `ProcessBuilder` 作为本地子进程调用；
+- macOS ARM64 是本机开发和最高优先级验收环境；
+- Ubuntu 22.04 x86_64 是 Linux 发布和自动验收环境；
+- V1 不使用 AI。
 
-| 审计域 | 引擎 |
+## 九组审计能力
+
+| 能力 | 主要工具 |
 | --- | --- |
-| Java 潜在 Bug、空指针、并发和资源问题 | SpotBugs、PMD、Error Prone，可选 NullAway |
-| Java Web 安全与污点路径 | FindSecBugs、Semgrep、CodeQL |
+| Java 潜在 Bug、空指针、异常和并发 | SpotBugs、PMD |
+| Java Web 漏洞与污点分析 | FindSecBugs、Semgrep CE、CodeQL |
 | 代码规范 | Checkstyle、PMD |
-| 依赖漏洞 | OWASP Dependency-Check、OSV-Scanner、Trivy |
-| 密钥泄漏 | Gitleaks |
-| 重复代码与可维护性 | PMD CPD、PMD |
-| Maven 依赖健康 | Maven Dependency Plugin、Maven Enforcer |
-| SBOM | CycloneDX Maven Plugin |
-| 配置、IaC、产物和许可证 | Trivy |
+| 依赖漏洞 | Dependency-Check、OSV-Scanner、Trivy |
+| 密钥与敏感信息 | Gitleaks、Trivy |
+| 重复与可维护性 | PMD CPD、PMD |
+| Maven 依赖和构建治理 | Maven Dependency Plugin、Enforcer |
+| SBOM、许可证和供应链 | CycloneDX、Trivy |
+| 配置与 IaC | Trivy |
 
-## 扫描模式
+详细范围见[能力矩阵](docs/v1/capability-matrix.md)。Error Prone 和 NullAway 不进入 Java 17 V1。
 
-- **快速扫描**：Gitleaks、Semgrep、PMD、CPD、Checkstyle、Trivy Repository；不依赖 Maven 构建成功。
-- **标准扫描**：快速扫描 + 隔离 Maven 构建 + SpotBugs/FindSecBugs、依赖检查、SBOM 和产物扫描。
-- **深度扫描**：标准扫描 + 许可与使用策略允许时的 CodeQL，以及项目兼容时的 Error Prone/NullAway。
+## 扫描档位
 
-## 仓库结构
+- `QUICK`：Gitleaks、Semgrep、PMD、CPD、Checkstyle、Trivy Repository；不依赖 Maven 构建成功。
+- `STANDARD`：默认档位；Quick + Maven `-DskipTests package` + SpotBugs/FindSecBugs、依赖检查、Maven治理、SBOM和产物扫描。
+- `DEEP`：Standard + 本地安装且通过使用资格检查的 CodeQL。
+
+## 安全边界
+
+V1 直接在宿主机运行 Maven。跳过测试并不能阻止 Maven 插件和构建生命周期执行代码，因此只能扫描维护者信任且有权分析的项目，并部署在个人机器或可信网络。它不是接收任意公网恶意上传的沙箱。
+
+## 当前仓库结构
 
 ```text
 backend/
-  audit-api/          Web API 与任务入口
-  finding-core/       统一 Finding、扫描任务和公共模型
-  scan-orchestrator/  扫描计划、状态机和引擎编排
-  scan-runner/        隔离执行器（预留）
-  report-service/     HTML/PDF/JSON 报告（预留）
-web-ui/               Web 前端（预留）
-scanner-images/       扫描器镜像与版本清单
+  audit-api/          REST入口（骨架）
+  finding-core/       统一领域模型（骨架）
+  scan-orchestrator/  扫描计划（骨架）
+  scan-runner/        将演进为本地进程执行模块
+  report-service/     报告模块（占位）
 config/
-  profiles/           quick/standard/deep 扫描配置
-  rules/              平台维护的规则、过滤器和抑制配置
-docs/                 架构、开发和决策文档
-scripts/              本地开发与验证脚本
+  profiles/           Quick/Standard/Deep目标配置
+  rules/              规则与抑制配置
+docs/v1/              冻结产品、架构、开发和验收规范
+tools/                工具分发与本地安装约定
 ```
+
+目标模块结构见[总体架构](docs/v1/architecture.md)。
 
 ## 本地构建
 
 要求：JDK 17、Maven 3.9+。
 
+本机 Homebrew 示例：
+
 ```bash
-mvn verify
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+mvn clean verify
 mvn -pl backend/audit-api -am spring-boot:run
 ```
 
-启动后可访问：
+当前 `POST /api/v1/scans` 仍是骨架接口，不执行真实扫描。目标 API 见[API 契约](docs/v1/api-contract.md)。
 
-```text
-GET  /api/v1/health
-POST /api/v1/scans
-```
+## 核心文档
 
-当前 `POST /api/v1/scans` 只创建内存中的任务模型，尚未执行真实扫描。
-
-## 文档
-
-- [代码审计能力全景与组件说明](docs/code-audit-capabilities.md)
-- [系统架构](docs/architecture.md)
-- [扫描流水线](docs/scanning-pipeline.md)
-- [本地开发](docs/development.md)
-- [路线图](docs/roadmap.md)
-- [ADR-0001：多引擎编排架构](docs/adr/0001-multi-engine-orchestration.md)
-- [安全策略](SECURITY.md)
-- [贡献指南](CONTRIBUTING.md)
+- [V1 文档入口](docs/v1/README.md)
+- [产品范围](docs/v1/product-scope.md)
+- [决策登记册](docs/v1/decision-register.md)
+- [总体架构](docs/v1/architecture.md)
+- [开发计划](docs/v1/development-plan.md)
+- [Worktree策略](docs/v1/worktree-strategy.md)
+- [测试策略](docs/v1/testing-strategy.md)
+- [验收标准](docs/v1/acceptance-criteria.md)
+- [早期代码审计组件调研](docs/code-audit-capabilities.md)（背景资料，非V1规范）
 
 ## 许可证
 
-本项目采用 [Apache License 2.0](LICENSE)。各扫描引擎仍受其各自许可证约束，发布镜像或托管服务前需要逐项复核。
+本项目采用 [Apache License 2.0](LICENSE)。第三方扫描器继续受各自许可证约束。只有完成许可复核且允许再分发的工具才会进入 Git LFS 和公开介质；CodeQL CLI 不进入仓库或公开介质。

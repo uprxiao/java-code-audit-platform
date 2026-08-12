@@ -1,5 +1,7 @@
 # Java 代码审计能力全景与组件说明
 
+> **历史调研资料，不是V1实现规范。** 本文保留了早期对容器Runner、多JDK、Error Prone和NullAway的讨论；这些方案已经被最终决策取代。V1以[`docs/v1/`](v1/README.md)为准：Java 17、系统Maven、本地子进程、无容器/数据库，Error Prone/NullAway延后，Mac ARM64与Linux x86_64双平台。
+
 > 文档状态：方案基线（后续随扫描器接入持续更新）
 >
 > 适用场景：个人使用、Web 端部署、Java/Maven 项目、ZIP 上传或 SVN 地址
