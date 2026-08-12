@@ -1,0 +1,22 @@
+schemaVersion: 1
+id: codeql
+cliVersion: 2.26.2
+javaQueryPack: codeql/java-queries@1.11.7
+distribution: local-user-installation-only
+redistributed: false
+license: GitHub-CodeQL-Terms
+termsUrl: https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md
+releaseUrl: https://github.com/github/codeql-cli-binaries/releases/tag/v2.26.2
+platforms:
+  darwin-arm64:
+    asset: codeql-osx64.zip
+    sha256: c363637c914ef2dd6b0f5dddaffe7d70029787c0af52ea657a373788bb14c8a6
+  linux-x86_64:
+    asset: codeql-linux64.zip
+    sha256: f2a7f47f049b9de51977c02c7900b6e2af7587b50aef530a68975a97b136dfd4
+querySuites:
+  - java-code-scanning.qls
+  - java-security-and-quality.qls
+notes:
+  - CLI and downloaded packs live under gitignored tools/local and never enter the public release medium.
+  - Deep is enabled only for targets allowed by the current CodeQL terms or a separate paid authorization.
