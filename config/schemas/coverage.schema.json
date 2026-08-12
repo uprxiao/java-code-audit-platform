@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/uprxiao/java-code-audit-platform/schemas/coverage.schema.json",
+  "title": "Scan coverage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "project", "engines"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modulesDiscovered", "modulesBuilt", "modulesScanned", "excludedPaths"],
+      "properties": {
+        "modulesDiscovered": {"type": "integer", "minimum": 0},
+        "modulesBuilt": {"type": "integer", "minimum": 0},
+        "modulesScanned": {"type": "integer", "minimum": 0},
+        "excludedPaths": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "engines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["engine", "status", "modulesDiscovered", "applicableModules", "scannedModules", "rawHitCount", "durationMs", "reasonCode", "artifact"],
+        "properties": {
+          "engine": {"type": "string"},
+          "status": {"enum": ["PENDING", "READY", "RUNNING", "SUCCEEDED", "PARTIAL", "FAILED", "TIMED_OUT", "SKIPPED", "CANCELLED"]},
+          "modulesDiscovered": {"type": "integer", "minimum": 0},
+          "applicableModules": {"type": "integer", "minimum": 0},
+          "scannedModules": {"type": "integer", "minimum": 0},
+          "rawHitCount": {"type": "integer", "minimum": 0},
+          "durationMs": {"type": "integer", "minimum": 0},
+          "reasonCode": {"type": "string"},
+          "artifact": {"type": "string"}
+        }
+      }
+    }
+  }
+}

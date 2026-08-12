@@ -1,9 +1,33 @@
 name: quick
 requiresBuild: false
 engines:
-  - gitleaks
-  - semgrep
-  - pmd
-  - pmd-cpd
-  - checkstyle
-  - trivy-repository
+  - id: gitleaks
+    resourceClass: LIGHT
+    weight: 1
+    memoryMb: 512
+    timeoutSeconds: 300
+  - id: semgrep
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 2048
+    timeoutSeconds: 900
+  - id: pmd
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 1536
+    timeoutSeconds: 600
+  - id: pmd-cpd
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 1536
+    timeoutSeconds: 600
+  - id: checkstyle
+    resourceClass: LIGHT
+    weight: 1
+    memoryMb: 512
+    timeoutSeconds: 300
+  - id: trivy-repository
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 2048
+    timeoutSeconds: 900

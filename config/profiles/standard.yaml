@@ -2,11 +2,53 @@ name: standard
 extends: quick
 requiresBuild: true
 engines:
-  - spotbugs
-  - findsecbugs
-  - dependency-check
-  - osv-scanner
-  - maven-dependency-analysis
-  - maven-enforcer
-  - cyclonedx
-  - trivy-artifact
+  - id: spotbugs
+    requiresBuild: true
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 3072
+    timeoutSeconds: 1200
+  - id: findsecbugs
+    requiresBuild: true
+    dependsOn: [spotbugs]
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 3072
+    timeoutSeconds: 1200
+  - id: dependency-check
+    requiresBuild: true
+    resourceClass: HEAVY
+    weight: 4
+    memoryMb: 4096
+    timeoutSeconds: 1800
+  - id: osv-scanner
+    requiresBuild: true
+    resourceClass: MEDIUM
+    weight: 2
+    memoryMb: 2048
+    timeoutSeconds: 900
+  - id: maven-dependency-analysis
+    requiresBuild: true
+    resourceClass: HEAVY
+    weight: 4
+    memoryMb: 3072
+    timeoutSeconds: 1200
+  - id: maven-enforcer
+    requiresBuild: true
+    resourceClass: HEAVY
+    weight: 4
+    memoryMb: 3072
+    timeoutSeconds: 1200
+  - id: cyclonedx
+    requiresBuild: true
+    resourceClass: HEAVY
+    weight: 4
+    memoryMb: 3072
+    timeoutSeconds: 1200
+  - id: trivy-artifact
+    requiresBuild: true
+    dependsOn: [cyclonedx]
+    resourceClass: HEAVY
+    weight: 4
+    memoryMb: 3072
+    timeoutSeconds: 1200

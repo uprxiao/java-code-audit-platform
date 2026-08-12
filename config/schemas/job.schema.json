@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/uprxiao/java-code-audit-platform/schemas/job.schema.json",
+  "title": "Persisted scan job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "scanId", "revision", "sourceType", "profile", "status", "phase",
+    "createdAt", "updatedAt", "terminal", "engines", "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "scanId": {"type": "string", "format": "uuid"},
+    "revision": {"type": "integer", "minimum": 0},
+    "sourceType": {"enum": ["ZIP", "SVN"]},
+    "profile": {"enum": ["QUICK", "STANDARD", "DEEP"]},
+    "status": {
+      "enum": ["QUEUED", "ACQUIRING_SOURCE", "PREFLIGHT", "RUNNING", "FINALIZING", "COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCELLED", "INTERRUPTED"]
+    },
+    "phase": {"enum": ["ACCEPTED", "SOURCE", "PREFLIGHT", "ENGINES", "REPORTING", "TERMINAL"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "startedAt": {"type": ["string", "null"], "format": "date-time"},
+    "completedAt": {"type": ["string", "null"], "format": "date-time"},
+    "terminal": {"type": "boolean"},
+    "engines": {"type": "object", "additionalProperties": {"$ref": "#/$defs/engineState"}},
+    "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
+    "failure": {"anyOf": [{"$ref": "#/$defs/failure"}, {"type": "null"}]}
+  },
+  "$defs": {
+    "failure": {
+      "type": "object",
+      "required": ["code", "message", "details"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "details": {"type": "object"}
+      }
+    },
+    "engineState": {
+      "type": "object",
+      "required": ["engineId", "revision", "status", "createdAt", "updatedAt"],
+      "properties": {
+        "engineId": {"type": "string"},
+        "revision": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["PENDING", "READY", "RUNNING", "SUCCEEDED", "PARTIAL", "FAILED", "TIMED_OUT", "SKIPPED", "CANCELLED"]},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "updatedAt": {"type": "string", "format": "date-time"},
+        "startedAt": {"type": ["string", "null"], "format": "date-time"},
+        "completedAt": {"type": ["string", "null"], "format": "date-time"},
+        "failure": {"anyOf": [{"$ref": "#/$defs/failure"}, {"type": "null"}]}
+      }
+    }
+  }
+}

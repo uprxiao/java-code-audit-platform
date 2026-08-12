@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/uprxiao/java-code-audit-platform/schemas/report.schema.json",
+  "title": "Java Code Audit report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "scan", "summary", "coverage", "findings", "suppressedFindings",
+    "sbomSummary", "engines", "build", "toolchain", "exclusions", "warnings", "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "scan": {"type": "object", "required": ["scanId", "profile", "status"], "additionalProperties": true},
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["uniqueFindingCount", "rawHitCount", "suppressedCount", "severity", "categories", "engines", "modules", "durationMs"],
+      "properties": {
+        "uniqueFindingCount": {"type": "integer", "minimum": 0},
+        "rawHitCount": {"type": "integer", "minimum": 0},
+        "suppressedCount": {"type": "integer", "minimum": 0},
+        "severity": {"$ref": "#/$defs/countMap"},
+        "categories": {"$ref": "#/$defs/countMap"},
+        "engines": {"type": "object"},
+        "modules": {"type": "object"},
+        "durationMs": {"type": "integer", "minimum": 0}
+      }
+    },
+    "coverage": {"type": "object"},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "suppressedFindings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "sbomSummary": {"type": "object"},
+    "engines": {"type": "array", "items": {"type": "object"}},
+    "build": {"type": "object"},
+    "toolchain": {"type": "object"},
+    "exclusions": {"type": "array"},
+    "warnings": {"type": "array"},
+    "artifacts": {"type": "array"}
+  },
+  "$defs": {
+    "countMap": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "finding": {
+      "type": "object",
+      "required": ["id", "fingerprint", "fingerprintVersion", "category", "severity", "confidence", "ruleFamily", "evidence", "reviewState"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "fingerprint": {"type": "string", "minLength": 1},
+        "fingerprintVersion": {"type": "integer", "minimum": 1},
+        "category": {"type": "string"},
+        "severity": {"enum": ["P0", "P1", "P2", "P3"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+        "ruleFamily": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1},
+        "reviewState": {"enum": ["UNREVIEWED", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED_RISK"]}
+      },
+      "additionalProperties": true
+    }
+  }
+}

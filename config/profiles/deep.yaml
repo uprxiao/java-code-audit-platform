@@ -2,4 +2,9 @@ name: deep
 extends: standard
 requiresBuild: true
 engines:
-  - codeql
+  - id: codeql
+    requiresBuild: true
+    resourceClass: DEEP
+    weight: 8
+    memoryMb: 8192
+    timeoutSeconds: 7200

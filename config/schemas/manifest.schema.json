@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/uprxiao/java-code-audit-platform/schemas/manifest.schema.json",
+  "title": "Reproducibility manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "scanId", "profile", "createdAt", "completedAt", "source", "runtime",
+    "maven", "tools", "rules", "databases", "configFingerprint", "report", "files"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "scanId": {"type": "string", "format": "uuid"},
+    "profile": {"enum": ["QUICK", "STANDARD", "DEEP"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "completedAt": {"type": "string", "format": "date-time"},
+    "source": {"type": "object"},
+    "runtime": {
+      "type": "object",
+      "required": ["javaVersion", "mavenVersion", "os", "architecture"],
+      "properties": {
+        "javaVersion": {"type": "string"},
+        "mavenVersion": {"type": "string"},
+        "os": {"type": "string"},
+        "architecture": {"type": "string"}
+      }
+    },
+    "maven": {"type": "object"},
+    "tools": {"type": "array", "items": {"type": "object"}},
+    "rules": {"type": "array", "items": {"type": "object"}},
+    "databases": {"type": "array", "items": {"type": "object"}},
+    "configFingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "report": {"type": "object"},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "size", "sha256"],
+        "properties": {
+          "path": {"type": "string"},
+          "size": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}
