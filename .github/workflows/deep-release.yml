@@ -138,3 +138,15 @@ jobs:
           curl -fsS "http://127.0.0.1:$AUDIT_PORT/api/v1/health" > \
             "$RUNNER_TEMP/v1-linux-deep-health.json"
           "$BUNDLE/bin/acceptance-test.sh" --deep
+
+      - name: Upload Linux Deep acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-deep-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/v1-acceptance-evidence
+            ${{ runner.temp }}/v1-linux-deep-health.json
+            ${{ runner.temp }}/java-audit-deep.log

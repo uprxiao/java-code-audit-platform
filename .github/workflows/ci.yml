@@ -173,3 +173,15 @@ jobs:
             "$RUNNER_TEMP/v1-linux-health.json"
           "$BUNDLE/bin/acceptance-test.sh" --quick
           "$BUNDLE/bin/acceptance-test.sh" --standard
+
+      - name: Upload Linux Standard acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-quick-standard-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/v1-acceptance-evidence
+            ${{ runner.temp }}/v1-linux-health.json
+            ${{ runner.temp }}/java-audit-standard.log
