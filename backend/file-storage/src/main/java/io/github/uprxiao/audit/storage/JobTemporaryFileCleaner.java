@@ -5,12 +5,21 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 public final class JobTemporaryFileCleaner {
 
     private static final List<String> TEMPORARY_DIRECTORIES = List.of("source", "workspace", "build", "codeql-db", "tmp");
 
     public void cleanSuccessfulJob(JobDirectoryLayout layout) throws IOException {
+        cleanTemporaryData(layout);
+    }
+
+    public void cleanFailedJobWorkspace(JobDirectoryLayout layout) throws IOException {
+        cleanTemporaryData(layout);
+    }
+
+    private void cleanTemporaryData(JobDirectoryLayout layout) throws IOException {
         for (String name : TEMPORARY_DIRECTORIES) {
             deleteTree(layout.root(), layout.safeResolve(name));
         }
@@ -20,11 +29,25 @@ public final class JobTemporaryFileCleaner {
         deleteTree(layout.root().getParent(), layout.root());
     }
 
+    public void deleteTerminalJob(JobDirectoryLayout layout, StoredScanJob job) throws IOException {
+        Objects.requireNonNull(job, "job");
+        if (!job.terminal()) {
+            throw new IllegalStateException("running jobs must not be deleted: " + job.scanId());
+        }
+        if (!layout.scanId().equals(job.scanId())) {
+            throw new IllegalArgumentException("job state does not belong to the supplied directory");
+        }
+        deleteEntireJob(layout);
+    }
+
     private void deleteTree(Path boundary, Path target) throws IOException {
         Path normalizedBoundary = boundary.toAbsolutePath().normalize();
         Path normalizedTarget = target.toAbsolutePath().normalize();
         if (normalizedTarget.equals(normalizedBoundary) || !normalizedTarget.startsWith(normalizedBoundary)) {
             throw new IOException("refusing to delete outside the verified job boundary: " + target);
+        }
+        if (Files.isSymbolicLink(normalizedTarget)) {
+            throw new IOException("refusing to recursively delete a symbolic-link root: " + target);
         }
         if (!Files.exists(normalizedTarget, LinkOption.NOFOLLOW_LINKS)) {
             return;

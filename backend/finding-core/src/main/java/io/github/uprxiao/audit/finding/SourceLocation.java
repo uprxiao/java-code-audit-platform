@@ -14,6 +14,7 @@ public record SourceLocation(
         if (path.isBlank()) {
             throw new IllegalArgumentException("path must not be blank");
         }
+        path = ProjectPath.normalize(path);
         if (startLine < 1 || endLine < startLine) {
             throw new IllegalArgumentException("invalid line range");
         }

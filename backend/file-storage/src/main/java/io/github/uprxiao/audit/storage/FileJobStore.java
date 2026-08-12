@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.LinkOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,7 +46,7 @@ public final class FileJobStore implements JobStore {
     @Override
     public Optional<StoredScanJob> find(UUID scanId) throws IOException {
         Path file = jobFile(scanId);
-        if (!Files.isRegularFile(file)) {
+        if (Files.isSymbolicLink(file.getParent()) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
             return Optional.empty();
         }
         return Optional.of(json.readValue(file.toFile(), StoredScanJob.class));
@@ -58,7 +59,9 @@ public final class FileJobStore implements JobStore {
         }
         List<StoredScanJob> result = new ArrayList<>();
         try (Stream<Path> directories = Files.list(jobsRoot)) {
-            for (Path directory : directories.filter(Files::isDirectory).toList()) {
+            for (Path directory : directories
+                    .filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                    .filter(path -> !Files.isSymbolicLink(path)).toList()) {
                 try {
                     UUID id = UUID.fromString(directory.getFileName().toString());
                     find(id).ifPresent(result::add);

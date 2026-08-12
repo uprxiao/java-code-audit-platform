@@ -16,7 +16,7 @@ public record FindingEvidence(
         engine = requireText(engine, "engine");
         engineVersion = requireText(engineVersion, "engineVersion");
         ruleId = requireText(ruleId, "ruleId");
-        rawArtifact = requireText(rawArtifact, "rawArtifact");
+        rawArtifact = ProjectPath.normalize(requireText(rawArtifact, "rawArtifact"));
         engineSeverity = engineSeverity == null ? "" : engineSeverity;
         rawItemId = rawItemId == null ? "" : rawItemId;
         properties = properties == null ? Map.of() : Map.copyOf(properties);

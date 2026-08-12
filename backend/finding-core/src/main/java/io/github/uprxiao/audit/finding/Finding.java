@@ -30,13 +30,16 @@ public record Finding(
     public Finding {
         id = requireText(id, "id");
         fingerprint = requireText(fingerprint, "fingerprint");
+        if (!fingerprint.matches("sha256:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("fingerprint must be a SHA-256 value");
+        }
         if (fingerprintVersion < 1) {
             throw new IllegalArgumentException("fingerprintVersion must be positive");
         }
         Objects.requireNonNull(category, "category");
         Objects.requireNonNull(severity, "severity");
         Objects.requireNonNull(confidence, "confidence");
-        ruleFamily = requireText(ruleFamily, "ruleFamily");
+        ruleFamily = RuleFamilyCatalog.canonical(requireText(ruleFamily, "ruleFamily"));
         titleZh = normalize(titleZh);
         titleOriginal = normalize(titleOriginal);
         if (titleZh.isBlank() && titleOriginal.isBlank()) {
@@ -60,10 +63,43 @@ public record Finding(
         if (category == IssueCategory.DEPENDENCY_VULNERABILITY && component == null) {
             throw new IllegalArgumentException("dependency vulnerability requires component evidence");
         }
+        if (category == IssueCategory.DEPENDENCY_VULNERABILITY
+                && identifiers.cve().isEmpty() && identifiers.ghsa().isEmpty() && identifiers.osv().isEmpty()) {
+            throw new IllegalArgumentException("dependency vulnerability requires a CVE, GHSA, or OSV identifier");
+        }
     }
 
     public boolean suppressed() {
         return suppression != null;
+    }
+
+    public Finding withSuppression(FindingSuppression value) {
+        return copy(evidence, dataFlows, value, severity, confidence, fingerprint, id);
+    }
+
+    public Finding withMergedEvidence(
+            List<FindingEvidence> mergedEvidence,
+            List<DataFlow> mergedDataFlows,
+            Severity mergedSeverity,
+            Confidence mergedConfidence,
+            String mergedFingerprint,
+            String mergedId) {
+        return copy(mergedEvidence, mergedDataFlows, suppression, mergedSeverity, mergedConfidence,
+                mergedFingerprint, mergedId);
+    }
+
+    private Finding copy(
+            List<FindingEvidence> copiedEvidence,
+            List<DataFlow> copiedDataFlows,
+            FindingSuppression copiedSuppression,
+            Severity copiedSeverity,
+            Confidence copiedConfidence,
+            String copiedFingerprint,
+            String copiedId) {
+        return new Finding(copiedId, copiedFingerprint, fingerprintVersion, category, copiedSeverity,
+                copiedConfidence, ruleFamily, titleZh, titleOriginal, descriptionZh, messageOriginal,
+                impactZh, remediationZh, module, location, snippet, identifiers, component,
+                copiedDataFlows, copiedEvidence, copiedSuppression, reviewState);
     }
 
     private static String requireText(String value, String name) {

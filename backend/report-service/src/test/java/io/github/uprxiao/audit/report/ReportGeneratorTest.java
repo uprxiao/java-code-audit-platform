@@ -96,7 +96,7 @@ class ReportGeneratorTest {
 
         JsonNode manifest = json.readTree(bundle.manifest().toFile());
         for (JsonNode file : manifest.path("files")) {
-            Path actual = bundle.manifest().getParent().resolve(file.path("path").asText());
+            Path actual = jobRoot.resolve(file.path("path").asText());
             assertEquals(file.path("size").asLong(), Files.size(actual));
             assertEquals(file.path("sha256").asText(), sha256(actual));
         }

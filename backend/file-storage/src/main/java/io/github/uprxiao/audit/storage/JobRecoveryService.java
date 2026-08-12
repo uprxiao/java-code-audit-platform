@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.LinkOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -33,7 +34,9 @@ public final class JobRecoveryService {
         List<StoredScanJob> recovered = new ArrayList<>();
         List<CorruptedJobState> corrupted = new ArrayList<>();
         try (Stream<Path> entries = Files.list(jobsRoot)) {
-            for (Path directory : entries.filter(Files::isDirectory).sorted().toList()) {
+            for (Path directory : entries
+                    .filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                    .filter(path -> !Files.isSymbolicLink(path)).sorted().toList()) {
                 UUID scanId;
                 try {
                     scanId = UUID.fromString(directory.getFileName().toString());
@@ -41,7 +44,7 @@ public final class JobRecoveryService {
                     continue;
                 }
                 Path stateFile = directory.resolve("job.json");
-                if (!Files.isRegularFile(stateFile)) {
+                if (!Files.isRegularFile(stateFile, LinkOption.NOFOLLOW_LINKS)) {
                     corrupted.add(new CorruptedJobState(scanId, stateFile, "JOB_STATE_MISSING"));
                     continue;
                 }

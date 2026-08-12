@@ -15,6 +15,9 @@ public record ComponentEvidence(
 
     public ComponentEvidence {
         Objects.requireNonNull(purl, "purl");
+        if (!purl.startsWith("pkg:")) {
+            throw new IllegalArgumentException("component purl must start with pkg:");
+        }
         Objects.requireNonNull(groupId, "groupId");
         Objects.requireNonNull(artifactId, "artifactId");
         Objects.requireNonNull(version, "version");

@@ -3,6 +3,7 @@ package io.github.uprxiao.audit.storage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.LinkOption;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,7 +13,7 @@ public final class JobDirectoryLayout {
 
     private static final Pattern ENGINE_ID = Pattern.compile("[a-z][a-z0-9-]{1,63}");
     private static final List<String> DIRECTORIES = List.of(
-            "source", "workspace", "build", "codeql-db", "raw", "normalized", "logs", "report", "archive");
+            "source", "workspace", "build", "codeql-db", "raw", "normalized", "logs", "report", "archive", "sbom");
 
     private final Path jobsRoot;
     private final UUID scanId;
@@ -26,7 +27,13 @@ public final class JobDirectoryLayout {
     }
 
     public void initialize() throws IOException {
+        if (Files.isSymbolicLink(root)) {
+            throw new IOException("job root must not be a symbolic link: " + root);
+        }
         Files.createDirectories(root);
+        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("job root is not a directory: " + root);
+        }
         for (String directory : DIRECTORIES) {
             Files.createDirectories(safeResolve(directory));
         }
@@ -58,6 +65,18 @@ public final class JobDirectoryLayout {
 
     public Path report() {
         return safeResolve("report");
+    }
+
+    public Path logs() {
+        return safeResolve("logs");
+    }
+
+    public Path normalized() {
+        return safeResolve("normalized");
+    }
+
+    public Path archive() {
+        return safeResolve("archive");
     }
 
     public Path jobFile() {
