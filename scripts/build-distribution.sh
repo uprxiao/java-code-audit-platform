@@ -90,6 +90,8 @@ find "${BUNDLE_ROOT}" -type f -name '.DS_Store' -delete
 chmod +x "${BUNDLE_ROOT}/bin/"*.sh
 jar --create --file "${BUNDLE_ROOT}/acceptance/java17-acceptance-fixture.zip" \
   -C "${REPOSITORY_ROOT}/packaging/fixtures/maven17" .
+jar --update --file "${BUNDLE_ROOT}/acceptance/java17-acceptance-fixture.zip" \
+  -C "${REPOSITORY_ROOT}" LICENSE
 
 CLASS_ROOT="${STAGING_PARENT}/class-check"
 mkdir -p "${CLASS_ROOT}"

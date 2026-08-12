@@ -8,7 +8,7 @@
 - `bin/acceptance-test.sh`：从 Web API 上传固定 Java 17 Maven Fixture，支持 `--quick`、`--standard`、`--deep`，验证终态、报告 ZIP、敏感 canary 和禁止目录。
 - `bin/update-vulnerability-data.sh`：联网初始化或原子更新 Dependency-Check、Trivy 通用库和 Trivy Java 库；Standard 首次验收前必须先运行。
 - `bin/install-codeql-local.sh`：按锁定版本和 SHA256 把 CodeQL 安装到介质的本机忽略目录；CLI 不进入发布 ZIP。
-- `fixtures/maven17`：包含已知 Log4j 2.14.1 依赖的许可内自有最小项目，用于供应链和 Deep 验收，不作为生产样例。
+- `fixtures/maven17`：Apache-2.0 自有验收项目，包含已知 Log4j 2.14.1 依赖和 Servlet→命令执行污点路径，用于供应链和 Deep 真实验收，不作为生产样例。
 - `systemd/java-code-audit.service`：Ubuntu 22.04 示例；部署方须先创建低权限用户并按实际路径调整环境文件。
 
 组装命令：
