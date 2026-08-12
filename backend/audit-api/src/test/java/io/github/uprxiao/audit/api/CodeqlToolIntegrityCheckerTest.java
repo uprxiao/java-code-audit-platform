@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -51,5 +52,35 @@ class CodeqlToolIntegrityCheckerTest {
         assertEquals("CODEQL_TERMS_NOT_ACCEPTED", terms.reasonCode());
         assertFalse(disabled.available());
         assertTrue(disabled.detail().contains("AUDIT_CODEQL_ENABLED"));
+    }
+
+    @Test
+    void probePathIncludesRequiredOperatingSystemCommands() throws Exception {
+        Path executable = temporaryDirectory.resolve("codeql/codeql");
+        Files.createDirectories(executable.getParent());
+        Files.writeString(executable, """
+                #!/bin/sh
+                uname >/dev/null || exit 3
+                printf '{\"version\":\"2.26.2\"}\\n'
+                """);
+        Files.setPosixFilePermissions(executable, PosixFilePermissions.fromString("rwxr-xr-x"));
+        Path pack = temporaryDirectory.resolve("packs/codeql/java-queries/1.11.7");
+        Path suite = pack.resolve("codeql-suites/java-security-and-quality.qls");
+        Files.createDirectories(suite.getParent());
+        Files.writeString(suite, "- description: acceptance fixture\n");
+        Files.writeString(pack.resolve("qlpack.yml"), "name: codeql/java-queries\nversion: 1.11.7\n");
+        AuditRuntimePaths defaults = new AuditRuntimePaths(
+                temporaryDirectory.resolve("probe-data"), executable, temporaryDirectory.resolve("rules"));
+        AuditRuntimePaths paths = new AuditRuntimePaths(
+                defaults.dataRoot(), defaults.semgrepExecutable(), defaults.semgrepRules(),
+                defaults.quickToolRoot(), defaults.standardAnalysisToolRoot(), defaults.standardSupplyToolRoot(),
+                defaults.vulnerabilityDataRoot(), executable, suite, defaults.gitleaksRules(), defaults.pmdRules(),
+                defaults.checkstyleRules(), defaults.spotbugsExcludeFilter());
+
+        ToolInstallationHealth health = new CodeqlToolIntegrityChecker(
+                paths, new LocalProcessExecutionBackend(), new ObjectMapper(), Clock.systemUTC()).check();
+
+        assertEquals("AVAILABLE", health.status());
+        assertEquals("2.26.2", health.version());
     }
 }

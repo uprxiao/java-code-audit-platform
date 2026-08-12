@@ -27,6 +27,10 @@ audit:
     settings: ${AUDIT_MAVEN_SETTINGS:}
     max-heap-mb: ${AUDIT_MAVEN_MAX_HEAP_MB:3072}
     build-timeout: ${AUDIT_MAVEN_BUILD_TIMEOUT:20m}
+  process:
+    max-log-bytes: ${AUDIT_PROCESS_MAX_LOG_BYTES:10485760}
+    poll-interval: ${AUDIT_PROCESS_POLL_INTERVAL:100ms}
+    graceful-termination: ${AUDIT_PROCESS_GRACEFUL_TERMINATION:2s}
   rules:
     semgrep: ${AUDIT_SEMGREP_RULES:./config/rules/semgrep/java-audit.yaml}
     gitleaks: ${AUDIT_GITLEAKS_RULES:./config/rules/gitleaks/gitleaks.toml}
@@ -61,6 +65,7 @@ audit:
       read-timeout: ${AUDIT_SVN_READ_TIMEOUT:5m}
   storage:
     minimum-free-bytes: ${AUDIT_MINIMUM_FREE_BYTES:53687091200}
+    max-workspace-bytes-per-job: ${AUDIT_MAX_WORKSPACE_BYTES_PER_JOB:21474836480}
   retention:
     successful-results: ${AUDIT_SUCCESSFUL_RETENTION:30d}
     failed-results: ${AUDIT_FAILED_RETENTION:7d}

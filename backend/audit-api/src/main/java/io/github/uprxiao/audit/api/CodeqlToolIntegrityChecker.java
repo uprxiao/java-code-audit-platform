@@ -13,6 +13,7 @@ import io.github.uprxiao.audit.scanner.ResourceClass;
 import io.github.uprxiao.audit.scanner.ResourceRequest;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -61,7 +62,9 @@ final class CodeqlToolIntegrityChecker {
                 new EngineId("codeql-health"),
                 List.of(executable.toString(), "version", "--format=json"),
                 probe,
-                Map.of("PATH", executable.getParent().toString(), "HOME", probe.toString(), "LANG", "C"),
+                Map.of("PATH", String.join(File.pathSeparator,
+                                executable.getParent().toString(), "/usr/local/bin", "/usr/bin", "/bin"),
+                        "HOME", probe.toString(), "LANG", "C"),
                 Duration.ofSeconds(30), new ResourceRequest(ResourceClass.LIGHT, 1, 256),
                 Set.of(), RedactionPolicy.NONE), CancellationToken.NONE);
         if (execution.status() != ExecutionResult.Status.SUCCEEDED) {

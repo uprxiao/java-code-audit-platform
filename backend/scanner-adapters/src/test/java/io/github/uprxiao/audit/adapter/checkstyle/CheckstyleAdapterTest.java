@@ -34,6 +34,9 @@ class CheckstyleAdapterTest {
                 tools(CheckstyleAdapter.ID, java, CheckstyleAdapter.TOOL_VERSION));
         assertDescriptorContract(adapter); assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
         assertTrue(specification.command().contains("-Duser.language=en"));
+        assertTrue(specification.command().contains("-Dfile.encoding=UTF-8"));
+        assertTrue(specification.command().contains(root.resolve("src/main/java").toString()));
+        assertFalse(specification.command().contains(root.toString()));
         assertTrue(specification.command().contains("xml"));
         assertFalse(specification.command().contains("sh"));
     }
@@ -88,5 +91,6 @@ class CheckstyleAdapterTest {
                 Map.of("report", output.resolve("report.xml")), process));
         assertEquals(ExecutionResult.Status.SUCCEEDED, process.status());
         assertTrue(normalized.findings().stream().anyMatch(finding -> finding.ruleFamily().equals("AVOID_STAR_IMPORT")));
+        assertTrue(normalized.warnings().isEmpty());
     }
 }

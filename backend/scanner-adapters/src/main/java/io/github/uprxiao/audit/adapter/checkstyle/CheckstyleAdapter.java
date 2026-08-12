@@ -85,14 +85,38 @@ public final class CheckstyleAdapter implements ScannerAdapter {
         ToolContext.ToolInstallation installation = AdapterSupport.requireInstallation(tools, ID);
         Files.createDirectories(context.engineOutputDirectory());
         Path report = context.engineOutputDirectory().resolve("report.xml");
-        List<String> command = List.of(
-                installation.executable().toString(), "-Duser.language=en", "-Duser.country=US",
+        List<Path> sourceRoots = javaSourceRoots(context.project());
+        if (sourceRoots.isEmpty()) {
+            throw new IOException("NO_JAVA_SOURCE_ROOTS: no conventional Maven Java source directory was found");
+        }
+        List<String> command = new ArrayList<>(List.of(
+                installation.executable().toString(), "-Dfile.encoding=UTF-8",
+                "-Duser.language=en", "-Duser.country=US",
                 "-jar", checkstyleJar.toString(), "-c", configurationFile.toString(),
-                "-f", "xml", "-o", report.toString(), context.project().workspaceRoot().toString());
+                "-f", "xml", "-o", report.toString()));
+        sourceRoots.stream().map(Path::toString).forEach(command::add);
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(),
                 AdapterSupport.isolatedEnvironment(context.engineOutputDirectory(), installation.executable()),
                 descriptor().defaultTimeout(), descriptor().resources(),
                 Set.of(new ExpectedArtifact("report.xml", true, MAX_REPORT_BYTES)), RedactionPolicy.NONE);
+    }
+
+    private List<Path> javaSourceRoots(ProjectContext project) throws IOException {
+        List<Path> result = new ArrayList<>();
+        Path workspace = project.workspaceRoot().toAbsolutePath().normalize();
+        for (var module : project.manifest().modules()) {
+            Path moduleRoot = workspace.resolve(module.path()).normalize();
+            if (!moduleRoot.startsWith(workspace)) {
+                throw new IOException("Maven module path escapes the project workspace");
+            }
+            for (String relative : List.of("src/main/java", "src/test/java")) {
+                Path source = moduleRoot.resolve(relative).normalize();
+                if (source.startsWith(workspace) && Files.isDirectory(source) && !Files.isSymbolicLink(source)) {
+                    result.add(source);
+                }
+            }
+        }
+        return result.stream().distinct().sorted().toList();
     }
 
     @Override

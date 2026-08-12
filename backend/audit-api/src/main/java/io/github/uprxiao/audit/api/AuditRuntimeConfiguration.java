@@ -33,6 +33,7 @@ import io.github.uprxiao.audit.orchestrator.SchedulerConfiguration;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.process.MavenProcessAdapter;
 import io.github.uprxiao.audit.process.MavenProcessConfiguration;
+import io.github.uprxiao.audit.process.ProcessRunnerConfiguration;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
 import io.github.uprxiao.audit.storage.AtomicFileWriter;
@@ -126,6 +127,12 @@ class AuditRuntimeConfiguration {
             AuditRuntimePaths paths,
             @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes) {
         return new StorageCapacityGuard(paths, minimumDiskBytes);
+    }
+
+    @Bean
+    JobWorkspaceCapacityGuard jobWorkspaceCapacityGuard(
+            @Value("${audit.storage.max-workspace-bytes-per-job:21474836480}") long maximumBytes) {
+        return new JobWorkspaceCapacityGuard(maximumBytes);
     }
 
     @Bean(destroyMethod = "shutdown")
@@ -244,8 +251,14 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
-    LocalProcessExecutionBackend processExecutionBackend() {
-        return new LocalProcessExecutionBackend();
+    LocalProcessExecutionBackend processExecutionBackend(
+            @Value("${audit.process.max-log-bytes:10485760}") long maxLogBytes,
+            @Value("${audit.process.poll-interval:100ms}") Duration pollInterval,
+            @Value("${audit.process.graceful-termination:2s}") Duration gracefulTermination) {
+        ProcessRunnerConfiguration defaults = ProcessRunnerConfiguration.defaults();
+        return new LocalProcessExecutionBackend(new ProcessRunnerConfiguration(
+                maxLogBytes, pollInterval, gracefulTermination,
+                defaults.allowedSystemCommands(), defaults.allowedEnvironmentKeys()), Clock.systemUTC());
     }
 
     @Bean

@@ -52,7 +52,11 @@ SCAN_ID="$(sed -n 's/.*\"scanId\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p'
 DEADLINE=$(( $(date +%s) + TIMEOUT_SECONDS ))
 while (( $(date +%s) < DEADLINE )); do
   curl --fail --silent --show-error "${BASE_URL}/api/v1/scans/${SCAN_ID}" > "${WORK_ROOT}/scan.json"
-  STATUS="$(sed -n 's/.*\"status\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' "${WORK_ROOT}/scan.json")"
+  # The response also contains build.status. Split object fields first and
+  # deliberately select the first status, which is the top-level scan state.
+  STATUS="$(tr ',' '\n' < "${WORK_ROOT}/scan.json" \
+    | sed -n 's/.*\"status\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' \
+    | sed -n '1p')"
   case "${STATUS}" in
     COMPLETED) break ;;
     COMPLETED_WITH_ERRORS|FAILED|CANCELLED|INTERRUPTED)

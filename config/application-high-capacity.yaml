@@ -1,0 +1,22 @@
+# Example for the confirmed 112 CPU / 1 TiB RAM / Ubuntu 22.04 x86_64 host.
+# Keep CodeQL single-threaded at the job level until production baselines prove
+# that disk I/O and file-descriptor pressure permit a higher value.
+audit:
+  concurrency:
+    max-queued-scan-jobs: 100
+    max-concurrent-scan-jobs: 8
+    max-concurrent-engines: 24
+    max-engines-per-scan: 4
+    weighted-permits: 32
+    retry-after-seconds: 30
+    tool-limits:
+      maven: 4
+      dependency-check: 2
+      codeql: 1
+  process:
+    max-log-bytes: 33554432
+    poll-interval: 100ms
+    graceful-termination: 5s
+  storage:
+    minimum-free-bytes: 53687091200
+    max-workspace-bytes-per-job: 21474836480

@@ -112,6 +112,7 @@ public final class ScanService {
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
+    private final JobWorkspaceCapacityGuard workspaceCapacity;
     private final SvnRepositoryPolicy svnRepositoryPolicy;
     private final SvnSourceCheckout svnCheckout;
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
@@ -140,6 +141,7 @@ public final class ScanService {
             ReportGenerator reports,
             JobTemporaryFileCleaner cleaner,
             StorageCapacityGuard storageCapacity,
+            JobWorkspaceCapacityGuard workspaceCapacity,
             SvnRepositoryPolicy svnRepositoryPolicy,
             SvnSourceCheckout svnCheckout) {
         this.paths = paths;
@@ -162,6 +164,7 @@ public final class ScanService {
         this.reports = reports;
         this.cleaner = cleaner;
         this.storageCapacity = storageCapacity;
+        this.workspaceCapacity = workspaceCapacity;
         this.svnRepositoryPolicy = svnRepositoryPolicy;
         this.svnCheckout = svnCheckout;
     }
@@ -683,6 +686,7 @@ public final class ScanService {
                 cancelRuntime(runtime);
                 return;
             }
+            workspaceCapacity.requireWithinLimit(runtime.layout.root());
             ProjectContext project = projects.inspect(extracted, source, runtime.request.profile());
             runtime.project = project;
             transition(runtime, ScanStatus.PREFLIGHT, null);
@@ -799,6 +803,7 @@ public final class ScanService {
             ScannerAdapter adapter,
             io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
         EngineId id = adapter.descriptor().id();
+        WorkspaceLimitCancellationToken workspace = workspaceCancellation(runtime, cancellationToken);
         try {
             Applicability applicability = adapter.checkApplicability(project, scanners.tools());
             if (applicability.status() != Applicability.Status.APPLICABLE) {
@@ -813,9 +818,12 @@ public final class ScanService {
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             ExecutionSpec specification = executionPolicy.apply(planned(runtime, id),
                     adapter.prepare(context, scanners.tools()));
-            ExecutionResult execution = processes.execute(specification,
-                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+            ExecutionResult execution = processes.execute(specification, workspace);
             runtime.executions.put(id, execution);
+            workspace.verifyNow();
+            if (workspace.failure() != null) {
+                return workspaceFailure(workspace.failure());
+            }
             if (execution.status() == ExecutionResult.Status.CANCELLED) {
                 return EngineExecutionResult.cancelled();
             }
@@ -861,6 +869,7 @@ public final class ScanService {
             return EngineExecutionResult.cancelled();
         }
         try {
+            workspaceCapacity.requireWithinLimit(runtime.layout.root());
             Applicability applicability = adapter.checkApplicability(project, scanners.tools());
             if (applicability.status() != Applicability.Status.APPLICABLE) {
                 return EngineExecutionResult.failed(applicability.reasonCode(), applicability.detail());
@@ -901,6 +910,7 @@ public final class ScanService {
             RuntimeScan runtime,
             ProjectContext project,
             io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        WorkspaceLimitCancellationToken workspace = workspaceCancellation(runtime, cancellationToken);
         try {
             MavenBuildResult result = maven.execute(new MavenBuildRequest(
                             project.workspaceRoot(),
@@ -908,10 +918,14 @@ public final class ScanService {
                             runtime.request.mavenProfiles(),
                             runtime.request.mavenProperties(),
                             mavenBuildTimeout),
-                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+                    workspace);
             runtime.mavenBuild = result;
             runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
             copyMavenBuildLogs(runtime, result.execution());
+            workspace.verifyNow();
+            if (workspace.failure() != null) {
+                return workspaceFailure(workspace.failure());
+            }
             return switch (result.status()) {
                 case SUCCEEDED -> EngineExecutionResult.succeeded();
                 case FAILED -> EngineExecutionResult.failed("MAVEN_BUILD_FAILED", result.execution().message());
@@ -954,6 +968,7 @@ public final class ScanService {
             ProjectContext project,
             CodeqlAdapter adapter,
             io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        WorkspaceLimitCancellationToken workspace = workspaceCancellation(runtime, cancellationToken);
         try {
             Applicability applicability = adapter.checkApplicability(project, scanners.tools());
             if (applicability.status() != Applicability.Status.APPLICABLE) {
@@ -965,9 +980,13 @@ public final class ScanService {
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             CodeqlWorkflow.Result result = codeql.execute(
                     adapter, context, scanners.tools(),
-                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested(),
+                    workspace,
                     specification -> executionPolicy.apply(planned(runtime, CodeqlAdapter.ID), specification));
             runtime.executions.put(CodeqlAdapter.ID, result.analysis());
+            workspace.verifyNow();
+            if (workspace.failure() != null) {
+                return workspaceFailure(workspace.failure());
+            }
             NormalizationResult normalized = adapter.normalize(context, result.artifacts());
             runtime.normalized.put(CodeqlAdapter.ID, normalized);
             return normalized.coverage().status() == EngineStatus.PARTIAL
@@ -978,6 +997,9 @@ public final class ScanService {
                     : EngineExecutionResult.succeeded();
         } catch (CodeqlWorkflow.CodeqlWorkflowException exception) {
             runtime.executions.put(CodeqlAdapter.ID, exception.execution());
+            if (workspace.failure() != null) {
+                return workspaceFailure(workspace.failure());
+            }
             return switch (exception.execution().status()) {
                 case CANCELLED -> EngineExecutionResult.cancelled();
                 case TIMED_OUT -> EngineExecutionResult.timedOut(
@@ -1154,8 +1176,23 @@ public final class ScanService {
         if (exception instanceof SourceIntakeException intake) {
             return new FailureDetails(intake.code(), intake.getMessage(), intake.details());
         }
+        if (exception instanceof WorkspaceCapacityException capacity) {
+            return new FailureDetails(capacity.code(), capacity.getMessage(), capacity.details());
+        }
         return new FailureDetails("SCAN_EXECUTION_FAILED",
                 exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage(), Map.of());
+    }
+
+    private WorkspaceLimitCancellationToken workspaceCancellation(
+            RuntimeScan runtime, io.github.uprxiao.audit.scanner.CancellationToken schedulerCancellation) {
+        return new WorkspaceLimitCancellationToken(
+                workspaceCapacity, runtime.layout.root(),
+                () -> runtime.cancelRequested.get() || schedulerCancellation.isCancellationRequested(),
+                Duration.ofSeconds(1));
+    }
+
+    private EngineExecutionResult workspaceFailure(WorkspaceCapacityException exception) {
+        return EngineExecutionResult.failed(exception.code(), exception.getMessage());
     }
 
     private void transition(RuntimeScan runtime, ScanStatus next, FailureDetails failure) throws IOException {
