@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.uprxiao.audit.finding.CodeSnippet;
+import io.github.uprxiao.audit.finding.ComponentEvidence;
 import io.github.uprxiao.audit.finding.Confidence;
 import io.github.uprxiao.audit.finding.EngineCoverage;
 import io.github.uprxiao.audit.finding.EngineStatus;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipFile;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -137,6 +139,32 @@ class ReportGeneratorTest {
                 () -> new ReportGenerator().generate(input, temporaryDirectory.resolve("bad-job")));
     }
 
+    @Test
+    void allTwelveIssueCategoriesHaveStableReportBuckets() throws Exception {
+        Path jobRoot = Files.createDirectories(temporaryDirectory.resolve("all-categories-job"));
+        Files.writeString(Files.createDirectories(jobRoot.resolve("raw/semgrep")).resolve("report.json"),
+                "{\"results\":[]}");
+        List<Finding> findings = IntStream.range(0, IssueCategory.values().length)
+                .mapToObj(index -> finding(IssueCategory.values()[index], index))
+                .toList();
+        EngineCoverage engine = new EngineCoverage("semgrep", EngineStatus.SUCCEEDED,
+                1, 1, 1, findings.size(), Duration.ZERO, "", "raw/semgrep/report.json");
+        ReportInput input = new ReportInput(
+                UUID.randomUUID(), ScanProfile.QUICK, ScanStatus.COMPLETED,
+                Instant.parse("2026-08-12T00:00:00Z"), Instant.parse("2026-08-12T00:00:01Z"),
+                Map.of(), findings, new ScanCoverage(1, 0, 1, List.of(), List.of(engine)),
+                Map.of(), Map.of(), Map.of(), List.of(), List.of(), "sha256:" + "0".repeat(64));
+
+        JsonNode summary = json.readTree(new ReportGenerator().generate(input, jobRoot).json().toFile())
+                .path("summary");
+
+        assertEquals(IssueCategory.values().length, summary.path("uniqueFindingCount").asInt());
+        assertEquals(IssueCategory.values().length, sum(summary.path("categories")));
+        for (IssueCategory category : IssueCategory.values()) {
+            assertEquals(1, summary.path("categories").path(category.name()).asInt(), category.name());
+        }
+    }
+
     private Finding finding() {
         FindingEvidence evidence = new FindingEvidence(
                 "semgrep", "1.170.0", "java.sql.concatenated-query", "ERROR",
@@ -150,6 +178,27 @@ class ReportGeneratorTest {
                 new CodeSnippet(2, 12, List.of(7), "String value = \"<script>alert('x')</script>\";", false),
                 new VulnerabilityIdentifiers(List.of("CWE-89"), List.of(), List.of(), List.of()),
                 null, List.of(), List.of(evidence), null, ReviewState.UNREVIEWED);
+    }
+
+    private Finding finding(IssueCategory category, int index) {
+        FindingEvidence evidence = new FindingEvidence(
+                "semgrep", "1.170.0", "rule-" + index, "WARNING",
+                "raw/semgrep/report.json", Integer.toString(index), Map.of());
+        ComponentEvidence component = category == IssueCategory.DEPENDENCY_VULNERABILITY
+                ? new ComponentEvidence("pkg:maven/org.example/library@1.0", "org.example", "library", "1.0",
+                        "compile", false, List.of("app", "library:1.0"), List.of("1.1"))
+                : null;
+        VulnerabilityIdentifiers identifiers = category == IssueCategory.DEPENDENCY_VULNERABILITY
+                ? new VulnerabilityIdentifiers(List.of(), List.of("CVE-2026-0001"), List.of(), List.of())
+                : VulnerabilityIdentifiers.EMPTY;
+        return new Finding(
+                "F-CATEGORY-" + index, "sha256:" + String.format("%064x", index + 2), 1,
+                category, Severity.values()[index % Severity.values().length], Confidence.HIGH, category.name(),
+                category.name(), category.name(), "category contract", "category contract", "impact", "remediation",
+                "app", new SourceLocation("src/main/java/Category" + index + ".java", 1, 1, 1, 2),
+                new CodeSnippet(1, 1, List.of(1), "class Category" + index + " {}",
+                        category == IssueCategory.SECRET_EXPOSURE),
+                identifiers, component, List.of(), List.of(evidence), null, ReviewState.UNREVIEWED);
     }
 
     private int sum(JsonNode node) {
