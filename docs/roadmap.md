@@ -1,47 +1,15 @@
 # 路线图
 
-## M0：仓库与领域骨架
+V1的可执行路线图见[完整开发计划](v1/development-plan.md)。摘要：
 
-- Maven 多模块工程；
-- ScanJob、ScanPlan、Finding 基础模型；
-- Web API 健康检查和任务创建占位接口；
-- 架构、安全和流水线文档。
+1. M0：文档与决策冻结；
+2. M1：领域、Schema、状态机和Profile契约；
+3. M2：Fake Scanner、本地进程、超时/取消/日志；
+4. M3：Semgrep纵向切片；
+5. 并行波次1：执行并发、报告存储、Quick扫描器；
+6. 并行波次2：字节码/Maven、供应链、SVN/安全/恢复；
+7. CodeQL Deep；
+8. 并发、安全、恢复和性能硬化；
+9. macOS ARM64与Ubuntu 22.04 x86_64介质验收。
 
-## M1：可用的快速扫描
-
-- ZIP 安全上传；
-- SVN 检出；
-- Gitleaks、PMD/CPD、Checkstyle、Semgrep、Trivy；
-- 引擎状态、原始报告存储；
-- HTML/JSON 报告下载。
-
-## M2：Maven 标准扫描
-
-- JDK 版本识别；
-- 隔离 Maven 构建；
-- SpotBugs + FindSecBugs；
-- Dependency-Check、OSV；
-- Dependency Plugin、Enforcer；
-- CycloneDX 和构建产物 Trivy 扫描。
-
-## M3：深度扫描
-
-- CodeQL Java 数据库与查询包；
-- Error Prone 兼容性策略；
-- 可选 NullAway；
-- 污点路径统一展示。
-
-## M4：质量与使用体验
-
-- 跨引擎去重；
-- 基线和忽略策略；
-- 增量扫描；
-- PDF/Excel 导出；
-- 任务配额、取消、保留和清理策略。
-
-## M5：可选 AI Reviewer
-
-- 高危 Finding 解释；
-- 误报辅助判断；
-- 修复建议和临时补丁验证；
-- 不作为扫描成功或风险结论的必要组成部分。
+V1之后候选：认证、管理前端、历史基线、完全离线、容器沙箱、多JDK/Gradle、AI Reviewer和DAST。它们不阻塞V1。

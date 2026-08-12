@@ -3,6 +3,3 @@ extends: standard
 requiresBuild: true
 engines:
   - codeql
-  - error-prone
-optionalEngines:
-  - nullaway

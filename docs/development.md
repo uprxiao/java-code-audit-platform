@@ -1,41 +1,40 @@
 # 本地开发
 
-## 依赖
+完整开发顺序、串并行门槛和测试要求见：
 
-- JDK 21；
+- [V1 开发计划](v1/development-plan.md)
+- [Worktree 策略](v1/worktree-strategy.md)
+- [测试策略](v1/testing-strategy.md)
+
+## 前置条件
+
+- macOS ARM64 或 Ubuntu 22.04 x86_64；
+- JDK 17；
 - Maven 3.9+；
-- Git；
-- 后续接入 Runner 时需要 rootless Podman、Kubernetes 或独立隔离环境。
+- Git LFS（开始提交工具二进制后必需）；
+- 允许访问 Maven仓库和漏洞数据源。
 
-## 构建
-
-```bash
-mvn verify
-```
-
-## 启动 API
+macOS Homebrew 示例：
 
 ```bash
-mvn -pl backend/audit-api -am spring-boot:run
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+mvn -version
+mvn clean verify
 ```
 
-## 示例请求
+开始提交第三方工具前安装 Git LFS：
 
 ```bash
-curl http://localhost:8080/api/v1/health
-
-curl -X POST http://localhost:8080/api/v1/scans \
-  -H 'Content-Type: application/json' \
-  -d '{"sourceType":"ZIP","profile":"STANDARD"}'
+brew install git-lfs
+git lfs install
 ```
 
-当前 API 只是领域骨架，不接受真实文件，也不会启动扫描器。
+`mvn -version` 必须显示 Java 17。机器上即使同时安装JDK25，也不能用它替代V1验证。
 
-## 下一步开发顺序
+## 开发边界
 
-1. 持久化 ScanJob 状态机；
-2. 实现 ZIP 安全上传和 SVN 获取；
-3. 建立 Runner 协议和一次性工作区；
-4. 接入第一批无构建扫描器；
-5. 实现 SARIF/JSON/XML 统一转换；
-6. 加入报告下载。
+- M0-M3串行建立公共协议、Fake Scanner和Semgrep纵向链路；
+- 只有达到G1门槛才创建多个worktree；
+- 本地运行数据放入被忽略的独立data目录；
+- CodeQL放入`tools/local/codeql`，不提交；
+- 工具版本升级必须更新manifest、Fixture并跨平台回归。
