@@ -9,8 +9,8 @@ case "$(uname -s)-$(uname -m)" in
 esac
 
 MAVEN_EXECUTABLE="${AUDIT_MAVEN_EXECUTABLE:-$(command -v mvn || true)}"
-OSV_EXECUTABLE="${AUDIT_OSV_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/standard/osv-scanner/bin/osv-scanner}"
-DEPENDENCY_CHECK_EXECUTABLE="${AUDIT_DEPENDENCY_CHECK_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/standard/dependency-check/dependency-check/bin/dependency-check.sh}"
+OSV_EXECUTABLE="${AUDIT_OSV_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/standard-supply/osv-scanner/bin/osv-scanner}"
+DEPENDENCY_CHECK_EXECUTABLE="${AUDIT_DEPENDENCY_CHECK_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/standard-supply/dependency-check/dependency-check/bin/dependency-check.sh}"
 TRIVY_EXECUTABLE="${AUDIT_TRIVY_EXECUTABLE:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$PLATFORM/quick/trivy/bin/trivy}"
 TRIVY_CACHE="${AUDIT_TRIVY_CACHE:-$REPOSITORY_ROOT/tools/downloads/databases/trivy}"
 DEPENDENCY_CHECK_DATA="${AUDIT_DEPENDENCY_CHECK_DATA:-}"

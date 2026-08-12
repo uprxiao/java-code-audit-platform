@@ -34,7 +34,7 @@ for command_name in curl unzip; do
 done
 
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUTPUT_ROOT="${AUDIT_TOOL_PACK_OUTPUT:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$TARGET_PLATFORM/standard}"
+OUTPUT_ROOT="${AUDIT_TOOL_PACK_OUTPUT:-$REPOSITORY_ROOT/tools/downloads/tool-pack/$TARGET_PLATFORM/standard-supply}"
 if [[ -e "$OUTPUT_ROOT" ]]; then
   echo "Refusing to overwrite existing tool pack: $OUTPUT_ROOT" >&2
   exit 2
