@@ -453,10 +453,15 @@ class StandardProfileApiE2ETest {
         @Override
         public NormalizationResult normalize(ScanContext context, RawArtifactSet artifacts) {
             int modules = context.project().manifest().modules().size();
+            String artifact = switch (descriptor.id().value()) {
+                case "spotbugs", "findsecbugs" -> "raw/spotbugs/report.xml";
+                case "cyclonedx" -> "sbom/bom.json";
+                default -> "raw/" + descriptor.id().value() + "/report.json";
+            };
             return new NormalizationResult(List.of(), new EngineCoverage(
                     descriptor.id().value(), EngineStatus.SUCCEEDED,
                     modules, modules, modules, 0, artifacts.execution().duration(), "",
-                    "raw/" + descriptor.id().value() + "/report.json"), List.of());
+                    artifact), List.of());
         }
     }
 }
