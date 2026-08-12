@@ -1,0 +1,31 @@
+{
+  "version": "1.170.0",
+  "results": [
+    {
+      "check_id": "java.sql.concatenated-query",
+      "path": "@PROJECT_ROOT@/src/main/java/example/UnsafeController.java",
+      "start": {"line": 7, "col": 9, "offset": 159},
+      "end": {"line": 7, "col": 103, "offset": 253},
+      "extra": {
+        "message": "User-controlled or variable data is concatenated into a SQL statement.",
+        "metadata": {
+          "audit_category": "WEB_SECURITY",
+          "rule_family": "SQL_INJECTION",
+          "confidence": "HIGH",
+          "cwe": ["CWE-89"],
+          "title_zh": "用户输入或变量参与拼接 SQL",
+          "description_zh": "SQL 语句通过字符串拼接引入动态数据，可能改变查询结构。",
+          "impact_zh": "攻击者可能读取、修改或删除数据库中的敏感数据。",
+          "remediation_zh": "使用 PreparedStatement 和参数占位符，不要拼接动态 SQL。"
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {"scanned": ["@PROJECT_ROOT@/src/main/java/example/UnsafeController.java"]}
+}

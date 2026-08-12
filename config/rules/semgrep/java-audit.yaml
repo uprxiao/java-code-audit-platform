@@ -1,0 +1,34 @@
+rules:
+  - id: java.sql.concatenated-query
+    languages: [java]
+    message: User-controlled or variable data is concatenated into a SQL statement.
+    severity: ERROR
+    metadata:
+      audit_category: WEB_SECURITY
+      rule_family: SQL_INJECTION
+      confidence: HIGH
+      cwe: [CWE-89]
+      title_zh: 用户输入或变量参与拼接 SQL
+      description_zh: SQL 语句通过字符串拼接引入动态数据，可能改变查询结构。
+      impact_zh: 攻击者可能读取、修改或删除数据库中的敏感数据。
+      remediation_zh: 使用 PreparedStatement 和参数占位符，不要拼接动态 SQL。
+    patterns:
+      - pattern-either:
+          - pattern: $S.executeQuery($SQL + $VALUE)
+          - pattern: $S.execute($SQL + $VALUE)
+          - pattern: $S.executeUpdate($SQL + $VALUE)
+
+  - id: java.command.concatenated-runtime-exec
+    languages: [java]
+    message: Dynamic data is concatenated into a command passed to Runtime.exec.
+    severity: ERROR
+    metadata:
+      audit_category: WEB_SECURITY
+      rule_family: COMMAND_INJECTION
+      confidence: HIGH
+      cwe: [CWE-78]
+      title_zh: 动态数据参与构造系统命令
+      description_zh: Runtime.exec 接收由字符串拼接构造的命令。
+      impact_zh: 未校验的数据可能导致执行非预期系统命令。
+      remediation_zh: 使用固定命令和独立参数数组，并对每个参数使用允许清单校验。
+    pattern: Runtime.getRuntime().exec($COMMAND + $VALUE)

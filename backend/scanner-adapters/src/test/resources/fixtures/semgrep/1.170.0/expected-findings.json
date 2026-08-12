@@ -1,0 +1,10 @@
+{
+  "count": 1,
+  "category": "WEB_SECURITY",
+  "severity": "P1",
+  "confidence": "HIGH",
+  "ruleFamily": "SQL_INJECTION",
+  "path": "src/main/java/example/UnsafeController.java",
+  "line": 7,
+  "cwe": "CWE-89"
+}

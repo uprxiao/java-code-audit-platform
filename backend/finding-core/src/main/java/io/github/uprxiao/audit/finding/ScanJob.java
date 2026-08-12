@@ -98,4 +98,16 @@ public record ScanJob(
         return new ScanJob(schemaVersion, id, revision + 1, sourceType, profile, next,
                 ScanPhase.forStatus(next), createdAt, now, nextStartedAt, nextCompletedAt, nextFailure);
     }
+
+    public ScanJob touch(Instant now) {
+        Objects.requireNonNull(now, "now");
+        if (status.isTerminal()) {
+            throw new IllegalStateException("terminal ScanJob cannot be touched");
+        }
+        if (now.isBefore(updatedAt)) {
+            throw new IllegalArgumentException("update time must not go backwards");
+        }
+        return new ScanJob(schemaVersion, id, revision + 1, sourceType, profile, status, phase,
+                createdAt, now, startedAt, completedAt, failure);
+    }
 }

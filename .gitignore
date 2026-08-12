@@ -20,6 +20,7 @@ scanner-cache/
 # Local-only or dynamically downloaded scanner content
 tools/local/
 tools/downloads/
+.tool-pack-staging/
 .m2/
 v1-acceptance-evidence/
 

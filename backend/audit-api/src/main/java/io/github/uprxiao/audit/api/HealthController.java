@@ -9,8 +9,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 class HealthController {
 
-    @GetMapping("/health")
-    Map<String, String> health() {
-        return Map.of("status", "UP");
+    private final ScanService scans;
+
+    HealthController(ScanService scans) {
+        this.scans = scans;
+    }
+
+    @GetMapping({"/health", "/tools", "/profiles"})
+    Map<String, Object> health() {
+        return scans.toolHealth();
     }
 }

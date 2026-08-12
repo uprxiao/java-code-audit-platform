@@ -1,0 +1,31 @@
+schemaVersion: 1
+generatedFor: v1
+tools:
+  - id: semgrep
+    version: 1.170.0
+    distribution: locally-assembled-relocatable-pack
+    parserSchemaVersion: 1
+    license: LGPL-2.1-or-later
+    licenseReview: redistributable-with-license-and-source-obligations
+    sourceUrl: https://pypi.org/project/semgrep/1.170.0/
+    expectedVersionOutput: "1.170.0"
+    bundledRuntime:
+      id: python-build-standalone
+      pythonVersion: 3.14.2
+      license: PSF-2.0
+    platforms:
+      darwin-arm64:
+        assemblyScript: scripts/build-semgrep-pack.sh
+        localPath: tools/downloads/tool-pack/darwin-arm64/semgrep/semgrep/bin/semgrep
+        minimumOs: macOS 11
+      linux-x86_64:
+        assemblyScript: scripts/build-semgrep-pack.sh
+        localPath: tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep
+        minimumGlibc: "2.34"
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/semgrep/1.170.0
+    rules: config/rules/semgrep/java-audit.yaml
+
+notes:
+  - Tool-pack binaries and Python runtime remain under gitignored tools/downloads until release assembly.
+  - Installed wheel metadata retains Semgrep and transitive dependency license files.
+  - CodeQL is intentionally absent and is never redistributed by this public manifest.

@@ -1,0 +1,13 @@
+{
+  "version": "1.170.0",
+  "results": [],
+  "errors": [
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "PartialParsing",
+      "message": "one file could not be parsed"
+    }
+  ],
+  "paths": {"scanned": []}
+}

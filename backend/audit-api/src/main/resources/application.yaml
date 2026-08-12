@@ -1,6 +1,26 @@
 spring:
   application:
     name: java-code-audit-platform
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
 
 server:
   shutdown: graceful
+
+audit:
+  data-root: ${AUDIT_DATA_ROOT:./data}
+  tools:
+    semgrep-executable: ${AUDIT_SEMGREP_EXECUTABLE:./tools/downloads/bin/semgrep}
+  rules:
+    semgrep: ${AUDIT_SEMGREP_RULES:./config/rules/semgrep/java-audit.yaml}
+  concurrency:
+    max-queued-scan-jobs: ${AUDIT_MAX_QUEUED_SCAN_JOBS:20}
+    max-concurrent-scan-jobs: ${AUDIT_MAX_CONCURRENT_SCAN_JOBS:2}
+  intake:
+    max-archive-bytes: ${AUDIT_MAX_ARCHIVE_BYTES:1073741824}
+    max-expanded-bytes: ${AUDIT_MAX_EXPANDED_BYTES:10737418240}
+    max-single-file-bytes: ${AUDIT_MAX_SINGLE_FILE_BYTES:1073741824}
+    max-entries: ${AUDIT_MAX_ARCHIVE_ENTRIES:200000}
+    max-compression-ratio: ${AUDIT_MAX_COMPRESSION_RATIO:100}
