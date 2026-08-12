@@ -1,0 +1,11 @@
+{
+  "count": 1,
+  "category": "WEB_SECURITY",
+  "severity": "P1",
+  "confidence": "HIGH",
+  "ruleFamily": "COMMAND_INJECTION",
+  "path": "src/main/java/example/UnsafeCommandServlet.java",
+  "line": 10,
+  "cwe": "CWE-78",
+  "flowKinds": ["SOURCE", "PROPAGATION", "SINK"]
+}

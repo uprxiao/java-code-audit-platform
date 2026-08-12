@@ -17,6 +17,20 @@ platforms:
 querySuites:
   - java-code-scanning.qls
   - java-security-and-quality.qls
+v1DeepPolicy:
+  selectedSuite: codeql-suites/java-security-and-quality.qls
+  buildMode: none
+  databasePhases:
+    - database-create
+    - database-analyze
+  requiresServerTools:
+    java: "17"
+    maven: ">=3.9"
+  reportFormat: sarifv2.1.0
+  retainDatabaseOnFailure: true
+  deleteDatabaseAfterValidatedReport: true
+  reportArtifacts:
+    - raw/codeql/report.sarif
 notes:
   - CLI and downloaded packs live under gitignored tools/local and never enter the public release medium.
   - Deep is enabled only for targets allowed by the current CodeQL terms or a separate paid authorization.

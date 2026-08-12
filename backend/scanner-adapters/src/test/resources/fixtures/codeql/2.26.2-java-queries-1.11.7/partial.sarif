@@ -1,0 +1,44 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "semanticVersion": "2.26.2",
+          "rules": [
+            {
+              "id": "java/command-line-injection",
+              "shortDescription": {"text": "Command built from user-controlled sources"},
+              "defaultConfiguration": {"level": "error"},
+              "properties": {"tags": ["security", "external/cwe/cwe-078"], "precision": "high"}
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {"level": "error", "message": {"text": "A source archive could not be extracted."}}
+          ]
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "java/command-line-injection",
+          "level": "error",
+          "message": {"text": "This command depends on a user-provided value."},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": "src/main/java/example/UnsafeCommandServlet.java"},
+                "region": {"startLine": 10, "startColumn": 9, "endLine": 10, "endColumn": 47}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

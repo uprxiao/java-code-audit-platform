@@ -1,0 +1,10 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.26.2", "rules": []}},
+      "invocations": [{"executionSuccessful": false}],
+      "results": []
+    }
+  ]
+}
