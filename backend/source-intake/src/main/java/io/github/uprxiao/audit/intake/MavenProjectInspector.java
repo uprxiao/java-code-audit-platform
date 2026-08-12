@@ -89,9 +89,17 @@ public final class MavenProjectInspector {
         return false;
     }
 
-    private List<Path> independentRoots(List<Path> poms) {
-        return poms.stream().filter(pom -> poms.stream().noneMatch(other ->
-                !other.equals(pom) && pom.startsWith(other.getParent()))).toList();
+    private List<Path> independentRoots(List<Path> poms) throws IOException {
+        Set<Path> declaredModules = new HashSet<>();
+        for (Path pom : poms) {
+            PomModel model = readPom(pom);
+            for (String declaredModule : model.modules()) {
+                Path module = pom.getParent().resolve(declaredModule).normalize();
+                Path modulePom = Files.isDirectory(module) ? module.resolve("pom.xml") : module;
+                declaredModules.add(modulePom.toAbsolutePath().normalize());
+            }
+        }
+        return poms.stream().filter(pom -> !declaredModules.contains(pom)).toList();
     }
 
     private List<MavenModule> discoverModules(Path projectRoot, Path rootPom) throws IOException {

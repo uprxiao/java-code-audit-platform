@@ -66,6 +66,21 @@ class MavenProjectInspectorTest {
     }
 
     @Test
+    void nestedPomIsIndependentUnlessDeclaredByItsParentReactor() throws Exception {
+        Path project = Files.createDirectories(temporaryDirectory.resolve("project"));
+        Path unrelated = Files.createDirectories(project.resolve("copied-other-project"));
+        Files.writeString(project.resolve("pom.xml"), pom("project", "jar", "<java.version>17</java.version>", ""));
+        Files.writeString(unrelated.resolve("pom.xml"), pom("other", "jar", "<java.version>17</java.version>", ""));
+
+        SourceIntakeException error = assertThrows(SourceIntakeException.class,
+                () -> inspector.inspect(temporaryDirectory, source(), ScanProfile.QUICK));
+
+        assertEquals("MULTIPLE_MAVEN_ROOTS", error.code());
+        assertEquals(List.of("project/copied-other-project/pom.xml", "project/pom.xml"),
+                error.details().get("candidates"));
+    }
+
+    @Test
     void rejectsNonJava17MissingJavaVersionModuleEscapeAndDoctype() throws Exception {
         Path non17 = Files.createDirectories(temporaryDirectory.resolve("non17"));
         Files.writeString(non17.resolve("pom.xml"), pom("non17", "jar", "<java.version>21</java.version>", ""));
