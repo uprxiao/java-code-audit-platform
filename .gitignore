@@ -27,3 +27,6 @@ v1-acceptance-evidence/
 node_modules/
 dist/
 coverage/
+
+# macOS metadata may appear while assembling local release directories.
+**/.DS_Store

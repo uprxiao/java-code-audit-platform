@@ -55,6 +55,17 @@ PYTHON_DISTRIBUTION="$(basename "$(dirname "$(dirname "$PYTHON_EXECUTABLE")")")"
 unlink "$PAYLOAD/semgrep/bin/python"
 ln -s "../../python/$PYTHON_DISTRIBUTION/bin/python3.14" "$PAYLOAD/semgrep/bin/python"
 
+# `uv python install` also creates a convenience alias whose target is the
+# absolute temporary build directory. Semgrep uses the exact versioned
+# distribution above, so the alias is unnecessary and would make a release
+# archive non-relocatable (or cause an archiver to follow the whole runtime
+# twice). Remove only top-level Python aliases; links inside the runtime stay.
+for python_alias in "$PAYLOAD/python"/*; do
+  if [[ -L "$python_alias" ]]; then
+    unlink "$python_alias"
+  fi
+done
+
 VERSION_OUTPUT="$($PAYLOAD/semgrep/bin/semgrep --version | tail -n 1)"
 if [[ "$VERSION_OUTPUT" != "$SEMGREP_VERSION" ]]; then
   echo "Unexpected Semgrep version: $VERSION_OUTPUT" >&2

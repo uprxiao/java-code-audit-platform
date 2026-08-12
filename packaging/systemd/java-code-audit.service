@@ -1,0 +1,24 @@
+[Unit]
+Description=Java Code Audit Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=java-audit
+Group=java-audit
+WorkingDirectory=/opt/java-code-audit-platform
+Environment=AUDIT_DATA_ROOT=/var/lib/java-code-audit-platform
+Environment=AUDIT_PORT=8080
+EnvironmentFile=-/etc/java-code-audit-platform/environment
+ExecStart=/opt/java-code-audit-platform/bin/run.sh
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
