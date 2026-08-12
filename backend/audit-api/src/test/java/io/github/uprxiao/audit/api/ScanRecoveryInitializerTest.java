@@ -49,6 +49,33 @@ class ScanRecoveryInitializerTest {
     }
 
     @Test
+    void immediatelyRestoresNewlyInterruptedJobIntoRuntimeIndex() throws Exception {
+        Instant created = Instant.parse("2026-08-12T00:00:00Z");
+        ScanJob running = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK, created)
+                .transitionTo(ScanStatus.ACQUIRING_SOURCE, created.plusSeconds(1))
+                .transitionTo(ScanStatus.PREFLIGHT, created.plusSeconds(2))
+                .transitionTo(ScanStatus.RUNNING, created.plusSeconds(3));
+        StoredScanJob stored = StoredScanJob.from(running, Map.of(
+                "semgrep", EngineTaskState.pending("semgrep", created)
+                        .transitionTo(EngineStatus.READY, created.plusSeconds(2))
+                        .transitionTo(EngineStatus.RUNNING, created.plusSeconds(3))), Map.of());
+        InMemoryJobStore store = new InMemoryJobStore(List.of(stored));
+        AtomicReference<StoredScanJob> restored = new AtomicReference<>();
+
+        new ScanRecoveryInitializer(
+                store,
+                Clock.fixed(created.plusSeconds(10), ZoneOffset.UTC),
+                new io.github.uprxiao.audit.orchestrator.ScanRecoveryPolicy(),
+                store::list,
+                restored::set).recoverActiveJobs();
+
+        assertEquals(ScanStatus.INTERRUPTED, restored.get().status());
+        assertEquals("SERVICE_RESTART_INTERRUPTED", restored.get().failure().code());
+        assertEquals(EngineStatus.CANCELLED, restored.get().engines().get("semgrep").status());
+        assertEquals(store.find(running.id()).orElseThrow(), restored.get());
+    }
+
+    @Test
     void delegatesQueuedAndTerminalJobsForRuntimeIndexRecovery() throws Exception {
         Instant now = Instant.parse("2026-08-12T00:00:00Z");
         ScanJob queued = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK, now);

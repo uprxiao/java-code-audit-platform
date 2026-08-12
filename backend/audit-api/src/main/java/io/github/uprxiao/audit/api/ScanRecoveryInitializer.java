@@ -78,8 +78,10 @@ final class ScanRecoveryInitializer {
             if (decision.action() != ScanRecoveryPolicy.RecoveryAction.MARK_INTERRUPTED) {
                 continue;
             }
-            jobs.save(StoredScanJob.from(
-                    decision.job(), interruptedEngines(stored.engines(), recoveryTime), stored.artifacts()));
+            StoredScanJob interrupted = StoredScanJob.from(
+                    decision.job(), interruptedEngines(stored.engines(), recoveryTime), stored.artifacts());
+            jobs.save(interrupted);
+            queuedJobRestorer.restore(interrupted);
         }
     }
 
