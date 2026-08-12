@@ -45,7 +45,7 @@ flowchart LR
 ### 架构与契约
 
 - [总体架构](architecture.md)：单 JAR 模块化单体与本地进程模型。
-- [跨平台与工具包](tool-pack.md)：macOS/Linux 介质、Git LFS、CodeQL 和动态数据。
+- [跨平台与工具包](tool-pack.md)：macOS/Linux 介质、可复现工具组装、CodeQL 和动态数据。
 - [扫描生命周期](scan-lifecycle.md)：从接入源码到最终清理的状态变化。
 - [并发与资源](concurrency.md)：队列、权重、限流、公平性和资源保护。
 - [扫描器适配协议](scanner-adapter.md)：探测、命令准备、执行和归一化接口。

@@ -10,12 +10,12 @@ repository
 ├── bin/                         # 启动、停止、健康和验收脚本
 ├── config/                      # 公共配置
 ├── tools/
-│   ├── manifest/                # 版本、SHA256、来源、许可
-│   ├── distributable/
-│   │   ├── common/              # 允许再分发的 Java 工具/规则
-│   │   ├── darwin-arm64/        # 允许再分发的 Mac 原生工具
-│   │   └── linux-x86_64/        # 允许再分发的 Linux 原生工具
-│   └── local/                   # CodeQL等不可入库的本机工具，gitignored
+│   ├── manifest/                # 版本、SHA256、来源、许可，提交
+│   ├── downloads/tool-pack/     # 脚本组装的介质输入，gitignored
+│   │   ├── common/              # SpotBugs/FindSecBugs 等公共 Java 工具
+│   │   ├── darwin-arm64/        # Mac ARM64 原生工具
+│   │   └── linux-x86_64/        # Linux x86_64 原生工具
+│   └── local/                   # CodeQL 本机安装，gitignored，不进入公共介质
 └── data/                        # 运行数据，gitignored
 ```
 
@@ -33,12 +33,12 @@ java-code-audit-platform-v1-linux-x86_64.zip
 | 类别 | 内容 | 仓库策略 | 运行时策略 |
 | --- | --- | --- | --- |
 | 系统前置 | JDK 17、Maven 3.9+ | 不提交 | 启动时严格检查 |
-| 公共 Java 工具 | SpotBugs、FindSecBugs、PMD、Checkstyle、Dependency-Check | 许可复核后通过 Git LFS | 同一包跨平台复用 |
-| 平台原生工具 | Gitleaks、Trivy、OSV-Scanner、Semgrep运行包 | 许可复核后按平台通过 Git LFS | 只装载当前 OS/CPU 目录 |
+| 公共 Java 工具 | SpotBugs、FindSecBugs、PMD、Checkstyle、Dependency-Check | 许可复核后由脚本下载官方发布并校验 SHA256 | 组装进发布包；本地缓存不提交 |
+| 平台原生工具 | Gitleaks、Trivy、OSV-Scanner、Semgrep运行包 | 许可复核后由脚本按平台下载并校验 SHA256 | 只装载当前 OS/CPU 目录 |
 | Maven 插件 | Dependency Plugin、Enforcer、CycloneDX及必要插件 | 版本坐标进入清单；是否离线缓存由介质组装实现 | 联网解析到受控 Maven 缓存 |
 | CodeQL | CLI/Bundle | **不提交、不再分发**；仅保存版本约束和安装说明 | 用户从官方源下载安装到 `tools/local/codeql` |
 | 规则/查询 | Semgrep rules、Checkstyle/PMD rules、CodeQL query packs | 按各自许可提交并锁定 commit/version | 报告记录规则版本 |
-| 动态数据 | NVD、Trivy DB、Java DB、OSV缓存 | 不提交，进入 `.gitignore` | 启动检查、默认24小时更新、原子切换 |
+| 动态数据 | NVD、Trivy DB、Java DB、OSV缓存 | 不提交，进入 `.gitignore` | 启动检查；运维脚本受控更新和原子切换 |
 | 运行缓存 | `.m2`、CodeQL DB、任务工作区和报告 | 不提交 | 保存到 `data/` 并按保留策略清理 |
 
 ## 3. 平台复用矩阵
@@ -102,7 +102,7 @@ tools:
 3. 校验签名、checksum 或发布资产 SHA256；
 4. 两个平台运行 `--version` 和最小真实扫描；
 5. 保存原始输出作为 Parser Fixture；
-6. 通过许可复核后才加入 Git LFS；
+6. 通过许可复核后才允许组装进发布包；
 7. 锁定版本、校验值和解析协议；
 8. 任何升级重复执行全部步骤。
 
@@ -165,18 +165,21 @@ sequenceDiagram
     Scheduler->>Lock: release
 ```
 
-- 启动后检查一次，默认每24小时更新；
+- 服务启动时检查可用性、版本和新鲜度，不在启动线程中下载；
+- 管理员通过 `bin/update-vulnerability-data.sh` 或源码树中的
+  `scripts/update-standard-vulnerability-data.sh` 按运维周期触发更新；
 - 扫描继续读取上一份完整数据库；
 - 更新失败保留旧数据并记录错误；
 - 超过7天未成功更新，报告和健康接口显示陈旧警告；
 - 从未有可用数据时依赖漏洞引擎失败，不能返回零漏洞；
 - 更新进程和扫描进程不能同时写同一数据库目录。
 
-## 8. Git LFS 和 `.gitignore`
+## 8. 可复现组装和 `.gitignore`
 
-Git LFS 只管理已完成许可复核且允许再分发的固定二进制。CodeQL、漏洞库和运行缓存即使本机很大，也不进入 LFS。
-
-开发机在第一次添加二进制前必须安装并初始化 Git LFS；当前仓库尚无第三方二进制时，缺少 Git LFS 不阻塞纯源码和文档构建。
+仓库不提交第三方工具二进制，也不使用 Git LFS 承载这些大文件。
+`scripts/build-*-pack.sh` 只从清单中的固定官方 URL 下载，校验官方包与最终入口 SHA256，
+并把完整许可文件保留在本地工具包。`build-distribution.sh` 只接受完整的 Quick、Standard Analysis
+和 Standard Supply 工具包，任一必需输入缺失即失败。
 
 忽略范围至少包括：
 
@@ -187,7 +190,7 @@ Git LFS 只管理已完成许可复核且允许再分发的固定二进制。Cod
 /.m2/
 ```
 
-Git LFS 升级一个大文件会新增一整份对象，因此工具升级按发布节奏集中进行，不随每次业务提交更新。
+工具升级必须同时修改 manifest、组装脚本、Golden Fixture 和两平台真实冒烟证据。
 
 ## 9. 启动健康检查
 

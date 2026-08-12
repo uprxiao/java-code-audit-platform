@@ -228,7 +228,7 @@ I1失败先集中修复，不继续扩展Standard。
 - 外部YAML和环境变量覆盖；
 - systemd示例；
 - 两个平台只包含本平台工具；
-- Git LFS完整性和许可证清单；
+- 工具包锁定校验、介质完整性和许可证清单；
 - Linux日常/发布两级CI；
 - macOS ARM64最终Quick/Standard/Deep；
 - Ubuntu 22.04 x86_64自动验收；

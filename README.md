@@ -2,13 +2,13 @@
 
 面向 Java 17 Maven 项目的个人 Web 代码审计工具。用户上传源码 ZIP 或提供 SVN 当前快照地址后，平台在本机编排多个扫描器，统一归类、分级、去重并导出 HTML、JSON、SARIF、SBOM 和原始证据。
 
-> 当前状态：V1 正按 [`docs/v1/`](docs/v1/README.md) 实施。Quick 六引擎、并发调度、统一报告和 Mac/Linux 真实验收已完成；Standard、SVN 和 Deep 正在开发，未宣称 V1 已全部验收。
+> 当前状态：V1 实现已集成到 `codex/v1-integration`。Quick、Standard、Deep、ZIP/SVN、并发调度和统一报告均已接入；最终完成状态以 [V1 验收标准](docs/v1/acceptance-criteria.md) 和证据索引为准。
 
 ## V1 形态
 
 ```text
 Java 17 Spring Boot JAR
-  + 可再分发扫描工具（Git LFS）
+  + 可再分发扫描工具（锁定脚本组装进介质）
   + 外部 YAML 配置
   + 文件任务目录
 ```
@@ -114,4 +114,4 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 
 ## 许可证
 
-本项目采用 [Apache License 2.0](LICENSE)。第三方扫描器继续受各自许可证约束。只有完成许可复核且允许再分发的工具才会进入 Git LFS 和公开介质；CodeQL CLI 不进入仓库或公开介质。
+本项目采用 [Apache License 2.0](LICENSE)。第三方扫描器继续受各自许可证约束。只有完成许可复核且允许再分发的工具才会由锁定版本/SHA256的脚本组装进公开介质；CodeQL CLI 不进入仓库或公开介质。

@@ -206,7 +206,7 @@ Linux日常CI不下载/运行真实CodeQL，但运行Deep编排和Parser Fixture
 - 单元、Schema、Parser、Fake Process；
 - Quick/Standard Linux真实冒烟；
 - Deep编排/Parser（不真跑CodeQL）；
-- LFS指针/manifest一致性；
+- 工具组装包/manifest/SHA256一致性；
 - Linux介质组装检查；
 - Markdown链接和术语检查。
 
