@@ -50,6 +50,7 @@ class SemgrepZipApiE2ETest {
         registry.add("audit.rules.gitleaks", () -> REPOSITORY_ROOT.resolve("config/rules/gitleaks/gitleaks.toml").toString());
         registry.add("audit.rules.pmd", () -> REPOSITORY_ROOT.resolve("config/rules/pmd/java-audit.xml").toString());
         registry.add("audit.rules.checkstyle", () -> REPOSITORY_ROOT.resolve("config/rules/checkstyle/java-audit.xml").toString());
+        registry.add("audit.rules.spotbugs-exclude", () -> REPOSITORY_ROOT.resolve("config/rules/spotbugs-exclude.xml").toString());
         registry.add("audit.concurrency.max-concurrent-scan-jobs", () -> "1");
         registry.add("audit.concurrency.max-queued-scan-jobs", () -> "2");
     }

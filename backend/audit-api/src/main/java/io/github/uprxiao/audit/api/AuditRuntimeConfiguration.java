@@ -5,6 +5,10 @@ import io.github.uprxiao.audit.adapter.checkstyle.CheckstyleAdapter;
 import io.github.uprxiao.audit.adapter.gitleaks.GitleaksAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdAdapter;
 import io.github.uprxiao.audit.adapter.pmd.PmdCpdAdapter;
+import io.github.uprxiao.audit.adapter.maven.MavenDependencyAnalysisAdapter;
+import io.github.uprxiao.audit.adapter.maven.MavenEnforcerAdapter;
+import io.github.uprxiao.audit.adapter.spotbugs.FindSecBugsAdapter;
+import io.github.uprxiao.audit.adapter.spotbugs.SpotBugsAdapter;
 import io.github.uprxiao.audit.adapter.trivy.TrivyRepositoryAdapter;
 import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
@@ -17,9 +21,12 @@ import io.github.uprxiao.audit.intake.SvnSourceCheckout;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
+import io.github.uprxiao.audit.orchestrator.DefaultScanPlanner;
 import io.github.uprxiao.audit.orchestrator.FairDagScheduler;
 import io.github.uprxiao.audit.orchestrator.SchedulerConfiguration;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
+import io.github.uprxiao.audit.process.MavenProcessAdapter;
+import io.github.uprxiao.audit.process.MavenProcessConfiguration;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
 import io.github.uprxiao.audit.storage.AtomicFileWriter;
@@ -57,10 +64,13 @@ class AuditRuntimeConfiguration {
             @Value("${audit.data-root:./data}") String dataRoot,
             @Value("${audit.tools.semgrep-executable:./tools/downloads/bin/semgrep}") String semgrepExecutable,
             @Value("${audit.tools.quick-root:}") String configuredQuickRoot,
+            @Value("${audit.tools.standard-analysis-root:./tools/downloads/tool-pack/common/standard-analysis}")
+                    String standardAnalysisRoot,
             @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules,
             @Value("${audit.rules.gitleaks:./config/rules/gitleaks/gitleaks.toml}") String gitleaksRules,
             @Value("${audit.rules.pmd:./config/rules/pmd/java-audit.xml}") String pmdRules,
-            @Value("${audit.rules.checkstyle:./config/rules/checkstyle/java-audit.xml}") String checkstyleRules) {
+            @Value("${audit.rules.checkstyle:./config/rules/checkstyle/java-audit.xml}") String checkstyleRules,
+            @Value("${audit.rules.spotbugs-exclude:./config/rules/spotbugs-exclude.xml}") String spotbugsExclude) {
         String quickRoot = configuredQuickRoot.isBlank()
                 ? "./tools/downloads/tool-pack/" + currentPlatform() + "/quick"
                 : configuredQuickRoot;
@@ -69,9 +79,11 @@ class AuditRuntimeConfiguration {
                 Path.of(semgrepExecutable).toAbsolutePath().normalize(),
                 Path.of(semgrepRules).toAbsolutePath().normalize(),
                 Path.of(quickRoot).toAbsolutePath().normalize(),
+                Path.of(standardAnalysisRoot).toAbsolutePath().normalize(),
                 Path.of(gitleaksRules).toAbsolutePath().normalize(),
                 Path.of(pmdRules).toAbsolutePath().normalize(),
-                Path.of(checkstyleRules).toAbsolutePath().normalize());
+                Path.of(checkstyleRules).toAbsolutePath().normalize(),
+                Path.of(spotbugsExclude).toAbsolutePath().normalize());
     }
 
     @Bean(destroyMethod = "close")
@@ -217,13 +229,36 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
+    MavenProcessConfiguration mavenProcessConfiguration(
+            AuditRuntimePaths paths,
+            @Value("${audit.maven.executable:mvn}") String executable,
+            @Value("${audit.maven.settings:}") String settings,
+            @Value("${audit.maven.max-heap-mb:3072}") int maxHeapMb) {
+        Path settingsFile = settings.isBlank() ? null : Path.of(settings);
+        return new MavenProcessConfiguration(
+                executable,
+                Path.of(System.getProperty("java.home")),
+                paths.mavenLocalRepository(),
+                settingsFile,
+                System.getenv().getOrDefault("PATH", "/usr/bin:/bin"),
+                maxHeapMb);
+    }
+
+    @Bean
+    MavenProcessAdapter mavenProcessAdapter(
+            LocalProcessExecutionBackend processes,
+            MavenProcessConfiguration configuration) {
+        return new MavenProcessAdapter(processes, configuration);
+    }
+
+    @Bean
     StartupHealthSnapshot startupHealthSnapshot(
             AuditRuntimePaths paths,
             LocalProcessExecutionBackend processes,
             AtomicFileWriter files,
             Clock clock,
             SingleInstanceLock lock,
-            QuickScannerRegistry scanners,
+            ScannerRegistry scanners,
             @Value("${audit.maven.executable:mvn}") String mavenExecutable,
             @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes)
             throws IOException, InterruptedException {
@@ -249,24 +284,37 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
-    QuickScannerRegistry quickScannerRegistry(
+    ScannerRegistry scannerRegistry(
             AuditRuntimePaths paths,
             LocalProcessExecutionBackend processes,
             Clock clock,
+            DefaultScanPlanner planner,
             SemgrepAdapter semgrep,
-            ToolInstallationHealth semgrepHealth) throws IOException, InterruptedException {
+            ToolInstallationHealth semgrepHealth,
+            @Value("${audit.maven.executable:mvn}") String mavenExecutable) throws IOException, InterruptedException {
         List<ToolInstallationHealth> health = new ArrayList<>();
         health.add(semgrepHealth);
         health.addAll(new QuickToolIntegrityChecker(
                 paths, processes, new ObjectMapper(), clock).checkAll());
+        List<ToolInstallationHealth> standardHealth = new StandardAnalysisToolIntegrityChecker(
+                paths, processes, clock, mavenExecutable,
+                System.getenv().getOrDefault("PATH", "/usr/bin:/bin")).checkAll();
+        health.addAll(standardHealth);
         List<io.github.uprxiao.audit.scanner.ScannerAdapter> adapters = List.of(
                 new GitleaksAdapter(paths.gitleaksRules()),
                 semgrep,
                 new PmdAdapter(paths.pmdRules(), paths.pmdHome()),
                 new PmdCpdAdapter(paths.pmdHome()),
                 new CheckstyleAdapter(paths.checkstyleRules(), paths.checkstyleJar()),
-                new TrivyRepositoryAdapter(paths.trivyCache()));
-        return new QuickScannerRegistry(adapters, health, paths);
+                new TrivyRepositoryAdapter(paths.trivyCache()),
+                new SpotBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
+                new FindSecBugsAdapter(paths.spotbugsHome(), paths.findSecBugsPlugin(), paths.spotbugsExcludeFilter()),
+                new MavenDependencyAnalysisAdapter(paths.mavenLocalRepository()),
+                new MavenEnforcerAdapter(paths.mavenLocalRepository()));
+        boolean mavenAvailable = standardHealth.stream()
+                .filter(tool -> tool.id().startsWith("maven-"))
+                .allMatch(ToolInstallationHealth::available);
+        return new ScannerRegistry(adapters, health, paths, planner, mavenAvailable);
     }
 
     @Bean

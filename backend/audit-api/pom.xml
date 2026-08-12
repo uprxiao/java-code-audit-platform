@@ -78,6 +78,10 @@
                 </includes>
                 <targetPath>META-INF</targetPath>
             </resource>
+            <resource>
+                <directory>../../tools/standard-analysis/metadata</directory>
+                <targetPath>audit/tools/standard-analysis</targetPath>
+            </resource>
         </resources>
         <plugins>
             <plugin>

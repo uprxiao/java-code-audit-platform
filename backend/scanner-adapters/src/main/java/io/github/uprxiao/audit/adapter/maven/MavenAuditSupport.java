@@ -14,6 +14,7 @@ import io.github.uprxiao.audit.finding.SeverityMappingService;
 import io.github.uprxiao.audit.finding.SourceLocation;
 import io.github.uprxiao.audit.finding.VulnerabilityIdentifiers;
 import io.github.uprxiao.audit.intake.MavenModule;
+import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.ProjectContext;
 import io.github.uprxiao.audit.scanner.EngineDescriptor;
 import io.github.uprxiao.audit.scanner.EngineId;
@@ -31,12 +32,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.TreeMap;
 
 final class MavenAuditSupport {
 
     static final long MAX_LOG_BYTES = 32L * 1024 * 1024;
     private static final FindingFingerprintService FINGERPRINTS = new FindingFingerprintService();
     private static final SeverityMappingService SEVERITIES = new SeverityMappingService();
+    private static final MavenArgumentValidator MAVEN_ARGUMENTS = new MavenArgumentValidator();
 
     private MavenAuditSupport() {
     }
@@ -66,6 +70,18 @@ final class MavenAuditSupport {
         command.add("-Dmaven.repo.local=" + localRepository);
         command.add("-Dstyle.color=never");
         command.add("-DskipTests");
+        MAVEN_ARGUMENTS.validate(context.mavenProfiles(), context.mavenProperties());
+        Set<Integer> sensitiveArguments = new HashSet<>();
+        if (!context.mavenProfiles().isEmpty()) {
+            command.add("-P" + String.join(",", context.mavenProfiles()));
+        }
+        for (Map.Entry<String, String> property : new TreeMap<>(context.mavenProperties()).entrySet()) {
+            int argumentIndex = command.size();
+            command.add("-D" + property.getKey() + "=" + property.getValue());
+            if (MAVEN_ARGUMENTS.isSensitiveProperty(property.getKey())) {
+                sensitiveArguments.add(argumentIndex);
+            }
+        }
         command.addAll(fixedArguments);
 
         String path = installation.executable().getParent() + File.pathSeparator + "/usr/bin" + File.pathSeparator + "/bin";
@@ -77,7 +93,8 @@ final class MavenAuditSupport {
                 "MAVEN_OPTS", "-Xmx2048m -Djava.awt.headless=true -Duser.home=" + home);
         return new ExecutionSpec(engine, command, context.engineOutputDirectory(), environment,
                 descriptor.defaultTimeout(), descriptor.resources(),
-                Set.of(new ExpectedArtifact("stdout.log", true, MAX_LOG_BYTES)), RedactionPolicy.NONE);
+                Set.of(new ExpectedArtifact("stdout.log", true, MAX_LOG_BYTES)),
+                new RedactionPolicy(sensitiveArguments, Set.of()));
     }
 
     static Finding finding(

@@ -36,12 +36,16 @@ import io.github.uprxiao.audit.orchestrator.ScanJobHandle;
 import io.github.uprxiao.audit.orchestrator.ScanJobListener;
 import io.github.uprxiao.audit.orchestrator.ScanPlan;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
+import io.github.uprxiao.audit.process.MavenBuildRequest;
+import io.github.uprxiao.audit.process.MavenBuildResult;
+import io.github.uprxiao.audit.process.MavenProcessAdapter;
 import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.report.ReportGenerationOptions;
 import io.github.uprxiao.audit.report.ReportInput;
 import io.github.uprxiao.audit.report.AuditReport;
 import io.github.uprxiao.audit.scanner.Applicability;
+import io.github.uprxiao.audit.scanner.ArtifactValidation;
 import io.github.uprxiao.audit.scanner.EngineId;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
 import io.github.uprxiao.audit.scanner.ExecutionSpec;
@@ -92,10 +96,12 @@ public final class ScanService {
     private final MavenProjectInspector projects;
     private final MavenArgumentValidator mavenArguments;
     private final LocalProcessExecutionBackend processes;
-    private final QuickScannerRegistry scanners;
+    private final ScannerRegistry scanners;
     private final FairDagScheduler scheduler;
-    private final DefaultScanPlanner planner = new DefaultScanPlanner();
+    private final DefaultScanPlanner planner;
     private final ScanExecutionPlanFactory executionPlans = new ScanExecutionPlanFactory();
+    private final MavenProcessAdapter maven;
+    private final Duration mavenBuildTimeout;
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
@@ -116,8 +122,12 @@ public final class ScanService {
             MavenProjectInspector projects,
             MavenArgumentValidator mavenArguments,
             LocalProcessExecutionBackend processes,
-            QuickScannerRegistry scanners,
+            ScannerRegistry scanners,
             FairDagScheduler scheduler,
+            DefaultScanPlanner planner,
+            MavenProcessAdapter maven,
+            @org.springframework.beans.factory.annotation.Value("${audit.maven.build-timeout:20m}")
+                    Duration mavenBuildTimeout,
             ReportGenerator reports,
             JobTemporaryFileCleaner cleaner,
             StorageCapacityGuard storageCapacity,
@@ -136,6 +146,9 @@ public final class ScanService {
         this.processes = processes;
         this.scanners = scanners;
         this.scheduler = scheduler;
+        this.planner = planner;
+        this.maven = maven;
+        this.mavenBuildTimeout = mavenBuildTimeout;
         this.reports = reports;
         this.cleaner = cleaner;
         this.storageCapacity = storageCapacity;
@@ -146,18 +159,7 @@ public final class ScanService {
     public CreateScanResponse submitZip(InputStream source, String originalName, ZipScanRequest request) throws IOException {
         mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
         storageCapacity.requireCapacity();
-        if (request.profile() != ScanProfile.QUICK) {
-            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
-                    "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");
-        }
-        if (!scanners.available()) {
-            List<String> unavailable = scanners.health().stream()
-                    .filter(tool -> !tool.available())
-                    .map(tool -> tool.id() + ":" + tool.reasonCode())
-                    .toList();
-            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
-                    "QUICK 所需工具未完整通过版本和完整性检查。", Map.of("unavailable", unavailable));
-        }
+        requireProfile(request.profile());
         UUID scanId = ids.nextId();
         JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), scanId);
         layout.initialize();
@@ -226,13 +228,9 @@ public final class ScanService {
     private CreateScanResponse submitSvnRequest(SvnScanRequest request) throws IOException {
         mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
         storageCapacity.requireCapacity();
-        if (request.profile() != ScanProfile.QUICK) {
-            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
-                    "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");
-        }
         SvnRepositoryPolicy.ValidatedSvnUrl validated = svnRepositoryPolicy.validate(request.repositoryUrl());
         SvnRevision revision = SvnRevision.parse(request.revision());
-        requireQuickTools();
+        requireProfile(request.profile());
 
         SourceCredential credential;
         try {
@@ -510,14 +508,11 @@ public final class ScanService {
     }
 
     public Map<String, Object> toolHealth() {
-        boolean quickAvailable = scanners.available();
+        boolean quickAvailable = scanners.available(ScanProfile.QUICK);
         return Map.of(
                 "status", quickAvailable ? "UP" : "DEGRADED",
                 "tools", scanners.health(),
-                "profiles", Map.of(
-                        "QUICK", quickAvailable ? "AVAILABLE" : "UNAVAILABLE",
-                        "STANDARD", "UNAVAILABLE",
-                        "DEEP", "UNAVAILABLE"));
+                "profiles", scanners.profileAvailability());
     }
 
     void forget(UUID scanId) {
@@ -574,10 +569,16 @@ public final class ScanService {
             Map<ScanEngine, EngineAction> actions = new LinkedHashMap<>();
             for (ScanEngine engine : runtime.plan.engines()) {
                 ScannerAdapter adapter = scanners.require(engine.id());
-                actions.put(engine, token -> executeScanner(runtime, project, adapter, token));
+                if (engine == ScanEngine.FINDSECBUGS) {
+                    actions.put(engine, token -> executeSharedFindSecBugs(runtime, project, adapter, token));
+                } else {
+                    actions.put(engine, token -> executeScanner(runtime, project, adapter, token));
+                }
             }
+            EngineAction mavenBuild = runtime.plan.plannedEngines().stream().anyMatch(engine -> engine.requiresBuild())
+                    ? token -> executeMavenBuild(runtime, project, token) : null;
             ScanJobHandle handle = scheduler.submit(executionPlans.create(
-                    runtime.job.id(), runtime.plan, null, actions, listener(runtime)));
+                    runtime.job.id(), runtime.plan, mavenBuild, actions, listener(runtime)));
             runtime.schedulerHandle = handle;
             var executionResult = handle.completion().get();
             if (executionResult.disposition()
@@ -613,7 +614,7 @@ public final class ScanService {
                     reportSource(source),
                     allFindings, runtime.coverage,
                     Map.of("components", 0, "vulnerableComponents", 0),
-                    Map.of("status", "NOT_REQUIRED", "mavenProfiles", runtime.request.mavenProfiles()),
+                    mavenBuildSummary(runtime),
                     Map.of(
                             "mavenVersion", "system",
                             "tools", scanners.health().stream().map(tool -> Map.<String, Object>of(
@@ -688,14 +689,17 @@ public final class ScanService {
             if (execution.status() == ExecutionResult.Status.TIMED_OUT) {
                 return EngineExecutionResult.timedOut("ENGINE_TIMEOUT", execution.message());
             }
-            if (execution.status() == ExecutionResult.Status.FAILED) {
-                return EngineExecutionResult.failed("ENGINE_PROCESS_FAILED", execution.message());
-            }
             String relativeArtifact = specification.expectedArtifacts().stream().findFirst()
                     .orElseThrow(() -> new IOException("scanner did not declare a report artifact"))
                     .relativePath();
             RawArtifactSet raw = new RawArtifactSet(id,
                     Map.of("report", engineOutput.resolve(relativeArtifact)), execution);
+            ArtifactValidation validation = adapter.validate(raw);
+            if (!validation.valid()) {
+                return execution.status() == ExecutionResult.Status.FAILED
+                        ? EngineExecutionResult.failed("ENGINE_PROCESS_FAILED", execution.message())
+                        : EngineExecutionResult.failed("ENGINE_ARTIFACT_INVALID", String.join(",", validation.errors()));
+            }
             NormalizationResult normalized = adapter.normalize(context, raw);
             runtime.normalized.put(id, normalized);
             return normalized.coverage().status() == EngineStatus.PARTIAL
@@ -715,6 +719,82 @@ public final class ScanService {
         }
     }
 
+    private EngineExecutionResult executeSharedFindSecBugs(
+            RuntimeScan runtime,
+            ProjectContext project,
+            ScannerAdapter adapter,
+            io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        if (runtime.cancelRequested.get() || cancellationToken.isCancellationRequested()) {
+            return EngineExecutionResult.cancelled();
+        }
+        try {
+            Applicability applicability = adapter.checkApplicability(project, scanners.tools());
+            if (applicability.status() != Applicability.Status.APPLICABLE) {
+                return EngineExecutionResult.failed(applicability.reasonCode(), applicability.detail());
+            }
+            ExecutionResult execution = runtime.executions.get(io.github.uprxiao.audit.adapter.spotbugs.SpotBugsAdapter.ID);
+            Path sharedReport = runtime.layout.rawEngine("spotbugs").resolve("report.xml");
+            if (execution == null || execution.status() != ExecutionResult.Status.SUCCEEDED
+                    || !Files.isRegularFile(sharedReport)) {
+                return EngineExecutionResult.failed(
+                        "SHARED_SPOTBUGS_ARTIFACT_UNAVAILABLE",
+                        "the SpotBugs execution group did not produce a reusable report");
+            }
+            EngineId id = adapter.descriptor().id();
+            ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project,
+                    runtime.layout.rawEngine(id.value()), runtime.request.mavenProfiles(), runtime.request.mavenProperties());
+            RawArtifactSet raw = new RawArtifactSet(id, Map.of("report", sharedReport), execution);
+            ArtifactValidation validation = adapter.validate(raw);
+            if (!validation.valid()) {
+                return EngineExecutionResult.failed(
+                        "ENGINE_ARTIFACT_INVALID", String.join(",", validation.errors()));
+            }
+            NormalizationResult normalized = adapter.normalize(context, raw);
+            runtime.executions.put(id, execution);
+            runtime.normalized.put(id, normalized);
+            return normalized.coverage().status() == EngineStatus.PARTIAL
+                    ? EngineExecutionResult.partial(
+                            normalized.coverage().reasonCode().isBlank()
+                                    ? "ENGINE_PARTIAL" : normalized.coverage().reasonCode(),
+                            String.join("; ", normalized.warnings()))
+                    : EngineExecutionResult.succeeded();
+        } catch (Exception exception) {
+            return EngineExecutionResult.failed("ENGINE_EXECUTION_FAILED",
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
+    private EngineExecutionResult executeMavenBuild(
+            RuntimeScan runtime,
+            ProjectContext project,
+            io.github.uprxiao.audit.scanner.CancellationToken cancellationToken) {
+        try {
+            MavenBuildResult result = maven.execute(new MavenBuildRequest(
+                            project.workspaceRoot(),
+                            runtime.layout.rawEngine(ScanExecutionPlanFactory.MAVEN_BUILD.value()),
+                            runtime.request.mavenProfiles(),
+                            runtime.request.mavenProperties(),
+                            mavenBuildTimeout),
+                    () -> runtime.cancelRequested.get() || cancellationToken.isCancellationRequested());
+            runtime.mavenBuild = result;
+            runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
+            return switch (result.status()) {
+                case SUCCEEDED -> EngineExecutionResult.succeeded();
+                case FAILED -> EngineExecutionResult.failed("MAVEN_BUILD_FAILED", result.execution().message());
+                case TIMED_OUT -> EngineExecutionResult.timedOut("MAVEN_BUILD_TIMEOUT", result.execution().message());
+                case CANCELLED -> EngineExecutionResult.cancelled();
+            };
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return runtime.cancelRequested.get() || cancellationToken.isCancellationRequested()
+                    ? EngineExecutionResult.cancelled()
+                    : EngineExecutionResult.failed("MAVEN_BUILD_INTERRUPTED", "Maven build was interrupted");
+        } catch (Exception exception) {
+            return EngineExecutionResult.failed("MAVEN_BUILD_FAILED",
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
     private ScanJobListener listener(RuntimeScan runtime) {
         return new ScanJobListener() {
             @Override
@@ -726,7 +806,11 @@ public final class ScanService {
                         return;
                     }
                     try {
-                        EngineTaskState updated = current.transitionTo(status, clock.instant(), failure);
+                        Instant now = clock.instant();
+                        EngineTaskState updated = advanceEngineState(current, status, failure, now);
+                        if (updated == current) {
+                            return;
+                        }
                         Map<String, EngineTaskState> states = new LinkedHashMap<>(runtime.engines);
                         states.put(engineId.value(), updated);
                         runtime.engines = Map.copyOf(states);
@@ -738,6 +822,46 @@ public final class ScanService {
                 }
             }
         };
+    }
+
+    /**
+     * Scheduler callbacks originate from multiple worker threads. A very fast engine can finish
+     * before an earlier READY notification has acquired this runtime lock, so persistence must
+     * monotonically catch up instead of allowing a late callback to move state backwards.
+     */
+    private EngineTaskState advanceEngineState(
+            EngineTaskState current,
+            EngineStatus observed,
+            FailureDetails failure,
+            Instant now) {
+        if (observed == EngineStatus.READY) {
+            return current.status() == EngineStatus.PENDING
+                    ? current.transitionTo(EngineStatus.READY, now) : current;
+        }
+        if (observed == EngineStatus.RUNNING) {
+            if (current.status() == EngineStatus.PENDING) {
+                current = current.transitionTo(EngineStatus.READY, now);
+            }
+            return current.status() == EngineStatus.READY
+                    ? current.transitionTo(EngineStatus.RUNNING, now) : current;
+        }
+        if (!observed.isTerminal()) {
+            return current;
+        }
+        if (observed == EngineStatus.SKIPPED || observed == EngineStatus.CANCELLED) {
+            if (observed == EngineStatus.SKIPPED && current.status() == EngineStatus.RUNNING) {
+                return current;
+            }
+            return current.transitionTo(observed, now, failure);
+        }
+        if (current.status() == EngineStatus.PENDING) {
+            current = current.transitionTo(EngineStatus.READY, now);
+        }
+        if (current.status() == EngineStatus.READY) {
+            current = current.transitionTo(EngineStatus.RUNNING, now);
+        }
+        return current.status() == EngineStatus.RUNNING
+                ? current.transitionTo(observed, now, failure) : current;
     }
 
     private List<io.github.uprxiao.audit.finding.EngineCoverage> coverage(
@@ -849,16 +973,13 @@ public final class ScanService {
         jobs.save(StoredScanJob.from(runtime.job, runtime.engines, artifacts));
     }
 
-    private void requireQuickTools() {
-        if (scanners.available()) {
+    private void requireProfile(ScanProfile profile) {
+        if (scanners.available(profile)) {
             return;
         }
-        List<String> unavailable = scanners.health().stream()
-                .filter(tool -> !tool.available())
-                .map(tool -> tool.id() + ":" + tool.reasonCode())
-                .toList();
         throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
-                "QUICK 所需工具未完整通过版本和完整性检查。", Map.of("unavailable", unavailable));
+                profile.name() + " 所需扫描器未完整通过版本和完整性检查。",
+                Map.of("unavailable", scanners.unavailable(profile)));
     }
 
     private Map<String, EngineTaskState> initialEngineStates(ScanPlan plan, Instant now) {
@@ -899,6 +1020,23 @@ public final class ScanService {
                 "type", "ZIP",
                 "displayName", source.displayName(),
                 "sha256", source.contentSha256());
+    }
+
+    private Map<String, Object> mavenBuildSummary(RuntimeScan runtime) {
+        MavenBuildResult result = runtime.mavenBuild;
+        if (result == null) {
+            return Map.of(
+                    "status", "NOT_REQUIRED",
+                    "mavenProfiles", runtime.request.mavenProfiles());
+        }
+        return Map.of(
+                "status", result.status().name(),
+                "mavenProfiles", runtime.request.mavenProfiles(),
+                "modules", result.modules().stream().map(module -> Map.of(
+                        "module", module.module(),
+                        "status", module.status().name())).toList(),
+                "durationMillis", result.execution().duration().toMillis(),
+                "artifact", "raw/maven-build/stdout.log");
     }
 
     private String redactedSvnLocation(String repositoryUrl) {
@@ -957,7 +1095,8 @@ public final class ScanService {
                 ruleEntry("semgrep-java-audit", "config/rules/semgrep/java-audit.yaml", paths.semgrepRules()),
                 ruleEntry("gitleaks-java-audit", "config/rules/gitleaks/gitleaks.toml", paths.gitleaksRules()),
                 ruleEntry("pmd-java-audit", "config/rules/pmd/java-audit.xml", paths.pmdRules()),
-                ruleEntry("checkstyle-java-audit", "config/rules/checkstyle/java-audit.xml", paths.checkstyleRules()));
+                ruleEntry("checkstyle-java-audit", "config/rules/checkstyle/java-audit.xml", paths.checkstyleRules()),
+                ruleEntry("spotbugs-exclude", "config/rules/spotbugs-exclude.xml", paths.spotbugsExcludeFilter()));
     }
 
     private Map<String, Object> ruleEntry(String id, String portablePath, Path rule) throws IOException {
@@ -965,7 +1104,9 @@ public final class ScanService {
     }
 
     private List<Path> ruleFiles() {
-        return List.of(paths.semgrepRules(), paths.gitleaksRules(), paths.pmdRules(), paths.checkstyleRules());
+        return List.of(
+                paths.semgrepRules(), paths.gitleaksRules(), paths.pmdRules(), paths.checkstyleRules(),
+                paths.spotbugsExcludeFilter());
     }
 
     private List<String> sensitiveRequestValues(ZipScanRequest request) {
@@ -1022,6 +1163,7 @@ public final class ScanService {
         private final AtomicBoolean cancelRequested = new AtomicBoolean();
         private final Map<EngineId, NormalizationResult> normalized = new ConcurrentHashMap<>();
         private final Map<EngineId, ExecutionResult> executions = new ConcurrentHashMap<>();
+        private volatile MavenBuildResult mavenBuild;
         private Runnable workItem;
         private volatile ScanJobHandle schedulerHandle;
         private volatile IOException persistenceFailure;

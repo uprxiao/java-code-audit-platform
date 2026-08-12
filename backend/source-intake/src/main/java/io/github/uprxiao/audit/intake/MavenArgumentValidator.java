@@ -13,19 +13,22 @@ public final class MavenArgumentValidator {
 
     private static final Pattern PROFILE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}");
     private static final Pattern PROPERTY = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}");
+    private static final Pattern PROPERTY_VALUE = Pattern.compile("[A-Za-z0-9._:/@+\\-]{0,512}");
     private static final int MAX_PROFILES = 16;
     private static final int MAX_PROPERTIES = 64;
-    private static final int MAX_VALUE_LENGTH = 1024;
     private static final Set<String> FORBIDDEN_PROPERTIES = Set.of(
             "maven.repo.local",
             "maven.home",
-            "maven.multiModuleProjectDirectory",
+            "maven.multimoduleprojectdirectory",
             "java.home",
             "user.home",
             "user.dir",
             "classworlds.conf",
             "maven.ext.class.path",
-            "jdk.attach.allowAttachSelf");
+            "jdk.attach.allowattachself",
+            "settings",
+            "file",
+            "f");
 
     public void validate(List<String> profiles, Map<String, String> properties) throws SourceIntakeException {
         Objects.requireNonNull(profiles, "profiles");
@@ -45,7 +48,7 @@ public final class MavenArgumentValidator {
             if (key == null || !PROPERTY.matcher(key).matches() || isForbiddenProperty(key)) {
                 throw invalid("Maven property is not allowed: " + safeKey(key));
             }
-            if (value == null || value.length() > MAX_VALUE_LENGTH || containsControlCharacter(value)) {
+            if (value == null || !PROPERTY_VALUE.matcher(value).matches()) {
                 throw invalid("Maven property value is invalid: " + safeKey(key));
             }
         }
@@ -62,15 +65,10 @@ public final class MavenArgumentValidator {
     }
 
     private boolean isForbiddenProperty(String key) {
-        if (FORBIDDEN_PROPERTIES.contains(key)) {
-            return true;
-        }
         String normalized = key.toLowerCase(Locale.ROOT);
-        return normalized.startsWith("maven.ext.") || normalized.startsWith("javax.net.ssl.keyStore".toLowerCase(Locale.ROOT));
-    }
-
-    private boolean containsControlCharacter(String value) {
-        return value.codePoints().anyMatch(character -> Character.isISOControl(character));
+        return FORBIDDEN_PROPERTIES.contains(normalized)
+                || normalized.startsWith("maven.ext.")
+                || normalized.startsWith("javax.net.ssl.keystore");
     }
 
     private String safeKey(String key) {

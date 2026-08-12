@@ -34,7 +34,10 @@ class MavenArgumentValidatorTest {
         for (Map<String, String> properties : List.of(
                 Map.of("maven.repo.local", "/tmp/attacker"),
                 Map.of("maven.ext.class.path", "/tmp/extension.jar"),
+                Map.of("maven.multiModuleProjectDirectory", "/tmp/attacker"),
                 Map.of("revision", "1.0\npackage"),
+                Map.of("revision", "$(touch-pwned)"),
+                Map.of("revision", "`touch-pwned`"),
                 Map.of("-f", "/tmp/evil.xml"))) {
             assertThrows(SourceIntakeException.class, () -> validator.validate(List.of(), properties));
         }

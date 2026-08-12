@@ -26,7 +26,7 @@ class MavenAuditAdapterTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void commandsAreFixedAndDoNotAcceptRequestProfilesPropertiesSettingsOrGoals() throws Exception {
+    void commandsKeepGoalsAndSettingsServerControlledWhileAcceptingValidatedProfileAndPropertyData() throws Exception {
         Path root = copyProject(getClass(), DEPENDENCY_FIXTURE, temporaryDirectory.resolve("project"));
         Path maven = Files.writeString(temporaryDirectory.resolve("mvn"), "fixture");
         maven.toFile().setExecutable(true);
@@ -47,6 +47,32 @@ class MavenAuditAdapterTest {
         assertTrue(enforcerSpec.command().contains("org.apache.maven.plugins:maven-enforcer-plugin:3.6.2:enforce"));
         assertTrue(enforcerSpec.command().contains("-Drules=dependencyConvergence"));
         assertFalse(enforcerSpec.command().contains("--settings"));
+    }
+
+    @Test
+    void propagatesOnlySafeApiMavenDataAndMarksCredentialValuesForRedaction() throws Exception {
+        Path root = copyProject(getClass(), DEPENDENCY_FIXTURE, temporaryDirectory.resolve("safe-project"));
+        Path maven = Files.writeString(temporaryDirectory.resolve("safe-mvn"), "fixture");
+        maven.toFile().setExecutable(true);
+        MavenDependencyAnalysisAdapter adapter = new MavenDependencyAnalysisAdapter(temporaryDirectory.resolve("m2"));
+        var base = scan(project(root, "dependency-fixture"), temporaryDirectory.resolve("task/raw/dependency"));
+        var context = new io.github.uprxiao.audit.scanner.ScanContext(
+                base.scanId(), base.profile(), base.project(), base.engineOutputDirectory(),
+                java.util.List.of("opensource"),
+                Map.of("revision", "1.0.0", "repositoryPassword", "canary-token"));
+
+        var specification = adapter.prepare(context,
+                tools(adapter.descriptor().id(), maven, MavenDependencyAnalysisAdapter.TOOL_VERSION));
+
+        assertTrue(specification.command().contains("-Popensource"));
+        assertTrue(specification.command().contains("-Drevision=1.0.0"));
+        int credential = specification.command().indexOf("-DrepositoryPassword=canary-token");
+        assertTrue(specification.redactionPolicy().sensitiveArgumentIndexes().contains(credential));
+        assertThrows(io.github.uprxiao.audit.intake.SourceIntakeException.class, () -> adapter.prepare(
+                new io.github.uprxiao.audit.scanner.ScanContext(
+                        base.scanId(), base.profile(), base.project(), base.engineOutputDirectory(),
+                        java.util.List.of(), Map.of("revision", "$(touch-pwned)")),
+                tools(adapter.descriptor().id(), maven, MavenDependencyAnalysisAdapter.TOOL_VERSION)));
     }
 
     @Test

@@ -15,13 +15,18 @@ audit:
     semgrep-executable: ${AUDIT_SEMGREP_EXECUTABLE:./tools/downloads/bin/semgrep}
     semgrep-version: ${AUDIT_SEMGREP_VERSION:1.170.0}
     quick-root: ${AUDIT_QUICK_TOOL_ROOT:}
+    standard-analysis-root: ${AUDIT_STANDARD_ANALYSIS_TOOL_ROOT:./tools/downloads/tool-pack/common/standard-analysis}
   maven:
     executable: ${AUDIT_MAVEN_EXECUTABLE:mvn}
+    settings: ${AUDIT_MAVEN_SETTINGS:}
+    max-heap-mb: ${AUDIT_MAVEN_MAX_HEAP_MB:3072}
+    build-timeout: ${AUDIT_MAVEN_BUILD_TIMEOUT:20m}
   rules:
     semgrep: ${AUDIT_SEMGREP_RULES:./config/rules/semgrep/java-audit.yaml}
     gitleaks: ${AUDIT_GITLEAKS_RULES:./config/rules/gitleaks/gitleaks.toml}
     pmd: ${AUDIT_PMD_RULES:./config/rules/pmd/java-audit.xml}
     checkstyle: ${AUDIT_CHECKSTYLE_RULES:./config/rules/checkstyle/java-audit.xml}
+    spotbugs-exclude: ${AUDIT_SPOTBUGS_EXCLUDE:./config/rules/spotbugs-exclude.xml}
   concurrency:
     max-queued-scan-jobs: ${AUDIT_MAX_QUEUED_SCAN_JOBS:20}
     max-concurrent-scan-jobs: ${AUDIT_MAX_CONCURRENT_SCAN_JOBS:2}
