@@ -17,6 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
@@ -71,6 +72,38 @@ class FairDagSchedulerTest {
             assertEquals(EngineStatus.SKIPPED, result.engines().get(bytecode));
             assertEquals(EngineStatus.SUCCEEDED, result.engines().get(source));
             assertEquals(0, scheduler.metrics().permits().enginesInUse());
+        }
+    }
+
+    @Test
+    void finalizerCanRunAfterFailedDependencies() throws Exception {
+        AtomicBoolean finalized = new AtomicBoolean();
+        EngineId failed = id("failed-engine");
+        EngineId successful = id("successful-engine");
+        EngineId finalizer = id("finalize-report");
+        ScheduledScanJob job = new ScheduledScanJob(UUID.randomUUID(), List.of(
+                task(failed, Set.of(), 1,
+                        token -> EngineExecutionResult.failed("EXPECTED_FAILURE", "fixture")),
+                task(successful, Set.of(), 1, token -> EngineExecutionResult.succeeded()),
+                new ScheduledEngineTask(
+                        finalizer,
+                        Set.of(failed, successful),
+                        1,
+                        finalizer,
+                        DependencyFailurePolicy.RUN_AFTER_TERMINAL,
+                        token -> {
+                            finalized.set(true);
+                            return EngineExecutionResult.succeeded();
+                        })));
+
+        try (FairDagScheduler scheduler = new FairDagScheduler(configuration(4, 2, 2, 2, 8, Map.of()))) {
+            ScanJobExecutionResult result = scheduler.submit(job).completion().get(5, TimeUnit.SECONDS);
+
+            assertTrue(finalized.get());
+            assertEquals(ScanJobExecutionResult.Disposition.COMPLETED_WITH_ERRORS, result.disposition());
+            assertEquals(EngineStatus.FAILED, result.engines().get(failed));
+            assertEquals(EngineStatus.SUCCEEDED, result.engines().get(successful));
+            assertEquals(EngineStatus.SUCCEEDED, result.engines().get(finalizer));
         }
     }
 

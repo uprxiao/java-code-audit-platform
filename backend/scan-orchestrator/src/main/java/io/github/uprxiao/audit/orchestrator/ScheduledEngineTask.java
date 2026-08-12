@@ -9,6 +9,7 @@ public record ScheduledEngineTask(
         Set<EngineId> dependsOn,
         int weight,
         EngineId toolPermit,
+        DependencyFailurePolicy dependencyFailurePolicy,
         EngineAction action) {
 
     public ScheduledEngineTask {
@@ -21,10 +22,22 @@ public record ScheduledEngineTask(
             throw new IllegalArgumentException("engine weight must be positive");
         }
         toolPermit = toolPermit == null ? id : toolPermit;
+        dependencyFailurePolicy = dependencyFailurePolicy == null
+                ? DependencyFailurePolicy.SKIP
+                : dependencyFailurePolicy;
         Objects.requireNonNull(action, "action");
     }
 
+    public ScheduledEngineTask(
+            EngineId id,
+            Set<EngineId> dependsOn,
+            int weight,
+            EngineId toolPermit,
+            EngineAction action) {
+        this(id, dependsOn, weight, toolPermit, DependencyFailurePolicy.SKIP, action);
+    }
+
     public ScheduledEngineTask(EngineId id, Set<EngineId> dependsOn, int weight, EngineAction action) {
-        this(id, dependsOn, weight, id, action);
+        this(id, dependsOn, weight, id, DependencyFailurePolicy.SKIP, action);
     }
 }

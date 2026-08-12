@@ -351,7 +351,8 @@ public final class FairDagScheduler implements AutoCloseable {
                                 && dependency.status != EngineStatus.SUCCEEDED
                                 && dependency.status != EngineStatus.PARTIAL)
                         .findFirst();
-                if (failedDependency.isPresent()) {
+                if (failedDependency.isPresent()
+                        && task.definition.dependencyFailurePolicy() == DependencyFailurePolicy.SKIP) {
                     task.status = EngineStatus.SKIPPED;
                     task.failure = new FailureDetails(
                             "DEPENDENCY_FAILED",
