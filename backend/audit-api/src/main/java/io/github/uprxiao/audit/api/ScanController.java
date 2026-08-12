@@ -29,6 +29,10 @@ class ScanController {
     ResponseEntity<CreateScanResponse> createZip(
             @RequestPart("source") MultipartFile source,
             @RequestPart(value = "request", required = false) ZipScanRequest request) throws IOException {
+        if (source.isEmpty()) {
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    ApiErrorCode.INVALID_REQUEST, "上传的 ZIP 文件不能为空。");
+        }
         ZipScanRequest effectiveRequest = request == null ? ZipScanRequest.defaults() : request;
         CreateScanResponse response;
         try (InputStream input = source.getInputStream()) {
