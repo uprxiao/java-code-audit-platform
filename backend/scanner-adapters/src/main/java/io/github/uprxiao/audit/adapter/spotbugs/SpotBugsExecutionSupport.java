@@ -20,6 +20,8 @@ import java.util.Set;
 final class SpotBugsExecutionSupport {
 
     static final long MAX_REPORT_BYTES = 256L * 1024 * 1024;
+    // Produced by the server-controlled Maven dependency:build-classpath step.
+    private static final String CLASSPATH_FILE = "audit-runtime-classpath.txt";
 
     private SpotBugsExecutionSupport() {
     }
@@ -50,6 +52,7 @@ final class SpotBugsExecutionSupport {
             throw new IOException("SpotBugs requires compiled target/classes directories");
         }
         List<Path> sources = sourceDirectories(context.project().workspaceRoot());
+        List<Path> dependencies = dependencyClasspath(context.project().workspaceRoot());
 
         List<String> command = new ArrayList<>();
         command.add(installation.executable().toString());
@@ -77,7 +80,7 @@ final class SpotBugsExecutionSupport {
             command.add(join(sources));
         }
         command.add("-auxclasspath");
-        command.add(join(classes));
+        command.add(join(java.util.stream.Stream.concat(classes.stream(), dependencies.stream()).toList()));
         classes.forEach(path -> command.add(path.toString()));
 
         return new ExecutionSpec(engine, command, context.engineOutputDirectory(),
@@ -102,6 +105,28 @@ final class SpotBugsExecutionSupport {
                         && path.endsWith(Path.of("src", "main", "java")))) {
             return paths.map(Path::toAbsolutePath).map(Path::normalize).sorted(Comparator.comparing(Path::toString)).toList();
         }
+    }
+
+    private static List<Path> dependencyClasspath(Path projectRoot) throws IOException {
+        List<Path> result = new ArrayList<>();
+        try (var files = Files.find(projectRoot, 12,
+                (path, attributes) -> attributes.isRegularFile()
+                        && path.getFileName().toString().equals(CLASSPATH_FILE)
+                        && path.getParent() != null
+                        && path.getParent().getFileName().toString().equals("target"))) {
+            for (Path file : files.sorted(Comparator.comparing(Path::toString)).toList()) {
+                String value = Files.readString(file).trim();
+                if (value.isEmpty()) continue;
+                for (String entry : value.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+                    if (entry.isBlank()) continue;
+                    Path dependency = Path.of(entry).toAbsolutePath().normalize();
+                    if (Files.isRegularFile(dependency) && dependency.getFileName().toString().endsWith(".jar")) {
+                        result.add(dependency);
+                    }
+                }
+            }
+        }
+        return result.stream().distinct().sorted(Comparator.comparing(Path::toString)).toList();
     }
 
     private static String join(List<Path> paths) {

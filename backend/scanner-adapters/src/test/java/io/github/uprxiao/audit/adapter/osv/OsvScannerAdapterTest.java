@@ -33,7 +33,8 @@ class OsvScannerAdapterTest {
                 tools(OsvScannerAdapter.ID, executable, OsvScannerAdapter.TOOL_VERSION));
         assertDescriptorContract(adapter);
         assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
-        assertTrue(specification.command().containsAll(java.util.List.of("scan", "source", "--recursive", "json")));
+        assertTrue(specification.command().containsAll(
+                java.util.List.of("scan", "source", "--recursive", "--no-ignore", "json")));
         assertTrue(specification.command().contains("--no-resolve"),
                 "untrusted POMs must not trigger OSV's risky transitive enricher");
     }

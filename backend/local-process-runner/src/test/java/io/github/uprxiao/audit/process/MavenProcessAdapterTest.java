@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -111,6 +112,34 @@ class MavenProcessAdapterTest {
                 new MavenModuleResult("root", MavenModuleResult.Status.SUCCESS),
                 new MavenModuleResult("module-a", MavenModuleResult.Status.FAILURE),
                 new MavenModuleResult("module-b", MavenModuleResult.Status.SKIPPED)), result.modules());
+    }
+
+    @Test
+    void resolvesClasspathWithOnlyThePinnedServerGoal() throws Exception {
+        AtomicReference<ExecutionSpec> captured = new AtomicReference<>();
+        ExecutionBackend backend = (specification, cancellationToken) -> {
+            captured.set(specification);
+            Path stdout = Files.writeString(specification.workingDirectory().resolve("stdout.log"), "BUILD SUCCESS\n");
+            Path stderr = Files.writeString(specification.workingDirectory().resolve("stderr.log"), "");
+            Instant now = Instant.parse("2026-08-12T00:00:00Z");
+            return new ExecutionResult(ExecutionResult.Status.SUCCEEDED, 0, now, now, Duration.ZERO,
+                    123, stdout, stderr, false, false, "");
+        };
+        MavenProcessAdapter adapter = new MavenProcessAdapter(backend, configuration);
+
+        ExecutionResult result = adapter.resolveClasspath(request(
+                List.of("opensource"), Map.of("repositoryPassword", "canary-token")), CancellationToken.NONE);
+
+        assertEquals(ExecutionResult.Status.SUCCEEDED, result.status());
+        ExecutionSpec specification = captured.get();
+        assertTrue(specification.command().contains(
+                "org.apache.maven.plugins:maven-dependency-plugin:3.9.0:build-classpath"));
+        assertTrue(specification.command().contains(
+                "-Dmdep.outputFile=target/" + MavenProcessAdapter.CLASSPATH_FILE));
+        assertFalse(specification.command().contains("package"));
+        assertFalse(specification.command().stream().anyMatch(value -> value.contains("sh -c")));
+        int secret = specification.command().indexOf("-DrepositoryPassword=canary-token");
+        assertTrue(specification.redactionPolicy().sensitiveArgumentIndexes().contains(secret));
     }
 
     @Test

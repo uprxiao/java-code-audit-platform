@@ -922,6 +922,23 @@ public final class ScanService {
             runtime.mavenBuild = result;
             runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
             copyMavenBuildLogs(runtime, result.execution());
+            if (result.status() == MavenBuildResult.Status.SUCCEEDED) {
+                ExecutionResult classpath = maven.resolveClasspath(new MavenBuildRequest(
+                                project.workspaceRoot(),
+                                runtime.layout.rawEngine(ScanExecutionPlanFactory.MAVEN_BUILD.value()),
+                                runtime.request.mavenProfiles(), runtime.request.mavenProperties(),
+                                mavenBuildTimeout), workspace);
+                if (classpath.status() != ExecutionResult.Status.SUCCEEDED) {
+                    return switch (classpath.status()) {
+                        case CANCELLED -> EngineExecutionResult.cancelled();
+                        case TIMED_OUT -> EngineExecutionResult.timedOut(
+                                "MAVEN_CLASSPATH_TIMEOUT", classpath.message());
+                        case FAILED -> EngineExecutionResult.failed(
+                                "MAVEN_CLASSPATH_FAILED", classpath.message());
+                        case SUCCEEDED -> throw new IllegalStateException("unreachable classpath status");
+                    };
+                }
+            }
             workspace.verifyNow();
             if (workspace.failure() != null) {
                 return workspaceFailure(workspace.failure());

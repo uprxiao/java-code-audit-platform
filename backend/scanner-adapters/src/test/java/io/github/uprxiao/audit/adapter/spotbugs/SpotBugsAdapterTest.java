@@ -27,6 +27,8 @@ class SpotBugsAdapterTest {
     void preparesFixedJavaCommandAgainstCompiledClasses() throws Exception {
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("project"));
         Files.createDirectories(root.resolve("target/classes"));
+        Path dependency = Files.writeString(temporaryDirectory.resolve("provided-api.jar"), "fixture");
+        Files.writeString(root.resolve("target/audit-runtime-classpath.txt"), dependency.toString());
         Path home = fakeHome();
         Path plugin = Files.writeString(temporaryDirectory.resolve("findsecbugs.jar"), "fixture");
         Path filter = Files.writeString(temporaryDirectory.resolve("exclude.xml"), "<FindBugsFilter/>");
@@ -39,6 +41,8 @@ class SpotBugsAdapterTest {
         assertTrue(spec.command().contains("edu.umd.cs.findbugs.LaunchAppropriateUI"));
         assertTrue(spec.command().contains("-pluginList"));
         assertTrue(spec.command().contains("-xml:withMessages"));
+        assertTrue(spec.command().get(spec.command().indexOf("-auxclasspath") + 1)
+                .contains(dependency.toString()));
         assertFalse(spec.command().contains("sh"));
     }
 

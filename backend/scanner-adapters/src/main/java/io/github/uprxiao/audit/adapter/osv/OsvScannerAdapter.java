@@ -75,7 +75,7 @@ public final class OsvScannerAdapter implements ScannerAdapter {
         Path report = context.engineOutputDirectory().resolve("report.json");
         List<String> command = List.of(
                 installation.executable().toString(), "scan", "source", "--recursive",
-                "--no-resolve",
+                "--no-ignore", "--no-resolve",
                 "--format", "json", "--output-file", report.toString(),
                 "--verbosity", "warn", context.project().workspaceRoot().toString());
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(),
