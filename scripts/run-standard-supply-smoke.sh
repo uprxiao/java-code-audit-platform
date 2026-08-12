@@ -21,7 +21,10 @@ DEPENDENCY_CHECK_DATA="${AUDIT_DEPENDENCY_CHECK_DATA:-}"
 for executable in "$MAVEN_EXECUTABLE" "$OSV_EXECUTABLE" "$DEPENDENCY_CHECK_EXECUTABLE" "$TRIVY_EXECUTABLE"; do
   [[ -x "$executable" ]] || { echo "Executable unavailable: $executable" >&2; exit 2; }
 done
-[[ -s "$TRIVY_CACHE/db/metadata.json" ]] || { echo "Trivy DB unavailable: $TRIVY_CACHE" >&2; exit 2; }
+[[ -s "$TRIVY_CACHE/db/metadata.json" && -s "$TRIVY_CACHE/db/trivy.db" \
+  && -s "$TRIVY_CACHE/java-db/metadata.json" && -s "$TRIVY_CACHE/java-db/trivy-java.db" ]] || {
+  echo "Trivy vulnerability or Java DB unavailable: $TRIVY_CACHE" >&2; exit 2;
+}
 
 "$DEPENDENCY_CHECK_EXECUTABLE" --version | grep -q '12.2.2'
 "$OSV_EXECUTABLE" --version | grep -q '2.3.8'

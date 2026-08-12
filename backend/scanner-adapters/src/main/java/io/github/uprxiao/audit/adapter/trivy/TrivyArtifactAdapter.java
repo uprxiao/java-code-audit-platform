@@ -130,7 +130,8 @@ public final class TrivyArtifactAdapter implements ScannerAdapter {
         JsonNode root = json.readTree(artifacts.artifacts().get("report").toFile());
         List<Finding> normalized = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        if (database.stale()) warnings.add("TRIVY_DATABASE_STALE: " + database.updatedAt());
+        if (database.stale()) warnings.add("TRIVY_DATABASE_STALE: vulnerability="
+                + database.updatedAt() + ", java=" + database.javaUpdatedAt());
         root.path("Errors").forEach(error -> warnings.add("TRIVY_ERROR: " + error.asText(error.toString())));
         int rawCount = 0;
         for (JsonNode result : root.path("Results")) {
@@ -169,6 +170,7 @@ public final class TrivyArtifactAdapter implements ScannerAdapter {
         properties.put("target", target);
         properties.put("packagePath", vulnerability.path("PkgPath").asText(""));
         properties.put("databaseUpdatedAt", database.updatedAt().toString());
+        properties.put("javaDatabaseUpdatedAt", database.javaUpdatedAt().toString());
         return findings.finding(ID.value(), TOOL_VERSION, "raw/trivy-artifact/report.json", id + ":" + index,
                 id, aliases, DependencyFindingSupport.strings(vulnerability.path("CweIDs")), purl, name, current,
                 module, "", false, List.of(target, vulnerability.path("PkgPath").asText(name)), fixed,
@@ -209,8 +211,12 @@ public final class TrivyArtifactAdapter implements ScannerAdapter {
     private java.util.Optional<DatabaseMetadata> databaseMetadata() {
         Path metadata = cacheDirectory.resolve("db/metadata.json");
         Path database = cacheDirectory.resolve("db/trivy.db");
+        Path javaMetadata = cacheDirectory.resolve("java-db/metadata.json");
+        Path javaDatabase = cacheDirectory.resolve("java-db/trivy-java.db");
         try {
-            if (!Files.isRegularFile(metadata) || !Files.isRegularFile(database) || Files.size(database) < 1) {
+            if (!Files.isRegularFile(metadata) || !Files.isRegularFile(database) || Files.size(database) < 1
+                    || !Files.isRegularFile(javaMetadata) || !Files.isRegularFile(javaDatabase)
+                    || Files.size(javaDatabase) < 1) {
                 return java.util.Optional.empty();
             }
         } catch (IOException exception) {
@@ -220,8 +226,13 @@ public final class TrivyArtifactAdapter implements ScannerAdapter {
             JsonNode root = json.readTree(metadata.toFile());
             if (root.path("Version").asInt(0) < 1) return java.util.Optional.empty();
             Instant updatedAt = Instant.parse(root.path("UpdatedAt").asText());
-            return java.util.Optional.of(new DatabaseMetadata(updatedAt,
-                    updatedAt.plus(STALE_AFTER).isBefore(Instant.now())));
+            JsonNode javaRoot = json.readTree(javaMetadata.toFile());
+            if (javaRoot.path("Version").asInt(0) < 1) return java.util.Optional.empty();
+            Instant javaUpdatedAt = Instant.parse(javaRoot.path("UpdatedAt").asText());
+            Instant now = Instant.now();
+            return java.util.Optional.of(new DatabaseMetadata(updatedAt, javaUpdatedAt,
+                    updatedAt.plus(STALE_AFTER).isBefore(now)
+                            || javaUpdatedAt.plus(STALE_AFTER).isBefore(now)));
         } catch (IOException | DateTimeParseException exception) {
             return java.util.Optional.empty();
         }
@@ -242,7 +253,7 @@ public final class TrivyArtifactAdapter implements ScannerAdapter {
         return new Applicability(Applicability.Status.UNAVAILABLE, code, message);
     }
 
-    private record DatabaseMetadata(Instant updatedAt, boolean stale) { }
+    private record DatabaseMetadata(Instant updatedAt, Instant javaUpdatedAt, boolean stale) { }
 
     private static final class CycloneDxId {
         private static final EngineId VALUE = new EngineId("cyclonedx");

@@ -99,6 +99,14 @@ class TrivyArtifactAdapterTest {
         assertThrows(IOException.class, () -> missingDb.normalize(scan(contextProject, cleanOutput),
                 artifacts(TrivyArtifactAdapter.ID, clean, cleanOutput)));
 
+        Path incompleteCache = initializedDatabase(temporaryDirectory.resolve("incomplete-java-db"));
+        Files.delete(incompleteCache.resolve("java-db/trivy-java.db"));
+        TrivyArtifactAdapter missingJavaDb = new TrivyArtifactAdapter(incompleteCache);
+        assertEquals("VULNERABILITY_DATABASE_UNAVAILABLE",
+                missingJavaDb.checkApplicability(contextProject,
+                        tools(TrivyArtifactAdapter.ID, Path.of(System.getProperty("java.home"), "bin", "java"),
+                                TrivyArtifactAdapter.TOOL_VERSION)).reasonCode());
+
         RawArtifactSet failed = new RawArtifactSet(TrivyArtifactAdapter.ID, Map.of("report", clean),
                 execution(cleanOutput, ExecutionResult.Status.FAILED, 2));
         assertTrue(adapter.validate(failed).errors().contains("EXECUTION_FAILED"));
@@ -129,6 +137,9 @@ class TrivyArtifactAdapterTest {
         Path metadata = Files.createDirectories(cache.resolve("db")).resolve("metadata.json");
         Files.writeString(metadata, "{\"Version\":2,\"UpdatedAt\":\"" + Instant.now() + "\"}");
         Files.writeString(metadata.getParent().resolve("trivy.db"), "fixture-database-sentinel");
+        Path javaMetadata = Files.createDirectories(cache.resolve("java-db")).resolve("metadata.json");
+        Files.writeString(javaMetadata, "{\"Version\":2,\"UpdatedAt\":\"" + Instant.now() + "\"}");
+        Files.writeString(javaMetadata.getParent().resolve("trivy-java.db"), "fixture-java-database-sentinel");
         return cache;
     }
 }

@@ -108,6 +108,11 @@ tools:
     expectedVersionOutput: "Version: 0.73.0"
     healthCheck: [--version]
     dynamicData: trivy-checks bundle is downloaded at runtime and is never committed or included in the fixed tool pack.
+    artifactVulnerabilityData:
+      paths: [db/trivy.db, db/metadata.json, java-db/trivy-java.db, java-db/metadata.json]
+      committed: false
+      required: true
+      missingBehavior: VULNERABILITY_DATABASE_UNAVAILABLE
     platforms:
       darwin-arm64:
         assemblyScript: scripts/build-quick-tool-pack.sh
