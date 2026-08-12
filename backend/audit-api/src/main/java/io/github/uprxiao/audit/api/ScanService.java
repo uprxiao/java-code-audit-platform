@@ -34,6 +34,7 @@ import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.report.ReportGenerationOptions;
 import io.github.uprxiao.audit.report.ReportInput;
+import io.github.uprxiao.audit.report.AuditReport;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.EngineId;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
@@ -67,6 +68,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -91,6 +93,7 @@ public final class ScanService {
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
+    private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
 
     ScanService(
@@ -162,6 +165,17 @@ public final class ScanService {
             engineStates.put(engine.id().value(), EngineTaskState.pending(engine.id().value(), now));
         }
         RuntimeScan runtime = new RuntimeScan(layout, job, Map.copyOf(engineStates), staged, request, plan);
+        Map<String, String> persistedProperties = new LinkedHashMap<>();
+        boolean sensitivePropertiesOmitted = false;
+        for (Map.Entry<String, String> property : request.mavenProperties().entrySet()) {
+            if (mavenArguments.isSensitiveProperty(property.getKey())) {
+                sensitivePropertiesOmitted = true;
+            } else {
+                persistedProperties.put(property.getKey(), property.getValue());
+            }
+        }
+        writeRequest(runtime, PersistedScanRequest.zip(
+                originalName, request, Map.copyOf(persistedProperties), sensitivePropertiesOmitted));
         persist(runtime);
         scans.put(scanId, runtime);
         Runnable workItem = () -> run(runtime, originalName);
@@ -187,6 +201,87 @@ public final class ScanService {
         }
         return new CreateScanResponse(scanId, job.status(), job.profile(), job.createdAt(),
                 plan.engines().stream().map(engine -> engine.id().value()).toList());
+    }
+
+    void restoreQueued(StoredScanJob stored) throws IOException {
+        if (stored.status().isTerminal()) {
+            restoreTerminal(stored);
+            return;
+        }
+        if (stored.status() != ScanStatus.QUEUED || stored.sourceType() != SourceType.ZIP) {
+            throw new IOException("only queued ZIP or terminal scans can be restored: " + stored.scanId());
+        }
+        JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), stored.scanId());
+        Path requestFile = layout.safeResolve("request.json");
+        Path uploadFile = layout.source().resolve("upload.zip");
+        if (!Files.isRegularFile(requestFile) || !Files.isRegularFile(uploadFile)) {
+            throw new IOException("queued scan input is incomplete: " + stored.scanId());
+        }
+        PersistedScanRequest persisted = json.readValue(requestFile.toFile(), PersistedScanRequest.class);
+        if (persisted.sourceType() != SourceType.ZIP || persisted.profile() != stored.profile()) {
+            throw new IOException("queued request does not match job state: " + stored.scanId());
+        }
+        if (persisted.sensitivePropertiesOmitted()) {
+            Instant now = clock.instant().isBefore(stored.updatedAt()) ? stored.updatedAt() : clock.instant();
+            FailureDetails failure = new FailureDetails(
+                    "SOURCE_CREDENTIALS_EXPIRED",
+                    "sensitive Maven properties are never persisted and must be resubmitted after restart",
+                    Map.of());
+            Map<String, EngineTaskState> cancelled = new LinkedHashMap<>();
+            stored.engines().forEach((id, state) -> cancelled.put(id,
+                    state.status().isTerminal() ? state : state.transitionTo(EngineStatus.CANCELLED, now)));
+            jobs.save(StoredScanJob.from(
+                    stored.toScanJob().transitionTo(ScanStatus.INTERRUPTED, now, failure),
+                    Map.copyOf(cancelled), stored.artifacts()));
+            return;
+        }
+        ZipScanRequest request = persisted.toZipRequest();
+        mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
+        ScanPlan plan = planner.plan(request.profile());
+        StagedUpload staged = new StagedUpload(uploadFile, Files.size(uploadFile), sha256(uploadFile));
+        RuntimeScan runtime = new RuntimeScan(
+                layout, stored.toScanJob(), stored.engines(), staged, request, plan);
+        if (scans.putIfAbsent(stored.scanId(), runtime) != null) {
+            throw new IOException("queued scan is already in the runtime index: " + stored.scanId());
+        }
+        Runnable workItem = () -> run(runtime, persisted.originalName());
+        runtime.workItem = workItem;
+        try {
+            executor.execute(workItem);
+        } catch (RuntimeException exception) {
+            scans.remove(stored.scanId(), runtime);
+            throw new IOException("cannot requeue scan after restart: " + stored.scanId(), exception);
+        }
+    }
+
+    private void restoreTerminal(StoredScanJob stored) throws IOException {
+        JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), stored.scanId());
+        ZipScanRequest request = new ZipScanRequest("", stored.profile(), List.of(), Map.of());
+        Path requestFile = layout.safeResolve("request.json");
+        if (Files.isRegularFile(requestFile)) {
+            PersistedScanRequest persisted = json.readValue(requestFile.toFile(), PersistedScanRequest.class);
+            request = persisted.toZipRequest();
+        }
+        RuntimeScan runtime = new RuntimeScan(
+                layout, stored.toScanJob(), stored.engines(), null, request, planner.plan(stored.profile()));
+        Path reportJson = layout.report().resolve("report.json");
+        if (Files.isRegularFile(reportJson)) {
+            AuditReport report = json.readValue(reportJson.toFile(), AuditReport.class);
+            runtime.findings = java.util.stream.Stream.concat(
+                    report.findings().stream(), report.suppressedFindings().stream()).toList();
+        }
+        Path html = layout.report().resolve("report.html");
+        Path sarif = layout.report().resolve("report.sarif");
+        Path coverage = layout.report().resolve("coverage.json");
+        Path manifest = layout.report().resolve("manifest.json");
+        Path archive = stored.artifacts().containsKey("archive")
+                ? layout.safeResolve(stored.artifacts().get("archive"))
+                : layout.archive().resolve("scan-report-" + stored.scanId() + ".zip");
+        if (Files.isRegularFile(html) && Files.isRegularFile(reportJson) && Files.isRegularFile(sarif)
+                && Files.isRegularFile(coverage) && Files.isRegularFile(manifest) && Files.isRegularFile(archive)) {
+            runtime.bundle = new ReportBundle(html, reportJson, sarif, coverage, manifest, archive);
+        }
+        scans.putIfAbsent(stored.scanId(), runtime);
     }
 
     public ScanView view(UUID scanId) {
@@ -613,6 +708,18 @@ public final class ScanService {
 
     private void persist(RuntimeScan runtime, Map<String, String> artifacts) throws IOException {
         jobs.save(StoredScanJob.from(runtime.job, runtime.engines, artifacts));
+    }
+
+    private void writeRequest(RuntimeScan runtime, PersistedScanRequest request) throws IOException {
+        byte[] bytes = json.writerWithDefaultPrettyPrinter().writeValueAsBytes(request);
+        Path target = runtime.layout.safeResolve("request.json");
+        Path temporary = runtime.layout.safeResolve("request.json.tmp");
+        Files.write(temporary, bytes);
+        try {
+            Files.move(temporary, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+            Files.move(temporary, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private String configFingerprint() throws IOException {

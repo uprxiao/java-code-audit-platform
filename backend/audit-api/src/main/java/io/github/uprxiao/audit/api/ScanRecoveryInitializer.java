@@ -25,25 +25,40 @@ final class ScanRecoveryInitializer {
     private final Clock clock;
     private final ScanRecoveryPolicy policy;
     private final StoredJobsLoader loader;
+    private final QueuedJobRestorer queuedJobRestorer;
 
     @Autowired
     ScanRecoveryInitializer(
-            JobStore jobs, Clock clock, AuditRuntimePaths paths, SingleInstanceLock instanceLock) {
+            JobStore jobs,
+            Clock clock,
+            AuditRuntimePaths paths,
+            SingleInstanceLock instanceLock,
+            ScanService scans) {
         this(jobs, clock, new ScanRecoveryPolicy(), () ->
-                new JobRecoveryService(paths.dataRoot()).recover().recovered());
+                new JobRecoveryService(paths.dataRoot()).recover().recovered(), scans::restoreQueued);
         Objects.requireNonNull(instanceLock, "instanceLock");
     }
 
     ScanRecoveryInitializer(JobStore jobs, Clock clock) {
-        this(jobs, clock, new ScanRecoveryPolicy(), jobs::list);
+        this(jobs, clock, new ScanRecoveryPolicy(), jobs::list, ignored -> { });
     }
 
     ScanRecoveryInitializer(
             JobStore jobs, Clock clock, ScanRecoveryPolicy policy, StoredJobsLoader loader) {
+        this(jobs, clock, policy, loader, ignored -> { });
+    }
+
+    ScanRecoveryInitializer(
+            JobStore jobs,
+            Clock clock,
+            ScanRecoveryPolicy policy,
+            StoredJobsLoader loader,
+            QueuedJobRestorer queuedJobRestorer) {
         this.jobs = Objects.requireNonNull(jobs, "jobs");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.loader = Objects.requireNonNull(loader, "loader");
+        this.queuedJobRestorer = Objects.requireNonNull(queuedJobRestorer, "queuedJobRestorer");
     }
 
     @PostConstruct
@@ -52,6 +67,14 @@ final class ScanRecoveryInitializer {
             Instant observed = clock.instant();
             Instant recoveryTime = observed.isBefore(stored.updatedAt()) ? stored.updatedAt() : observed;
             ScanRecoveryPolicy.RecoveryDecision decision = policy.recover(stored.toScanJob(), recoveryTime);
+            if (decision.action() == ScanRecoveryPolicy.RecoveryAction.REQUEUE) {
+                queuedJobRestorer.restore(stored);
+                continue;
+            }
+            if (decision.action() == ScanRecoveryPolicy.RecoveryAction.RESTORE_QUERY_ONLY) {
+                queuedJobRestorer.restore(stored);
+                continue;
+            }
             if (decision.action() != ScanRecoveryPolicy.RecoveryAction.MARK_INTERRUPTED) {
                 continue;
             }
@@ -79,5 +102,10 @@ final class ScanRecoveryInitializer {
     @FunctionalInterface
     interface StoredJobsLoader {
         List<StoredScanJob> load() throws IOException;
+    }
+
+    @FunctionalInterface
+    interface QueuedJobRestorer {
+        void restore(StoredScanJob job) throws IOException;
     }
 }

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class ScanRecoveryInitializerTest {
@@ -48,7 +49,7 @@ class ScanRecoveryInitializerTest {
     }
 
     @Test
-    void leavesQueuedAndTerminalJobsUnchangedForLaterIndexRecovery() throws Exception {
+    void delegatesQueuedAndTerminalJobsForRuntimeIndexRecovery() throws Exception {
         Instant now = Instant.parse("2026-08-12T00:00:00Z");
         ScanJob queued = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK, now);
         ScanJob completed = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK, now)
@@ -60,11 +61,39 @@ class ScanRecoveryInitializerTest {
         InMemoryJobStore store = new InMemoryJobStore(List.of(
                 StoredScanJob.from(queued), StoredScanJob.from(completed)));
 
-        new ScanRecoveryInitializer(store, Clock.fixed(now.plusSeconds(10), ZoneOffset.UTC)).recoverActiveJobs();
+        List<StoredScanJob> restored = new ArrayList<>();
+        new ScanRecoveryInitializer(
+                store,
+                Clock.fixed(now.plusSeconds(10), ZoneOffset.UTC),
+                new io.github.uprxiao.audit.orchestrator.ScanRecoveryPolicy(),
+                store::list,
+                restored::add).recoverActiveJobs();
 
         assertEquals(ScanStatus.QUEUED, store.find(queued.id()).orElseThrow().status());
         assertEquals(ScanStatus.COMPLETED, store.find(completed.id()).orElseThrow().status());
         assertEquals(0, store.saveCount);
+        assertEquals(List.of(queued.id(), completed.id()), restored.stream().map(StoredScanJob::scanId).toList());
+    }
+
+    @Test
+    void handsQueuedJobsToTheRuntimeRestorerWithoutMutatingTheirRevision() throws Exception {
+        Instant now = Instant.parse("2026-08-12T00:00:00Z");
+        ScanJob queued = ScanJob.queued(UUID.randomUUID(), SourceType.ZIP, ScanProfile.QUICK, now);
+        StoredScanJob stored = StoredScanJob.from(queued, Map.of(
+                "semgrep", EngineTaskState.pending("semgrep", now)), Map.of());
+        InMemoryJobStore store = new InMemoryJobStore(List.of(stored));
+        AtomicReference<StoredScanJob> restored = new AtomicReference<>();
+
+        new ScanRecoveryInitializer(
+                store,
+                Clock.fixed(now.plusSeconds(10), ZoneOffset.UTC),
+                new io.github.uprxiao.audit.orchestrator.ScanRecoveryPolicy(),
+                store::list,
+                restored::set).recoverActiveJobs();
+
+        assertEquals(stored, restored.get());
+        assertEquals(0, store.saveCount);
+        assertEquals(ScanStatus.QUEUED, store.find(queued.id()).orElseThrow().status());
     }
 
     private static final class InMemoryJobStore implements JobStore {
