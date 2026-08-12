@@ -30,7 +30,11 @@ verify_sha256() {
   local expected="$1"
   local target="$2"
   local actual
-  actual="$(shasum -a 256 "${target}" | awk '{print $1}')"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "${target}" | awk '{print $1}')"
+  else
+    actual="$(shasum -a 256 "${target}" | awk '{print $1}')"
+  fi
   if [[ "${actual}" != "${expected}" ]]; then
     echo "SHA-256 mismatch for ${target}: expected ${expected}, got ${actual}" >&2
     exit 1

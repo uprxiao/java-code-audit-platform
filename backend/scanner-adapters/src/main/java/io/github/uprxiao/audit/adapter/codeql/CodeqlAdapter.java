@@ -289,7 +289,7 @@ public final class CodeqlAdapter implements ScannerAdapter {
         properties.put("securitySeverity", ruleProperty(rule, "security-severity"));
         properties.put("codeFlowCount", dataFlows.size());
         properties.put("dataFlowRoles",
-                "Explicit SARIF kinds are preserved; unlabelled locations remain PROPAGATION");
+                "Explicit SARIF kinds and CodeQL/DataflowRole taxa are preserved; unlabelled locations remain PROPAGATION");
         properties.put("severityMappingId", severity.mappingId());
         properties.put("severityMappingReason", severity.reason());
         FindingEvidence evidence = new FindingEvidence(ID.value(), CLI_VERSION, ruleId, engineSeverity,
@@ -346,11 +346,22 @@ public final class CodeqlAdapter implements ScannerAdapter {
 
     private DataFlowNode.Kind flowKind(JsonNode threadLocation) {
         for (JsonNode kind : threadLocation.path("kinds")) {
-            String value = kind.asText().toLowerCase(Locale.ROOT);
-            if (value.contains("source")) return DataFlowNode.Kind.SOURCE;
-            if (value.contains("sink")) return DataFlowNode.Kind.SINK;
+            DataFlowNode.Kind role = explicitFlowRole(kind.asText());
+            if (role != null) return role;
+        }
+        for (JsonNode taxon : threadLocation.path("taxa")) {
+            JsonNode properties = taxon.path("properties");
+            DataFlowNode.Kind role = explicitFlowRole(properties.path("CodeQL/DataflowRole").asText());
+            if (role != null) return role;
         }
         return DataFlowNode.Kind.PROPAGATION;
+    }
+
+    private DataFlowNode.Kind explicitFlowRole(String value) {
+        String normalized = value.toLowerCase(Locale.ROOT);
+        if (normalized.contains("source")) return DataFlowNode.Kind.SOURCE;
+        if (normalized.contains("sink")) return DataFlowNode.Kind.SINK;
+        return null;
     }
 
     private SourceLocation sourceLocation(ProjectContext project, JsonNode physical) throws IOException {

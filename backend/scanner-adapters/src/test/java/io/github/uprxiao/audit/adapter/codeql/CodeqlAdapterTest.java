@@ -212,6 +212,41 @@ class CodeqlAdapterTest {
     }
 
     @Test
+    void codeqlDataflowRoleTaxaAreAcceptedAsExplicitSourceAndSinkEvidence() throws Exception {
+        Path projectRoot = copyProject(temporaryDirectory.resolve("taxa-flow-project"));
+        ProjectContext project = project(projectRoot);
+        Path output = Files.createDirectories(temporaryDirectory.resolve("taxa-flow-output"));
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode sarif = mapper.readTree(resource("findings.sarif").toFile());
+        JsonNode locations = sarif.path("runs").path(0).path("results").path(0)
+                .path("codeFlows").path(0).path("threadFlows").path(0).path("locations");
+        for (JsonNode location : locations) {
+            ((ObjectNode) location).remove("kinds");
+        }
+        addCodeqlDataflowRole((ObjectNode) locations.path(0), "source");
+        addCodeqlDataflowRole((ObjectNode) locations.path(locations.size() - 1), "sink");
+        Path report = output.resolve("report.sarif");
+        mapper.writeValue(report.toFile(), sarif);
+
+        NormalizationResult normalized = new CodeqlAdapter(createPinnedQuerySuite()).normalize(
+                scan(project, output), artifacts(report, output, ExecutionResult.Status.SUCCEEDED, 0));
+
+        assertEquals(1, normalized.findings().size());
+        assertEquals(1, normalized.findings().get(0).dataFlows().size());
+        assertEquals(DataFlowNode.Kind.SOURCE,
+                normalized.findings().get(0).dataFlows().get(0).nodes().get(0).kind());
+        assertEquals(DataFlowNode.Kind.SINK, normalized.findings().get(0).dataFlows().get(0).nodes()
+                .get(normalized.findings().get(0).dataFlows().get(0).nodes().size() - 1).kind());
+        assertEquals(EngineStatus.SUCCEEDED, normalized.coverage().status());
+        assertTrue(normalized.warnings().isEmpty());
+    }
+
+    private void addCodeqlDataflowRole(ObjectNode location, String role) {
+        ObjectNode properties = location.putArray("taxa").addObject().putObject("properties");
+        properties.put("CodeQL/DataflowRole", role);
+    }
+
+    @Test
     void workflowDeletesOnlyValidatedDatabaseAndReturnsOnlySarifArtifact() throws Exception {
         Path suite = createPinnedQuerySuite();
         Path projectRoot = copyProject(temporaryDirectory.resolve("workflow-project"));
