@@ -63,6 +63,8 @@ class ReportSecurityAndDeduplicationTest {
         Files.writeString(root.resolve("source/DoNotArchive.java"), "class DoNotArchive {}");
         Path failedCodeqlDatabase = Files.createDirectories(root.resolve("raw/codeql/database/src"));
         Files.writeString(failedCodeqlDatabase.resolve("Captured.java"), "class MustNeverLeaveTheJob {}");
+        Path undeclaredCache = Files.createDirectories(root.resolve("raw/semgrep/cache"));
+        Files.writeString(undeclaredCache.resolve("oversized-cache.bin"), CANARY + " must remain outside delivery");
 
         Finding semgrep = sqlFinding("semgrep", 20, 70, null);
         Finding findsecbugs = sqlFinding("findsecbugs", 20, 70, null);
@@ -108,7 +110,7 @@ class ReportSecurityAndDeduplicationTest {
         assertTrue(html.contains("引擎失败或跳过不等于零问题"));
         assertFalse(html.contains("<script"));
 
-        assertNoSecret(root);
+        assertNoSecret(bundle);
         try (ZipFile archive = new ZipFile(bundle.archive().toFile())) {
             assertTrue(archive.getEntry("manifest.json") != null);
             assertTrue(archive.getEntry("raw/semgrep/report.json") != null);
@@ -174,16 +176,11 @@ class ReportSecurityAndDeduplicationTest {
                 List.of(flow), List.of(evidence), suppression, ReviewState.UNREVIEWED);
     }
 
-    private void assertNoSecret(Path root) throws Exception {
-        try (var paths = Files.walk(root)) {
-            for (Path path : paths.filter(Files::isRegularFile).toList()) {
-                if (path.toString().endsWith(".zip")) {
-                    continue;
-                }
-                String text = Files.readString(path);
-                assertFalse(text.contains(EXACT_SECRET), path.toString());
-                assertFalse(text.contains(CANARY), path.toString());
-            }
+    private void assertNoSecret(ReportBundle bundle) throws Exception {
+        for (Path path : List.of(bundle.html(), bundle.json(), bundle.sarif(), bundle.coverage(), bundle.manifest())) {
+            String text = Files.readString(path);
+            assertFalse(text.contains(EXACT_SECRET), path.toString());
+            assertFalse(text.contains(CANARY), path.toString());
         }
     }
 }

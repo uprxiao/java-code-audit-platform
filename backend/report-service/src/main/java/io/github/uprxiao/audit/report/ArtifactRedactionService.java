@@ -29,44 +29,31 @@ final class ArtifactRedactionService {
         this.writer = Objects.requireNonNull(writer, "writer");
     }
 
-    RedactionSummary sanitize(Path jobRoot) throws IOException {
+    RedactionSummary sanitize(List<Path> declaredArtifacts) throws IOException {
         int files = 0;
         int replacements = 0;
-        for (String directory : List.of("raw", "logs", "sbom")) {
-            Path root = jobRoot.resolve(directory).normalize();
-            if (!root.startsWith(jobRoot) || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+        for (Path path : declaredArtifacts.stream().map(value -> value.toAbsolutePath().normalize())
+                .distinct().sorted().toList()) {
+            if (Files.isSymbolicLink(path) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("declared artifact is not a safe regular file: " + path);
+            }
+            long size = Files.size(path);
+            if (size > MAX_TEXT_ARTIFACT_BYTES) {
+                throw new IOException("artifact exceeds redaction safety limit: " + path);
+            }
+            byte[] content = Files.readAllBytes(path);
+            final String text;
+            try {
+                text = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(content)).toString();
+            } catch (CharacterCodingException exception) {
+                ensureExactSecretsAbsent(path, content);
                 continue;
             }
-            if (Files.isSymbolicLink(root)) {
-                throw new IOException("artifact root must not be a symbolic link: " + root);
-            }
-            try (var paths = Files.walk(root)) {
-                for (Path path : paths.sorted().toList()) {
-                    if (Files.isSymbolicLink(path)) {
-                        throw new IOException("symbolic links are forbidden in report artifacts: " + path);
-                    }
-                    if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
-                        continue;
-                    }
-                    long size = Files.size(path);
-                    if (size > MAX_TEXT_ARTIFACT_BYTES) {
-                        throw new IOException("artifact exceeds redaction safety limit: " + path);
-                    }
-                    byte[] content = Files.readAllBytes(path);
-                    final String text;
-                    try {
-                        text = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(content)).toString();
-                    } catch (CharacterCodingException exception) {
-                        ensureExactSecretsAbsent(path, content);
-                        continue;
-                    }
-                    var result = redactor.redact(text);
-                    if (result.redacted()) {
-                        writer.write(path, result.text().getBytes(StandardCharsets.UTF_8));
-                        files++;
-                        replacements += result.replacementCount();
-                    }
-                }
+            var result = redactor.redact(text);
+            if (result.redacted()) {
+                writer.write(path, result.text().getBytes(StandardCharsets.UTF_8));
+                files++;
+                replacements += result.replacementCount();
             }
         }
         return new RedactionSummary(files, replacements);

@@ -74,9 +74,6 @@ public final class ReportGenerator {
         Path root = verifiedJobRoot(jobRoot);
         ReportInput input = new ReportInputSanitizer(options.redactor()).sanitize(original);
         ArtifactRedactionService artifactRedaction = new ArtifactRedactionService(options.redactor(), writer);
-        if (options.sanitizeRawLogsAndSbom()) {
-            artifactRedaction.sanitize(root);
-        }
 
         List<Finding> active = deduplicator.deduplicate(
                 input.findings().stream().filter(finding -> !finding.suppressed()).toList()).findings();
@@ -86,6 +83,10 @@ public final class ReportGenerator {
         List<Map<String, Object>> engines = engineDocuments(input.coverage().engines());
         ReportSummary summary = summary(input, active, suppressed);
         validateInvariants(summary, active, suppressed, input.coverage());
+        List<Path> declaredEvidence = declaredEvidenceFiles(input, root);
+        if (options.sanitizeRawLogsAndSbom()) {
+            artifactRedaction.sanitize(declaredEvidence);
+        }
         validateEvidence(root, active, suppressed);
 
         Path reportDirectory = root.resolve("report");
@@ -134,7 +135,7 @@ public final class ReportGenerator {
             sarifValidator.validate(reportSarif);
 
             List<Path> manifestedFiles = manifestFiles(
-                    input, active, suppressed, root, List.of(reportHtml, reportJson, reportSarif, coverageJson));
+                    declaredEvidence, root, List.of(reportHtml, reportJson, reportSarif, coverageJson));
             Map<String, Object> manifest = manifest(input, root, manifestedFiles);
             writeJson(manifestJson, manifest);
             schemas.validate("manifest", manifestJson);
@@ -413,12 +414,16 @@ public final class ReportGenerator {
         return component.purl() + " / path=" + component.dependencyPath() + " / fixed=" + component.fixedVersions();
     }
 
-    private List<Path> manifestFiles(
-            ReportInput input, List<Finding> active, List<Finding> suppressed, Path root, List<Path> reports)
-            throws IOException {
+    private List<Path> manifestFiles(List<Path> declaredEvidence, Path root, List<Path> reports) {
         Set<Path> files = new TreeSet<>(Comparator.comparing(path -> portable(root.relativize(path))));
         files.addAll(reports);
-        for (Finding finding : java.util.stream.Stream.concat(active.stream(), suppressed.stream()).toList()) {
+        files.addAll(declaredEvidence);
+        return List.copyOf(files);
+    }
+
+    private List<Path> declaredEvidenceFiles(ReportInput input, Path root) throws IOException {
+        Set<Path> files = new TreeSet<>(Comparator.comparing(path -> portable(root.relativize(path))));
+        for (Finding finding : input.findings()) {
             for (FindingEvidence evidence : finding.evidence()) {
                 addDeclaredArtifact(root, files, evidence.rawArtifact());
             }
