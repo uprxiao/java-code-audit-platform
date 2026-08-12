@@ -44,7 +44,7 @@ class RetentionMaintenanceServiceTest {
         JobRetentionService retention = new JobRetentionService(dataRoot,
                 new RetentionPolicy(Duration.ofDays(30), Duration.ofDays(7), Duration.ofHours(24), 0));
         RetentionMaintenanceService maintenance = new RetentionMaintenanceService(
-                store, retention, Clock.fixed(now, ZoneOffset.UTC));
+                store, retention, Clock.fixed(now, ZoneOffset.UTC), ignored -> { });
 
         maintenance.cleanAtStartup();
 

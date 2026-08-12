@@ -410,6 +410,10 @@ public final class ScanService {
                         "DEEP", "UNAVAILABLE"));
     }
 
+    void forget(UUID scanId) {
+        scans.remove(scanId);
+    }
+
     private void run(RuntimeScan runtime, String originalName) {
         try {
             if (runtime.cancelRequested.get()) {

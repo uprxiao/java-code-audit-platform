@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 final class RetentionMaintenanceService {
@@ -18,13 +19,24 @@ final class RetentionMaintenanceService {
     private final JobStore jobs;
     private final JobRetentionService retention;
     private final Clock clock;
+    private final java.util.function.Consumer<java.util.UUID> indexCleanup;
     private final AtomicReference<String> lastError = new AtomicReference<>("");
     private volatile RetentionCleanupResult lastResult = new RetentionCleanupResult(List.of(), 0);
 
-    RetentionMaintenanceService(JobStore jobs, JobRetentionService retention, Clock clock) {
+    @Autowired
+    RetentionMaintenanceService(JobStore jobs, JobRetentionService retention, Clock clock, ScanService scans) {
+        this(jobs, retention, clock, scans::forget);
+    }
+
+    RetentionMaintenanceService(
+            JobStore jobs,
+            JobRetentionService retention,
+            Clock clock,
+            java.util.function.Consumer<java.util.UUID> indexCleanup) {
         this.jobs = jobs;
         this.retention = retention;
         this.clock = clock;
+        this.indexCleanup = indexCleanup;
     }
 
     @PostConstruct
@@ -51,6 +63,9 @@ final class RetentionMaintenanceService {
             RetentionCleanupResult lowDisk = retention.cleanForLowDisk(jobs.list());
             List<RetentionCleanupResult.CleanupEvent> events = new ArrayList<>(expired.events());
             events.addAll(lowDisk.events());
+            events.stream()
+                    .filter(event -> event.scope() == RetentionCleanupResult.Scope.ENTIRE_JOB)
+                    .forEach(event -> indexCleanup.accept(event.scanId()));
             lastResult = new RetentionCleanupResult(events, lowDisk.usableBytesAfterCleanup());
             lastError.set("");
         } catch (IOException | RuntimeException exception) {
