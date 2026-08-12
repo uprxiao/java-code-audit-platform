@@ -57,6 +57,13 @@ class AuditRuntimeConfiguration {
         return new NioAtomicFileWriter();
     }
 
+    @Bean
+    StorageCapacityGuard storageCapacityGuard(
+            AuditRuntimePaths paths,
+            @Value("${audit.storage.minimum-free-bytes:53687091200}") long minimumDiskBytes) {
+        return new StorageCapacityGuard(paths, minimumDiskBytes);
+    }
+
     @Bean(destroyMethod = "shutdown")
     ExecutorService scanExecutor(
             @Value("${audit.concurrency.max-concurrent-scan-jobs:2}") int workers,

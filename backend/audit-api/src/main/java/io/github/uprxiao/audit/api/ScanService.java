@@ -74,6 +74,7 @@ public final class ScanService {
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final ToolInstallationHealth semgrepHealth;
+    private final StorageCapacityGuard storageCapacity;
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
 
     ScanService(
@@ -91,7 +92,8 @@ public final class ScanService {
             SemgrepAdapter semgrep,
             ReportGenerator reports,
             JobTemporaryFileCleaner cleaner,
-            ToolInstallationHealth semgrepHealth) {
+            ToolInstallationHealth semgrepHealth,
+            StorageCapacityGuard storageCapacity) {
         this.paths = paths;
         this.jobs = jobs;
         this.executor = executor;
@@ -107,10 +109,12 @@ public final class ScanService {
         this.reports = reports;
         this.cleaner = cleaner;
         this.semgrepHealth = semgrepHealth;
+        this.storageCapacity = storageCapacity;
     }
 
     public CreateScanResponse submitZip(InputStream source, String originalName, ZipScanRequest request) throws IOException {
         mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
+        storageCapacity.requireCapacity();
         if (request.profile() != ScanProfile.QUICK) {
             throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
                     "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");
