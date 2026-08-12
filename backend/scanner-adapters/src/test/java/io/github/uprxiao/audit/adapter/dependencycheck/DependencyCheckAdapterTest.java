@@ -125,8 +125,12 @@ class DependencyCheckAdapterTest {
         var result = adapter.normalize(context, new RawArtifactSet(DependencyCheckAdapter.ID,
                 Map.of("report", report), process));
         assertEquals(ExecutionResult.Status.SUCCEEDED, process.status());
-        assertTrue(result.findings().stream().anyMatch(finding ->
-                finding.identifiers().cve().contains("CVE-2021-44228")));
+        var log4Shell = result.findings().stream().filter(finding ->
+                finding.identifiers().cve().contains("CVE-2021-44228")).findFirst().orElseThrow();
+        assertEquals("pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1", log4Shell.component().purl());
+        assertEquals("2.14.1", log4Shell.component().version());
+        assertFalse(log4Shell.component().dependencyPath().isEmpty());
+        assertFalse(log4Shell.evidence().get(0).properties().get("databaseEvidence").toString().isBlank());
     }
 
     private Path initializedDatabase(Path directory) throws IOException {
@@ -143,6 +147,16 @@ class DependencyCheckAdapterTest {
         manifest.getMainAttributes().putValue("Implementation-Vendor", "Apache Software Foundation");
         manifest.getMainAttributes().putValue("Implementation-Version", "2.14.1");
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(target), manifest)) {
+            jar.putNextEntry(new JarEntry("META-INF/maven/org.apache.logging.log4j/log4j-core/pom.xml"));
+            jar.write(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    + "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n"
+                    + "  <modelVersion>4.0.0</modelVersion>\n"
+                    + "  <groupId>org.apache.logging.log4j</groupId>\n"
+                    + "  <artifactId>log4j-core</artifactId>\n"
+                    + "  <version>2.14.1</version>\n"
+                    + "  <name>Apache Log4j Core</name>\n"
+                    + "</project>\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            jar.closeEntry();
             jar.putNextEntry(new JarEntry("META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties"));
             jar.write("groupId=org.apache.logging.log4j\nartifactId=log4j-core\nversion=2.14.1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
             jar.closeEntry();
