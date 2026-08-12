@@ -39,6 +39,15 @@ audit:
     max-single-file-bytes: ${AUDIT_MAX_SINGLE_FILE_BYTES:1073741824}
     max-entries: ${AUDIT_MAX_ARCHIVE_ENTRIES:200000}
     max-compression-ratio: ${AUDIT_MAX_COMPRESSION_RATIO:100}
+    svn:
+      allowed-hosts: ${AUDIT_SVN_ALLOWED_HOSTS:}
+      max-url-characters: ${AUDIT_SVN_MAX_URL_CHARACTERS:2048}
+      max-expanded-bytes: ${AUDIT_SVN_MAX_EXPANDED_BYTES:10737418240}
+      max-single-file-bytes: ${AUDIT_SVN_MAX_SINGLE_FILE_BYTES:1073741824}
+      max-entries: ${AUDIT_SVN_MAX_ENTRIES:200000}
+      max-path-characters: ${AUDIT_SVN_MAX_PATH_CHARACTERS:4096}
+      connect-timeout: ${AUDIT_SVN_CONNECT_TIMEOUT:15s}
+      read-timeout: ${AUDIT_SVN_READ_TIMEOUT:5m}
   storage:
     minimum-free-bytes: ${AUDIT_MINIMUM_FREE_BYTES:53687091200}
   retention:

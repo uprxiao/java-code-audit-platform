@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +26,14 @@ class ScanController {
 
     ScanController(ScanService scans) {
         this.scans = scans;
+    }
+
+    @PostMapping(value = "/svn", consumes = "application/json")
+    ResponseEntity<CreateScanResponse> createSvn(@RequestBody SvnScanRequest request) throws IOException {
+        CreateScanResponse response = scans.submitSvn(request);
+        return ResponseEntity.accepted()
+                .location(URI.create("/api/v1/scans/" + response.scanId()))
+                .body(response);
     }
 
     @PostMapping(value = "/zip", consumes = "multipart/form-data")

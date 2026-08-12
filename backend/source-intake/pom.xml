@@ -22,6 +22,39 @@
             <artifactId>commons-compress</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.tmatesoft.svnkit</groupId>
+            <artifactId>svnkit</artifactId>
+            <exclusions>
+                <!-- V1 forbids svn+ssh, SSH agents, native credential stores and working copies. -->
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.trilead</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.jcraft</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- SVNKit still declares the abandoned vulnerable org.lz4 build. -->
+                <exclusion>
+                    <groupId>org.lz4</groupId>
+                    <artifactId>lz4-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- Package-compatible maintained fork, including the 2026 security fixes. -->
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>

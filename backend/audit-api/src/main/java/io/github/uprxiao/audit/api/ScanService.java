@@ -15,8 +15,13 @@ import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.ProjectContext;
 import io.github.uprxiao.audit.intake.SafeZipExtractor;
 import io.github.uprxiao.audit.intake.SourceDescriptor;
+import io.github.uprxiao.audit.intake.SourceCredential;
 import io.github.uprxiao.audit.intake.SourceIntakeException;
 import io.github.uprxiao.audit.intake.StagedUpload;
+import io.github.uprxiao.audit.intake.SvnCheckoutResult;
+import io.github.uprxiao.audit.intake.SvnRepositoryPolicy;
+import io.github.uprxiao.audit.intake.SvnRevision;
+import io.github.uprxiao.audit.intake.SvnSourceCheckout;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
@@ -93,6 +98,8 @@ public final class ScanService {
     private final ReportGenerator reports;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
+    private final SvnRepositoryPolicy svnRepositoryPolicy;
+    private final SvnSourceCheckout svnCheckout;
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private final Map<UUID, RuntimeScan> scans = new ConcurrentHashMap<>();
 
@@ -112,7 +119,9 @@ public final class ScanService {
             FairDagScheduler scheduler,
             ReportGenerator reports,
             JobTemporaryFileCleaner cleaner,
-            StorageCapacityGuard storageCapacity) {
+            StorageCapacityGuard storageCapacity,
+            SvnRepositoryPolicy svnRepositoryPolicy,
+            SvnSourceCheckout svnCheckout) {
         this.paths = paths;
         this.jobs = jobs;
         this.executor = executor;
@@ -129,6 +138,8 @@ public final class ScanService {
         this.reports = reports;
         this.cleaner = cleaner;
         this.storageCapacity = storageCapacity;
+        this.svnRepositoryPolicy = svnRepositoryPolicy;
+        this.svnCheckout = svnCheckout;
     }
 
     public CreateScanResponse submitZip(InputStream source, String originalName, ZipScanRequest request) throws IOException {
@@ -203,45 +214,128 @@ public final class ScanService {
                 plan.engines().stream().map(engine -> engine.id().value()).toList());
     }
 
+    public CreateScanResponse submitSvn(SvnScanRequest request) throws IOException {
+        try {
+            return submitSvnRequest(request);
+        } finally {
+            request.close();
+        }
+    }
+
+    private CreateScanResponse submitSvnRequest(SvnScanRequest request) throws IOException {
+        mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
+        storageCapacity.requireCapacity();
+        if (request.profile() != ScanProfile.QUICK) {
+            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
+                    "当前纵向切片只开放 QUICK；Standard/Deep 将在对应扫描器就绪后开放。");
+        }
+        SvnRepositoryPolicy.ValidatedSvnUrl validated = svnRepositoryPolicy.validate(request.repositoryUrl());
+        SvnRevision revision = SvnRevision.parse(request.revision());
+        requireQuickTools();
+
+        SourceCredential credential;
+        try {
+            credential = request.transferCredential();
+        } catch (IllegalArgumentException exception) {
+            throw new SourceIntakeException(
+                    "INVALID_SVN_CREDENTIAL", "SVN username or password exceeds its safe limit");
+        }
+        UUID scanId = ids.nextId();
+        JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), scanId);
+        try {
+            layout.initialize();
+            Instant now = clock.instant();
+            ScanJob job = ScanJob.queued(scanId, SourceType.SVN, request.profile(), now);
+            ScanPlan plan = planner.plan(request.profile());
+            Map<String, EngineTaskState> engineStates = initialEngineStates(plan, now);
+            String displayName = request.displayName().isBlank()
+                    ? safeSvnDisplayName(validated.value()) : request.displayName();
+            ZipScanRequest scanOptions = new ZipScanRequest(
+                    displayName, request.profile(), request.mavenProfiles(), request.mavenProperties());
+            SvnRuntimeRequest svnRequest = new SvnRuntimeRequest(validated.value(), revision);
+            RuntimeScan runtime = new RuntimeScan(
+                    layout, job, engineStates, scanOptions, plan, svnRequest, credential);
+            Map<String, String> persistedProperties = persistedMavenProperties(request.mavenProperties());
+            writeRequest(runtime, PersistedScanRequest.svn(
+                    validated.value(), revision.displayValue(), displayName, request, persistedProperties,
+                    persistedProperties.size() != request.mavenProperties().size(), credential.isPresent()));
+            persist(runtime);
+            scans.put(scanId, runtime);
+            Runnable workItem = () -> run(runtime, "");
+            runtime.workItem = workItem;
+            try {
+                executor.execute(workItem);
+            } catch (ScanJobQueueFullException exception) {
+                rejectSvnRuntime(runtime);
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, ApiErrorCode.QUEUE_FULL,
+                        "扫描队列已满，请稍后重试。", Map.of(
+                                "retryAfterSeconds", exception.retryAfter().toSeconds(),
+                                "queueLength", exception.queueLength(),
+                                "queueCapacity", exception.queueCapacity()));
+            } catch (RejectedExecutionException exception) {
+                rejectSvnRuntime(runtime);
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, ApiErrorCode.QUEUE_FULL,
+                        "扫描服务正在停止，请稍后重试。", Map.of(
+                                "retryAfterSeconds", 30,
+                                "queueLength", executor.getQueue().size(),
+                                "queueCapacity", executor.getQueue().size() + executor.getQueue().remainingCapacity()));
+            }
+            return new CreateScanResponse(scanId, job.status(), job.profile(), job.createdAt(),
+                    plan.engines().stream().map(engine -> engine.id().value()).toList());
+        } catch (IOException | RuntimeException exception) {
+            credential.close();
+            scans.remove(scanId);
+            cleaner.deleteEntireJob(layout);
+            throw exception;
+        }
+    }
+
     void restoreQueued(StoredScanJob stored) throws IOException {
         if (stored.status().isTerminal()) {
             restoreTerminal(stored);
             return;
         }
-        if (stored.status() != ScanStatus.QUEUED || stored.sourceType() != SourceType.ZIP) {
-            throw new IOException("only queued ZIP or terminal scans can be restored: " + stored.scanId());
+        if (stored.status() != ScanStatus.QUEUED) {
+            throw new IOException("only queued or terminal scans can be restored: " + stored.scanId());
         }
         JobDirectoryLayout layout = new JobDirectoryLayout(paths.dataRoot(), stored.scanId());
         Path requestFile = layout.safeResolve("request.json");
-        Path uploadFile = layout.source().resolve("upload.zip");
-        if (!Files.isRegularFile(requestFile) || !Files.isRegularFile(uploadFile)) {
+        if (!Files.isRegularFile(requestFile)) {
             throw new IOException("queued scan input is incomplete: " + stored.scanId());
         }
         PersistedScanRequest persisted = json.readValue(requestFile.toFile(), PersistedScanRequest.class);
-        if (persisted.sourceType() != SourceType.ZIP || persisted.profile() != stored.profile()) {
+        if (persisted.sourceType() != stored.sourceType() || persisted.profile() != stored.profile()) {
             throw new IOException("queued request does not match job state: " + stored.scanId());
         }
-        if (persisted.sensitivePropertiesOmitted()) {
-            Instant now = clock.instant().isBefore(stored.updatedAt()) ? stored.updatedAt() : clock.instant();
-            FailureDetails failure = new FailureDetails(
-                    "SOURCE_CREDENTIALS_EXPIRED",
-                    "sensitive Maven properties are never persisted and must be resubmitted after restart",
-                    Map.of());
-            Map<String, EngineTaskState> cancelled = new LinkedHashMap<>();
-            stored.engines().forEach((id, state) -> cancelled.put(id,
-                    state.status().isTerminal() ? state : state.transitionTo(EngineStatus.CANCELLED, now)));
-            jobs.save(StoredScanJob.from(
-                    stored.toScanJob().transitionTo(ScanStatus.INTERRUPTED, now, failure),
-                    Map.copyOf(cancelled), stored.artifacts()));
+        if (persisted.sensitivePropertiesOmitted() || persisted.sourceCredentialsOmitted()) {
+            StoredScanJob expired = expireQueuedRequest(stored, persisted.sourceCredentialsOmitted()
+                    ? "SVN credentials are never persisted and must be resubmitted after restart"
+                    : "sensitive Maven properties are never persisted and must be resubmitted after restart");
+            restoreTerminal(expired);
             return;
         }
         ZipScanRequest request = persisted.toZipRequest();
         mavenArguments.validate(request.mavenProfiles(), request.mavenProperties());
         ScanPlan plan = planner.plan(request.profile());
-        StagedUpload staged = new StagedUpload(uploadFile, Files.size(uploadFile), sha256(uploadFile));
-        RuntimeScan runtime = new RuntimeScan(
-                layout, stored.toScanJob(), stored.engines(), staged, request, plan);
+        RuntimeScan runtime;
+        if (stored.sourceType() == SourceType.ZIP) {
+            Path uploadFile = layout.source().resolve("upload.zip");
+            if (!Files.isRegularFile(uploadFile)) {
+                throw new IOException("queued ZIP input is incomplete: " + stored.scanId());
+            }
+            StagedUpload staged = new StagedUpload(uploadFile, Files.size(uploadFile), sha256(uploadFile));
+            runtime = new RuntimeScan(layout, stored.toScanJob(), stored.engines(), staged, request, plan);
+        } else if (stored.sourceType() == SourceType.SVN) {
+            SvnRepositoryPolicy.ValidatedSvnUrl validated = svnRepositoryPolicy.validate(persisted.repositoryUrl());
+            SvnRevision revision = SvnRevision.parse(persisted.revision());
+            runtime = new RuntimeScan(
+                    layout, stored.toScanJob(), stored.engines(), request, plan,
+                    new SvnRuntimeRequest(validated.value(), revision), new SourceCredential("", new char[0]));
+        } else {
+            throw new IOException("unsupported queued source type: " + stored.sourceType());
+        }
         if (scans.putIfAbsent(stored.scanId(), runtime) != null) {
+            releaseSourceCredential(runtime);
             throw new IOException("queued scan is already in the runtime index: " + stored.scanId());
         }
         Runnable workItem = () -> run(runtime, persisted.originalName());
@@ -250,8 +344,23 @@ public final class ScanService {
             executor.execute(workItem);
         } catch (RuntimeException exception) {
             scans.remove(stored.scanId(), runtime);
+            releaseSourceCredential(runtime);
             throw new IOException("cannot requeue scan after restart: " + stored.scanId(), exception);
         }
+    }
+
+    private StoredScanJob expireQueuedRequest(StoredScanJob stored, String message) throws IOException {
+        Instant observed = clock.instant();
+        Instant now = observed.isBefore(stored.updatedAt()) ? stored.updatedAt() : observed;
+        FailureDetails failure = new FailureDetails("SOURCE_CREDENTIALS_EXPIRED", message, Map.of());
+        Map<String, EngineTaskState> cancelled = new LinkedHashMap<>();
+        stored.engines().forEach((id, state) -> cancelled.put(id,
+                state.status().isTerminal() ? state : state.transitionTo(EngineStatus.CANCELLED, now)));
+        StoredScanJob expired = StoredScanJob.from(
+                stored.toScanJob().transitionTo(ScanStatus.INTERRUPTED, now, failure),
+                Map.copyOf(cancelled), stored.artifacts());
+        jobs.save(expired);
+        return expired;
     }
 
     private void restoreTerminal(StoredScanJob stored) throws IOException {
@@ -422,19 +531,40 @@ public final class ScanService {
             }
             transition(runtime, ScanStatus.ACQUIRING_SOURCE, null);
             Path extracted = runtime.layout.workspace().resolve("extracted");
-            archives.extract(runtime.staged.path(), extracted, zipLimits);
-            Files.deleteIfExists(runtime.staged.path());
+            SourceDescriptor source;
+            if (runtime.svnRequest == null) {
+                archives.extract(runtime.staged.path(), extracted, zipLimits);
+                Files.deleteIfExists(runtime.staged.path());
+                source = new SourceDescriptor(
+                        SourceType.ZIP,
+                        runtime.request.displayName().isBlank()
+                                ? safeDisplayName(originalName) : runtime.request.displayName(),
+                        "upload.zip",
+                        "",
+                        "sha256:" + runtime.staged.sha256());
+            } else {
+                SvnCheckoutResult checkout;
+                try {
+                    checkout = svnCheckout.checkout(
+                            runtime.svnRequest.repositoryUrl(),
+                            runtime.svnRequest.revision(),
+                            extracted,
+                            runtime.sourceCredential,
+                            runtime.cancelRequested::get);
+                } finally {
+                    releaseSourceCredential(runtime);
+                }
+                source = new SourceDescriptor(
+                        SourceType.SVN,
+                        runtime.request.displayName(),
+                        runtime.svnRequest.repositoryUrl(),
+                        "svn:" + checkout.revision(),
+                        checkout.contentSha256());
+            }
             if (runtime.cancelRequested.get()) {
                 cancelRuntime(runtime);
                 return;
             }
-
-            SourceDescriptor source = new SourceDescriptor(
-                    SourceType.ZIP,
-                    runtime.request.displayName().isBlank() ? safeDisplayName(originalName) : runtime.request.displayName(),
-                    "upload.zip",
-                    "",
-                    "sha256:" + runtime.staged.sha256());
             ProjectContext project = projects.inspect(extracted, source, runtime.request.profile());
             runtime.project = project;
             transition(runtime, ScanStatus.PREFLIGHT, null);
@@ -479,10 +609,7 @@ public final class ScanService {
                             ? ScanStatus.COMPLETED : ScanStatus.COMPLETED_WITH_ERRORS;
             ReportInput reportInput = new ReportInput(
                     runtime.job.id(), runtime.job.profile(), finalStatus, runtime.job.createdAt(), reportCompletedAt,
-                    Map.of(
-                            "type", "ZIP",
-                            "displayName", source.displayName(),
-                            "sha256", source.contentSha256()),
+                    reportSource(source),
                     allFindings, runtime.coverage,
                     Map.of("components", 0, "vulnerableComponents", 0),
                     Map.of("status", "NOT_REQUIRED", "mavenProfiles", runtime.request.mavenProfiles()),
@@ -527,6 +654,8 @@ public final class ScanService {
             } else {
                 fail(runtime, failure(exception));
             }
+        } finally {
+            releaseSourceCredential(runtime);
         }
     }
 
@@ -652,6 +781,7 @@ public final class ScanService {
             } catch (IOException ignored) {
                 // The in-memory terminal state remains queryable; startup recovery validates persisted state.
             }
+            releaseSourceCredential(runtime);
         }
     }
 
@@ -712,6 +842,85 @@ public final class ScanService {
 
     private void persist(RuntimeScan runtime, Map<String, String> artifacts) throws IOException {
         jobs.save(StoredScanJob.from(runtime.job, runtime.engines, artifacts));
+    }
+
+    private void requireQuickTools() {
+        if (scanners.available()) {
+            return;
+        }
+        List<String> unavailable = scanners.health().stream()
+                .filter(tool -> !tool.available())
+                .map(tool -> tool.id() + ":" + tool.reasonCode())
+                .toList();
+        throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.PROFILE_UNAVAILABLE,
+                "QUICK 所需工具未完整通过版本和完整性检查。", Map.of("unavailable", unavailable));
+    }
+
+    private Map<String, EngineTaskState> initialEngineStates(ScanPlan plan, Instant now) {
+        Map<String, EngineTaskState> states = new LinkedHashMap<>();
+        for (ScanEngine engine : plan.engines()) {
+            scanners.require(engine.id());
+            states.put(engine.id().value(), EngineTaskState.pending(engine.id().value(), now));
+        }
+        return Map.copyOf(states);
+    }
+
+    private Map<String, String> persistedMavenProperties(Map<String, String> properties) {
+        Map<String, String> persisted = new LinkedHashMap<>();
+        properties.forEach((key, value) -> {
+            if (!mavenArguments.isSensitiveProperty(key)) {
+                persisted.put(key, value);
+            }
+        });
+        return Map.copyOf(persisted);
+    }
+
+    private void rejectSvnRuntime(RuntimeScan runtime) {
+        scans.remove(runtime.job.id(), runtime);
+        releaseSourceCredential(runtime);
+    }
+
+    private Map<String, Object> reportSource(SourceDescriptor source) {
+        if (source.type() == SourceType.SVN) {
+            return Map.of(
+                    "type", "SVN",
+                    "displayName", source.displayName(),
+                    "repositoryUrl", redactedSvnLocation(source.location()),
+                    "repositoryUrlSha256", "sha256:" + sha256Text(source.location()),
+                    "revision", source.revision(),
+                    "sha256", source.contentSha256());
+        }
+        return Map.of(
+                "type", "ZIP",
+                "displayName", source.displayName(),
+                "sha256", source.contentSha256());
+    }
+
+    private String redactedSvnLocation(String repositoryUrl) {
+        java.net.URI uri = java.net.URI.create(repositoryUrl);
+        StringBuilder origin = new StringBuilder(uri.getScheme()).append("://").append(uri.getHost());
+        if (uri.getPort() >= 0) {
+            origin.append(':').append(uri.getPort());
+        }
+        return origin.append("/***").toString();
+    }
+
+    private String sha256Text(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by Java 17", exception);
+        }
+    }
+
+    private void releaseSourceCredential(RuntimeScan runtime) {
+        synchronized (runtime) {
+            if (runtime.sourceCredential != null) {
+                runtime.sourceCredential.close();
+                runtime.sourceCredential = null;
+            }
+        }
     }
 
     private void writeRequest(RuntimeScan runtime, PersistedScanRequest request) throws IOException {
@@ -782,11 +991,24 @@ public final class ScanService {
         return cleaned.length() > 200 ? cleaned.substring(0, 200) : cleaned;
     }
 
+    private String safeSvnDisplayName(String repositoryUrl) {
+        String path = java.net.URI.create(repositoryUrl).getPath();
+        if (path == null || path.isBlank() || "/".equals(path)) {
+            return "svn-project";
+        }
+        int end = path.endsWith("/") ? path.length() - 1 : path.length();
+        int separator = path.lastIndexOf('/', end - 1);
+        String name = path.substring(separator + 1, end).replaceAll("[\\r\\n\\t]", "_");
+        return name.isBlank() ? "svn-project" : name.substring(0, Math.min(200, name.length()));
+    }
+
     private static final class RuntimeScan {
         private final JobDirectoryLayout layout;
         private final StagedUpload staged;
         private final ZipScanRequest request;
         private final ScanPlan plan;
+        private final SvnRuntimeRequest svnRequest;
+        private SourceCredential sourceCredential;
         private ScanJob job;
         private Map<String, EngineTaskState> engines;
         private List<Finding> findings = List.of();
@@ -813,6 +1035,28 @@ public final class ScanService {
             this.staged = staged;
             this.request = request;
             this.plan = plan;
+            this.svnRequest = null;
         }
+
+        private RuntimeScan(
+                JobDirectoryLayout layout,
+                ScanJob job,
+                Map<String, EngineTaskState> engines,
+                ZipScanRequest request,
+                ScanPlan plan,
+                SvnRuntimeRequest svnRequest,
+                SourceCredential sourceCredential) {
+            this.layout = layout;
+            this.job = job;
+            this.engines = engines;
+            this.staged = null;
+            this.request = request;
+            this.plan = plan;
+            this.svnRequest = svnRequest;
+            this.sourceCredential = sourceCredential;
+        }
+    }
+
+    private record SvnRuntimeRequest(String repositoryUrl, SvnRevision revision) {
     }
 }

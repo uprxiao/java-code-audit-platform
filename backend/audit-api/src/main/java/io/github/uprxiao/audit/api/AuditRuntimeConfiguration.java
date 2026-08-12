@@ -10,6 +10,10 @@ import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
 import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.SafeZipExtractor;
+import io.github.uprxiao.audit.intake.SvnCheckoutLimits;
+import io.github.uprxiao.audit.intake.SvnKitSourceCheckout;
+import io.github.uprxiao.audit.intake.SvnRepositoryPolicy;
+import io.github.uprxiao.audit.intake.SvnSourceCheckout;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
 import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
@@ -31,13 +35,16 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -143,6 +150,35 @@ class AuditRuntimeConfiguration {
             @Value("${audit.intake.max-compression-ratio:100}") double maxCompressionRatio) {
         return new ZipExtractionLimits(maxArchiveBytes, maxExpandedBytes, maxSingleFileBytes,
                 maxEntries, maxCompressionRatio);
+    }
+
+    @Bean
+    SvnRepositoryPolicy svnRepositoryPolicy(
+            @Value("${audit.intake.svn.max-url-characters:2048}") int maximumUrlCharacters,
+            @Value("${audit.intake.svn.allowed-hosts:}") String allowedHosts) {
+        Set<String> hosts = Arrays.stream(allowedHosts.split(","))
+                .map(String::trim)
+                .filter(host -> !host.isEmpty())
+                .map(host -> host.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+        return new SvnRepositoryPolicy(maximumUrlCharacters, hosts);
+    }
+
+    @Bean
+    SvnCheckoutLimits svnCheckoutLimits(
+            @Value("${audit.intake.svn.max-expanded-bytes:10737418240}") long maxExpandedBytes,
+            @Value("${audit.intake.svn.max-single-file-bytes:1073741824}") long maxSingleFileBytes,
+            @Value("${audit.intake.svn.max-entries:200000}") int maxEntries,
+            @Value("${audit.intake.svn.max-path-characters:4096}") int maxPathCharacters,
+            @Value("${audit.intake.svn.connect-timeout:15s}") Duration connectTimeout,
+            @Value("${audit.intake.svn.read-timeout:5m}") Duration readTimeout) {
+        return new SvnCheckoutLimits(maxExpandedBytes, maxSingleFileBytes, maxEntries,
+                maxPathCharacters, connectTimeout, readTimeout);
+    }
+
+    @Bean
+    SvnSourceCheckout svnSourceCheckout(SvnRepositoryPolicy repositoryPolicy, SvnCheckoutLimits checkoutLimits) {
+        return new SvnKitSourceCheckout(repositoryPolicy, checkoutLimits);
     }
 
     @Bean

@@ -66,9 +66,13 @@ Content-Type: application/json
 ```
 
 - `revision` 省略时使用 HEAD；
+- `revision` 只接受 `HEAD` 或非负十进制整数，不接受范围、日期和历史遍历；
 - 不提供 `projectPath`；URL 必须直接指向要扫描的单一项目；
-- 密码不进入响应、job.json、日志或报告；
+- URL 不得包含 user-info、query 或 fragment；可用 `AUDIT_SVN_ALLOWED_HOSTS` 设置可选主机白名单；
+- 用户名/密码不进入响应、`request.json`、job.json、日志或报告；`request.json` 只保留规范化 URL、revision 和“凭据已省略”标志以执行安全恢复决策；
+- 有凭据的排队任务在服务重启后变为 `INTERRUPTED/SOURCE_CREDENTIALS_EXPIRED`；匿名任务可按原 URL 和 revision 重新排队；
 - 不支持 `file://`、`svn+ssh`、SSH私钥、客户端证书和验证码。
+- V1 使用 SVNKit 1.10.13 在 Java 进程内流式取回单一快照，不启动 `svn` 子进程、不创建 `.svn` 工作副本、不展开 `svn:externals`。
 
 ## 4. Maven 参数校验
 

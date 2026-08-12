@@ -1,6 +1,7 @@
 package io.github.uprxiao.audit.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,5 +44,29 @@ class AuditApplicationTest {
         mvc.perform(multipart("/api/v1/scans/zip").file(source).file(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void rejectsForbiddenSvnTransportBeforeCreatingAJob() throws Exception {
+        mvc.perform(post("/api/v1/scans/svn")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repositoryUrl\":\"svn+ssh://example.test/repository\",\"profile\":\"QUICK\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_SVN_PROTOCOL"));
+    }
+
+    @Test
+    void rejectsSvnUrlUserInfoAndNonSnapshotRevision() throws Exception {
+        mvc.perform(post("/api/v1/scans/svn")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repositoryUrl\":\"https://alice:secret@example.test/repository\",\"profile\":\"QUICK\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SVN_URL"));
+
+        mvc.perform(post("/api/v1/scans/svn")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repositoryUrl\":\"https://example.test/repository\",\"revision\":\"1:9\",\"profile\":\"QUICK\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SVN_REVISION"));
     }
 }

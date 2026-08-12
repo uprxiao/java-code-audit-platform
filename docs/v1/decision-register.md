@@ -72,7 +72,7 @@ audit:
 以下项目在相应阶段用 POC 和测试决定，并写入工具清单或 ADR：
 
 - 各扫描器的精确锁定版本和 SHA256；
-- SVNKit 与系统 SVN CLI 的最终实现选择，默认优先无外部进程的 Java 客户端；
+- SVNKit 与系统 SVN CLI 的选择已由 [ADR-0005](../adr/0005-svnkit-source-intake.md) 固定为 SVNKit 1.10.13；
 - Semgrep 自包含 Python 运行时的具体打包方式；
 - HTML 模板引擎、JSON/SARIF 库和图表实现；
 - 统一指纹算法中的字段权重和规则族映射细节；

@@ -42,8 +42,9 @@ final class ApiExceptionHandler {
     @ExceptionHandler(SourceIntakeException.class)
     ResponseEntity<ApiErrorResponse> intake(SourceIntakeException exception, HttpServletRequest request) {
         HttpStatus status = switch (exception.code()) {
-            case "ARCHIVE_LIMIT_EXCEEDED" -> HttpStatus.PAYLOAD_TOO_LARGE;
-            case "INVALID_MAVEN_ARGUMENT" -> HttpStatus.BAD_REQUEST;
+            case "ARCHIVE_LIMIT_EXCEEDED", "SVN_LIMIT_EXCEEDED" -> HttpStatus.PAYLOAD_TOO_LARGE;
+            case "INVALID_MAVEN_ARGUMENT", "INVALID_SVN_URL", "INVALID_SVN_REVISION",
+                    "INVALID_SVN_CREDENTIAL", "UNSUPPORTED_SVN_PROTOCOL", "SVN_HOST_NOT_ALLOWED" -> HttpStatus.BAD_REQUEST;
             default -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
         ApiErrorCode code;

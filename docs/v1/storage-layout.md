@@ -44,7 +44,8 @@ data/
 └── tmp/
 ```
 
-`request.json` 是脱敏请求；SVN password 永不写入。原 ZIP 成功展开后删除。
+`request.json` 是脱敏请求；SVN username/password 永不写入。SVN 请求只保存规范化 URL、revision 和
+`sourceCredentialsOmitted`，恢复器据此让有凭据任务过期、仅重排匿名任务。原 ZIP 成功展开后删除。
 
 ## 3. `job.json`
 
