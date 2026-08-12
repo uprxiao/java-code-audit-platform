@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,10 +55,32 @@ class ScanController {
         return scans.findings(scanId);
     }
 
+    @GetMapping("/{scanId}/findings/{findingId}")
+    Finding finding(@PathVariable UUID scanId, @PathVariable String findingId) {
+        return scans.finding(scanId, findingId);
+    }
+
+    @GetMapping("/{scanId}/engines")
+    List<io.github.uprxiao.audit.finding.EngineTaskState> engines(@PathVariable UUID scanId) {
+        return scans.engines(scanId);
+    }
+
+    @GetMapping("/{scanId}/engines/{engineId}")
+    io.github.uprxiao.audit.finding.EngineTaskState engine(
+            @PathVariable UUID scanId, @PathVariable String engineId) {
+        return scans.engine(scanId, engineId);
+    }
+
     @PostMapping("/{scanId}/cancel")
     ResponseEntity<ScanView> cancel(@PathVariable UUID scanId) {
         CancelScanResult result = scans.cancel(scanId);
         return ResponseEntity.status(result.accepted() ? HttpStatus.ACCEPTED : HttpStatus.OK)
                 .body(result.scan());
+    }
+
+    @DeleteMapping("/{scanId}")
+    ResponseEntity<Void> delete(@PathVariable UUID scanId) throws IOException {
+        scans.delete(scanId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,6 +90,15 @@ class SemgrepZipApiE2ETest {
         assertTrue(findingArray.size() >= 2);
         assertTrue(java.util.stream.StreamSupport.stream(findingArray.spliterator(), false)
                 .anyMatch(finding -> finding.path("ruleFamily").asText().equals("SQL_INJECTION")));
+        mvc.perform(get("/api/v1/scans/{scanId}/findings/{findingId}",
+                        scanId, findingArray.get(0).path("id").asText()))
+                .andExpect(status().isOk());
+
+        MvcResult engines = mvc.perform(get("/api/v1/scans/{scanId}/engines", scanId))
+                .andExpect(status().isOk()).andReturn();
+        assertEquals(6, json.readTree(engines.getResponse().getContentAsByteArray()).size());
+        mvc.perform(get("/api/v1/scans/{scanId}/engines/semgrep", scanId))
+                .andExpect(status().isOk());
 
         MvcResult report = mvc.perform(get("/api/v1/scans/{scanId}/reports/json", scanId))
                 .andExpect(status().isOk())
@@ -116,6 +126,10 @@ class SemgrepZipApiE2ETest {
         assertFalse(Files.exists(jobRoot.resolve("workspace")));
         assertTrue(Files.exists(jobRoot.resolve("job.json")));
         assertTrue(Files.exists(jobRoot.resolve("report/report.html")));
+
+        mvc.perform(delete("/api/v1/scans/{scanId}", scanId)).andExpect(status().isNoContent());
+        assertFalse(Files.exists(jobRoot));
+        mvc.perform(get("/api/v1/scans/{scanId}", scanId)).andExpect(status().isNotFound());
     }
 
     private JsonNode waitForTerminal(String location) throws Exception {

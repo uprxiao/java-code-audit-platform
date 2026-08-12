@@ -226,6 +226,48 @@ public final class ScanService {
         }
     }
 
+    public Finding finding(UUID scanId, String findingId) {
+        return findings(scanId).stream()
+                .filter(finding -> finding.id().equals(findingId))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "问题记录不存在。"));
+    }
+
+    public List<EngineTaskState> engines(UUID scanId) {
+        RuntimeScan runtime = require(scanId);
+        synchronized (runtime) {
+            return runtime.engines.values().stream()
+                    .sorted(java.util.Comparator.comparing(EngineTaskState::engineId))
+                    .toList();
+        }
+    }
+
+    public EngineTaskState engine(UUID scanId, String engineId) {
+        RuntimeScan runtime = require(scanId);
+        synchronized (runtime) {
+            EngineTaskState state = runtime.engines.get(engineId);
+            if (state == null) {
+                throw new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "扫描引擎不存在。");
+            }
+            return state;
+        }
+    }
+
+    public void delete(UUID scanId) throws IOException {
+        RuntimeScan runtime = require(scanId);
+        synchronized (runtime) {
+            if (!runtime.job.status().isTerminal()) {
+                throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.INVALID_SCAN_STATE,
+                        "运行或排队中的任务不能删除。");
+            }
+            StoredScanJob stored = jobs.find(scanId).orElseThrow(() -> new ApiException(
+                    HttpStatus.NOT_FOUND, ApiErrorCode.SCAN_NOT_FOUND, "扫描任务不存在。"));
+            cleaner.deleteTerminalJob(runtime.layout, stored);
+            scans.remove(scanId, runtime);
+        }
+    }
+
     public CancelScanResult cancel(UUID scanId) {
         RuntimeScan runtime = require(scanId);
         boolean accepted;
