@@ -6,6 +6,10 @@ APP_JAR="${AUDIT_APP_JAR:-${BUNDLE_ROOT}/app/audit-api.jar}"
 DATA_ROOT="${AUDIT_DATA_ROOT:-${BUNDLE_ROOT}/data}"
 PORT="${AUDIT_PORT:-8080}"
 
+if [[ "${AUDIT_VERIFY_DISTRIBUTION:-true}" == "true" && -f "${BUNDLE_ROOT}/SHA256SUMS" ]]; then
+  "${BUNDLE_ROOT}/bin/verify-distribution.sh"
+fi
+
 platform_id() {
   local kernel machine
   kernel="$(uname -s)"

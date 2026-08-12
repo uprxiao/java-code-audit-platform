@@ -3,6 +3,7 @@
 本目录保存进入 Mac ARM64 / Linux x86_64 发布 ZIP 的静态内容；构建产物仍写入被忽略的 `dist/`。
 
 - `bin/run.sh`：前台运行，适合 systemd；严格检查 JDK 17 与 Maven 3.9+。
+- `bin/verify-distribution.sh`：启动前依据发布时 `SHA256SUMS` 复核 JAR、工具、脚本、manifest 与许可证；动态数据库、CodeQL 本机目录和可编辑配置不参与固定介质校验。
 - `bin/start.sh` / `stop.sh` / `status.sh` / `health.sh`：单机后台管理脚本。
 - `bin/acceptance-test.sh`：从 Web API 上传固定 Java 17 Maven Fixture，支持 `--quick`、`--standard`、`--deep`，验证终态、报告 ZIP、敏感 canary 和禁止目录。
 - `bin/update-vulnerability-data.sh`：联网初始化或原子更新 Dependency-Check、Trivy 通用库和 Trivy Java 库；Standard 首次验收前必须先运行。
