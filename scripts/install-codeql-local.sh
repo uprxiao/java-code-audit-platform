@@ -39,8 +39,14 @@ TEMPORARY="$(mktemp -d "$(dirname "$INSTALL_ROOT")/.codeql-install.XXXXXX")"
 cleanup() { rm -rf "$TEMPORARY"; }
 trap cleanup EXIT
 unzip -q "$ARCHIVE" -d "$TEMPORARY"
-mv "$TEMPORARY/codeql" "$INSTALL_ROOT"
-"$INSTALL_ROOT/codeql" version --format=json | grep -q '"version" : "2.26.2"'
+mkdir "$INSTALL_ROOT"
+mv "$TEMPORARY/codeql" "$INSTALL_ROOT/codeql"
+CODEQL_EXECUTABLE="$INSTALL_ROOT/codeql/codeql"
+[[ -x "$CODEQL_EXECUTABLE" ]] || {
+  echo "CodeQL archive did not contain the expected codeql/codeql entrypoint" >&2
+  exit 3
+}
+"$CODEQL_EXECUTABLE" version --format=json | grep -q '"version" : "2.26.2"'
 "$INSTALL_ROOT/codeql" pack download "codeql/java-queries@$JAVA_PACK_VERSION" --dir "$PACK_ROOT"
 
 echo "CodeQL local installation ready: $INSTALL_ROOT"
