@@ -151,7 +151,7 @@ tools:
     platforms:
       common-java:
         assemblyScript: scripts/build-standard-supply-tool-pack.sh
-        localPath: tools/downloads/tool-pack/{platform}/standard/dependency-check/dependency-check
+        localPath: tools/downloads/tool-pack/{platform}/standard-supply/dependency-check/dependency-check
         entrypoint: bin/dependency-check.sh
         entrypointSha256: d683a49ec335eeca93d8707f3e8ce21d7ba63a1e619a325c6518f89c25efcdc4
         coreJarSha256: 1ebe55e542b2f4d2727380395843922381447dc8b9a4f1633e77096f47ebfb48
@@ -177,14 +177,14 @@ tools:
     platforms:
       darwin-arm64:
         assemblyScript: scripts/build-standard-supply-tool-pack.sh
-        localPath: tools/downloads/tool-pack/darwin-arm64/standard/osv-scanner/bin/osv-scanner
+        localPath: tools/downloads/tool-pack/darwin-arm64/standard-supply/osv-scanner/bin/osv-scanner
         launchMode: controlled-exit-code-wrapper
         wrapperSource: scripts/tool-wrappers/osv-scanner-audit
         entrypointSha256: b3005f98417f747ff617997c074f21527b4d9f464e77657fd9e2c030bd98c83b
         upstreamBinarySha256: a8cd6507b06239f463a7642430cfd2d154882f150f6e30cdc0653e28dfc34216
       linux-x86_64:
         assemblyScript: scripts/build-standard-supply-tool-pack.sh
-        localPath: tools/downloads/tool-pack/linux-x86_64/standard/osv-scanner/bin/osv-scanner
+        localPath: tools/downloads/tool-pack/linux-x86_64/standard-supply/osv-scanner/bin/osv-scanner
         launchMode: controlled-exit-code-wrapper
         wrapperSource: scripts/tool-wrappers/osv-scanner-audit
         entrypointSha256: b3005f98417f747ff617997c074f21527b4d9f464e77657fd9e2c030bd98c83b

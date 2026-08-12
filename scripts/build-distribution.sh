@@ -82,6 +82,10 @@ if [[ -f "${REPOSITORY_ROOT}/THIRD-PARTY-NOTICES.md" ]]; then
 fi
 cp "${REPOSITORY_ROOT}/README.md" "${BUNDLE_ROOT}/README.md"
 
+# Finder metadata is a local workstation artifact, not part of a reproducible
+# release payload.
+find "${BUNDLE_ROOT}" -type f -name '.DS_Store' -delete
+
 chmod +x "${BUNDLE_ROOT}/bin/"*.sh
 jar --create --file "${BUNDLE_ROOT}/acceptance/java17-acceptance-fixture.zip" \
   -C "${REPOSITORY_ROOT}/packaging/fixtures/maven17" .
