@@ -1,0 +1,9 @@
+name: quick
+requiresBuild: false
+engines:
+  - gitleaks
+  - semgrep
+  - pmd
+  - pmd-cpd
+  - checkstyle
+  - trivy-repository

@@ -1,0 +1,12 @@
+name: standard
+extends: quick
+requiresBuild: true
+engines:
+  - spotbugs
+  - findsecbugs
+  - dependency-check
+  - osv-scanner
+  - maven-dependency-analysis
+  - maven-enforcer
+  - cyclonedx
+  - trivy-artifact

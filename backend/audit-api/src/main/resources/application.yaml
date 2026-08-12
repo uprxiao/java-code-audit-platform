@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: java-code-audit-platform
+
+server:
+  shutdown: graceful
