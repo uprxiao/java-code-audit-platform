@@ -1,5 +1,21 @@
 # Third-party notices
 
+## Distributed scanner tool packs
+
+The release ZIP includes locally assembled, checksum-pinned scanner tool packs. Original license files and bundled dependency notices are preserved beside each tool:
+
+- Semgrep 1.170.0 — LGPL-2.1-or-later — <https://pypi.org/project/semgrep/1.170.0/>
+- Gitleaks 8.30.1 — MIT — <https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1>
+- PMD 7.26.0 — BSD-style license plus bundled notices — <https://github.com/pmd/pmd/releases/tag/pmd_releases%2F7.26.0>
+- Checkstyle 12.3.1 — LGPL-2.1-or-later — <https://github.com/checkstyle/checkstyle/releases/tag/checkstyle-12.3.1>
+- Trivy 0.73.0 — Apache-2.0 — <https://github.com/aquasecurity/trivy/releases/tag/v0.73.0>
+- SpotBugs 4.9.3 — LGPL-2.1-only plus bundled notices — <https://github.com/spotbugs/spotbugs/releases/tag/4.9.3>
+- FindSecBugs 1.14.0 — LGPL-3.0-only — <https://github.com/find-sec-bugs/find-sec-bugs/releases/tag/version-1.14.0>
+- Dependency-Check 12.2.2 — Apache-2.0 — <https://github.com/dependency-check/DependencyCheck/releases/tag/v12.2.2>
+- OSV-Scanner 2.3.8 — Apache-2.0 — <https://github.com/google/osv-scanner/releases/tag/v2.3.8>
+
+CycloneDX Maven Plugin, Maven Dependency Plugin and Maven Enforcer Plugin are resolved by the deployment machine's system Maven from fixed coordinates; their binaries and the Maven cache are not redistributed in the ZIP. GitHub CodeQL CLI is also not redistributed.
+
 ## SVNKit 1.10.13
 
 - Project: <https://svnkit.com/>

@@ -32,8 +32,12 @@ require_directory() {
 SEMGREP_PACK="${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/semgrep"
 QUICK_PACK="${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/quick"
 STANDARD_COMMON="${REPOSITORY_ROOT}/tools/downloads/tool-pack/common"
+STANDARD_SUPPLY="${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/standard-supply"
 require_directory "${SEMGREP_PACK}"
 require_file "${QUICK_PACK}/quick-pack-metadata.json"
+require_file "${STANDARD_COMMON}/standard-analysis/spotbugs/LICENSE.txt"
+require_file "${STANDARD_COMMON}/standard-analysis/findsecbugs/LICENSE"
+require_file "${STANDARD_SUPPLY}/standard-supply-pack-metadata.json"
 require_file "${REPOSITORY_ROOT}/tools/manifest/tools-manifest.yaml"
 require_file "${REPOSITORY_ROOT}/LICENSE"
 command -v zip >/dev/null 2>&1 \
@@ -71,15 +75,8 @@ for python_alias in "${BUNDLE_ROOT}/tools/${PLATFORM}/semgrep/python"/*; do
   fi
 done
 cp -R "${QUICK_PACK}" "${BUNDLE_ROOT}/tools/${PLATFORM}/quick"
-if [[ -d "${STANDARD_COMMON}" ]]; then
-  require_file "${STANDARD_COMMON}/standard-analysis/spotbugs/LICENSE.txt"
-  require_file "${STANDARD_COMMON}/standard-analysis/findsecbugs/LICENSE"
-  cp -R "${STANDARD_COMMON}" "${BUNDLE_ROOT}/tools/common"
-fi
-if [[ -d "${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/standard-supply" ]]; then
-  cp -R "${REPOSITORY_ROOT}/tools/downloads/tool-pack/${PLATFORM}/standard-supply" \
-    "${BUNDLE_ROOT}/tools/${PLATFORM}/standard-supply"
-fi
+cp -R "${STANDARD_COMMON}" "${BUNDLE_ROOT}/tools/common"
+cp -R "${STANDARD_SUPPLY}" "${BUNDLE_ROOT}/tools/${PLATFORM}/standard-supply"
 cp "${REPOSITORY_ROOT}/LICENSE" "${BUNDLE_ROOT}/licenses/PROJECT-LICENSE"
 if [[ -f "${REPOSITORY_ROOT}/THIRD-PARTY-NOTICES.md" ]]; then
   cp "${REPOSITORY_ROOT}/THIRD-PARTY-NOTICES.md" "${BUNDLE_ROOT}/licenses/THIRD-PARTY-NOTICES.md"
@@ -124,6 +121,8 @@ printf '%s\n' \
   "  \"fileCount\": ${FILE_COUNT}," \
   "  \"applicationJarSha256\": \"sha256:${JAR_SHA}\"," \
   "  \"toolsManifestSha256\": \"sha256:${TOOLS_MANIFEST_SHA}\"," \
+  '  "profiles": {"quickBundled": true, "standardBundled": true, "deepRequiresLocalCodeql": true},' \
+  '  "dynamicVulnerabilityDatabasesBundled": false,' \
   '  "codeqlRedistributed": false,' \
   '  "checksums": "SHA256SUMS"' \
   '}' > "${BUNDLE_ROOT}/release-manifest.json"

@@ -17,10 +17,12 @@ tools:
       darwin-arm64:
         assemblyScript: scripts/build-semgrep-pack.sh
         localPath: tools/downloads/tool-pack/darwin-arm64/semgrep/semgrep/bin/semgrep
+        entrypointSha256: 35c611b5d29acdaceb61948dfc06673c50b3001395d4a63721a6446764d3ab45
         minimumOs: macOS 11
       linux-x86_64:
         assemblyScript: scripts/build-semgrep-pack.sh
         localPath: tools/downloads/tool-pack/linux-x86_64/semgrep/semgrep/bin/semgrep
+        entrypointSha256: 35c611b5d29acdaceb61948dfc06673c50b3001395d4a63721a6446764d3ab45
         minimumGlibc: "2.34"
     parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/semgrep/1.170.0
     rules: config/rules/semgrep/java-audit.yaml
@@ -128,6 +130,70 @@ tools:
     additionalParserFixtures:
       trivy-artifact: backend/scanner-adapters/src/test/resources/fixtures/trivy-artifact/0.73.0
     rules: config/rules/trivy/README.md
+
+  - id: spotbugs
+    logicalEngines: [spotbugs]
+    version: 4.9.3
+    distribution: locally-assembled-official-java-release
+    parserSchemaVersion: 1
+    license: LGPL-2.1-only
+    licenseReview: redistributable-with-license-and-source-obligations
+    sourceUrl: https://github.com/spotbugs/spotbugs/releases/tag/4.9.3
+    sourceArchiveSha256: d464d56050cf1dbda032e9482e1188f7cd7b7646eaff79c2e6cbe4d6822f4d9f
+    expectedVersionOutput: "4.9.3"
+    runtime: JDK-17
+    platforms:
+      common-java:
+        assemblyScript: scripts/build-standard-analysis-pack.sh
+        localPath: tools/downloads/tool-pack/common/standard-analysis/spotbugs
+        entrypoint: lib/spotbugs.jar
+        entrypointSha256: 710e8b98f1ae23cdb71aaaf07e8d71fb63b44f2bbbaa1df3c3ba0de62aba6ec9
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/spotbugs/4.9.3
+
+  - id: findsecbugs
+    logicalEngines: [findsecbugs]
+    version: 1.14.0
+    distribution: locally-assembled-official-spotbugs-plugin
+    parserSchemaVersion: 1
+    license: LGPL-3.0-only
+    licenseReview: redistributable-with-license-and-source-obligations
+    sourceUrl: https://github.com/find-sec-bugs/find-sec-bugs/releases/tag/version-1.14.0
+    sourceArchiveSha256: ff546e16e596ade5b6534a6da87881e569429bf46dfd8faed63ca63cdd69b4f8
+    runtime: SpotBugs-4.9.3-on-JDK-17
+    platforms:
+      common-java:
+        assemblyScript: scripts/build-standard-analysis-pack.sh
+        localPath: tools/downloads/tool-pack/common/standard-analysis/findsecbugs
+        entrypoint: lib/findsecbugs-plugin-1.14.0.jar
+        entrypointSha256: 6fa340344fa433ff46c2985dab1010e8bc739f9395c983594a5240095e92abc8
+        licenseSha256: da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/findsecbugs/1.14.0
+
+  - id: maven-dependency-analysis
+    logicalEngines: [maven-dependency-analysis]
+    version: 3.9.0
+    distribution: controlled-maven-plugin-coordinate
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: resolved-by-system-Maven-not-redistributed
+    sourceUrl: https://maven.apache.org/plugins/maven-dependency-plugin/
+    mavenCoordinate: org.apache.maven.plugins:maven-dependency-plugin:3.9.0
+    mavenArtifactSha256: 39b0453989a6252baa5a5fdee8349b4df4100f671967ca8aec7cd6b8c273bba3
+    runtime: JDK-17-and-system-Maven-3.9+
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/maven-dependency-analysis/3.9.0
+
+  - id: maven-enforcer
+    logicalEngines: [maven-enforcer]
+    version: 3.6.2
+    distribution: controlled-maven-plugin-coordinate
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: resolved-by-system-Maven-not-redistributed
+    sourceUrl: https://maven.apache.org/enforcer/maven-enforcer-plugin/
+    mavenCoordinate: org.apache.maven.plugins:maven-enforcer-plugin:3.6.2
+    mavenArtifactSha256: 88189ac3d0d2049ce9efabaf9895aee074f4eddb0f224defeb48c34ffe9d6fd8
+    runtime: JDK-17-and-system-Maven-3.9+
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/maven-enforcer/3.6.2
 
   - id: dependency-check
     logicalEngines: [dependency-check]
