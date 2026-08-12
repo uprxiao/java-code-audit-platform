@@ -72,7 +72,7 @@ for expected in report.html report.json report.sarif coverage.json manifest.json
   [[ -f "${WORK_ROOT}/report/${expected}" ]] \
     || { echo "Report archive is missing ${expected}." >&2; exit 7; }
 done
-if grep -R -F -q 'AKIAIOSFODNN7EXAMPLE' "${WORK_ROOT}/report"; then
+if grep -R -F -q 'AUDIT_CANARY_SECRET_V1_RELEASE_FIXTURE' "${WORK_ROOT}/report"; then
   echo "Acceptance canary leaked into the report archive." >&2
   exit 8
 fi
