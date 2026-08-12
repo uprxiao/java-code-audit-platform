@@ -52,6 +52,10 @@ mkdir -p "${BUNDLE_ROOT}/app" "${BUNDLE_ROOT}/acceptance" "${BUNDLE_ROOT}/config
 
 cp "${APP_JAR}" "${BUNDLE_ROOT}/app/audit-api.jar"
 cp -R "${REPOSITORY_ROOT}/packaging/bin" "${BUNDLE_ROOT}/bin"
+cp "${REPOSITORY_ROOT}/scripts/update-standard-vulnerability-data.sh" \
+  "${BUNDLE_ROOT}/bin/update-vulnerability-data.sh"
+cp "${REPOSITORY_ROOT}/scripts/install-codeql-local.sh" \
+  "${BUNDLE_ROOT}/bin/install-codeql-local.sh"
 cp -R "${REPOSITORY_ROOT}/packaging/systemd" "${BUNDLE_ROOT}/systemd"
 cp -R "${REPOSITORY_ROOT}/config/." "${BUNDLE_ROOT}/config/"
 cp "${REPOSITORY_ROOT}/backend/audit-api/src/main/resources/application.yaml" \
