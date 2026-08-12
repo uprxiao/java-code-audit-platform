@@ -58,7 +58,7 @@ class ReportSecurityAndDeduplicationTest {
             Files.writeString(raw.resolve("report.json"), "{\"message\":\"" + EXACT_SECRET + " " + CANARY + "\"}");
         }
         Path logs = Files.createDirectories(root.resolve("logs/engines"));
-        Files.writeString(logs.resolve("build.log"), "password=" + EXACT_SECRET + " " + CANARY);
+        Files.writeString(logs.resolve("maven-build.log"), "password=" + EXACT_SECRET + " " + CANARY);
         Files.createDirectories(root.resolve("source"));
         Files.writeString(root.resolve("source/DoNotArchive.java"), "class DoNotArchive {}");
         Path failedCodeqlDatabase = Files.createDirectories(root.resolve("raw/codeql/database/src"));
@@ -92,6 +92,11 @@ class ReportSecurityAndDeduplicationTest {
         assertEquals(3, report.path("findings").get(0).path("evidence").size());
         assertEquals(428, report.path("summary").path("sbom").path("components").asInt());
 
+        JsonNode manifest = json.readTree(bundle.manifest().toFile());
+        for (JsonNode file : manifest.path("files")) {
+            assertFalse(file.path("path").asText().contains("/database/"), file.toString());
+        }
+
         JsonNode sarif = json.readTree(bundle.sarif().toFile());
         assertEquals(1, sarif.path("runs").get(0).path("results").size());
         assertEquals(3, sarif.path("runs").get(0).path("results").get(0).path("codeFlows").size());
@@ -107,7 +112,7 @@ class ReportSecurityAndDeduplicationTest {
         try (ZipFile archive = new ZipFile(bundle.archive().toFile())) {
             assertTrue(archive.getEntry("manifest.json") != null);
             assertTrue(archive.getEntry("raw/semgrep/report.json") != null);
-            assertTrue(archive.getEntry("logs/engines/build.log") != null);
+            assertTrue(archive.getEntry("logs/engines/maven-build.log") != null);
             assertTrue(archive.getEntry("source/DoNotArchive.java") == null);
             assertTrue(archive.getEntry("raw/codeql/database/src/Captured.java") == null);
             var entries = archive.entries();

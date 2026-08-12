@@ -133,7 +133,8 @@ public final class ReportGenerator {
             schemas.validate("coverage", coverageJson);
             sarifValidator.validate(reportSarif);
 
-            List<Path> manifestedFiles = manifestFiles(root, List.of(reportHtml, reportJson, reportSarif, coverageJson));
+            List<Path> manifestedFiles = manifestFiles(
+                    input, active, suppressed, root, List.of(reportHtml, reportJson, reportSarif, coverageJson));
             Map<String, Object> manifest = manifest(input, root, manifestedFiles);
             writeJson(manifestJson, manifest);
             schemas.validate("manifest", manifestJson);
@@ -142,7 +143,9 @@ public final class ReportGenerator {
             finalized.add(manifestJson);
             artifactRedaction.assertSensitiveValuesAbsent(finalized);
 
-            archives.build(input.scanId(), root, archive);
+            List<Path> archiveInputs = new ArrayList<>(manifestedFiles);
+            archiveInputs.add(manifestJson);
+            archives.build(input.scanId(), root, archive, archiveInputs);
             validateArchive(archive);
             return new ReportBundle(reportHtml, reportJson, reportSarif, coverageJson, manifestJson, archive);
         } catch (IOException | RuntimeException exception) {
@@ -410,29 +413,56 @@ public final class ReportGenerator {
         return component.purl() + " / path=" + component.dependencyPath() + " / fixed=" + component.fixedVersions();
     }
 
-    private List<Path> manifestFiles(Path root, List<Path> reports) throws IOException {
+    private List<Path> manifestFiles(
+            ReportInput input, List<Finding> active, List<Finding> suppressed, Path root, List<Path> reports)
+            throws IOException {
         Set<Path> files = new TreeSet<>(Comparator.comparing(path -> portable(root.relativize(path))));
         files.addAll(reports);
-        for (String name : List.of("raw", "logs", "sbom")) {
-            Path directory = root.resolve(name);
-            if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
-                continue;
-            }
-            try (var paths = Files.walk(directory)) {
-                for (Path path : paths.toList()) {
-                    if (Files.isSymbolicLink(path)) {
-                        throw new IOException("symbolic link is forbidden in manifest inputs: " + path);
-                    }
-                    if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
-                        String relative = portable(root.relativize(path));
-                        if (!forbiddenReportArtifact(relative)) {
-                            files.add(path);
-                        }
-                    }
-                }
+        for (Finding finding : java.util.stream.Stream.concat(active.stream(), suppressed.stream()).toList()) {
+            for (FindingEvidence evidence : finding.evidence()) {
+                addDeclaredArtifact(root, files, evidence.rawArtifact());
             }
         }
+        for (EngineCoverage engine : input.coverage().engines()) {
+            if (!engine.engine().matches("[a-z0-9][a-z0-9-]{0,63}")) {
+                throw new IOException("unsafe engine identifier in report coverage: " + engine.engine());
+            }
+            addDeclaredArtifact(root, files, engine.artifact());
+            addOptionalArtifact(root, files, "raw/" + engine.engine() + "/stdout.log");
+            addOptionalArtifact(root, files, "raw/" + engine.engine() + "/stderr.log");
+            addOptionalArtifact(root, files, "logs/engines/" + engine.engine() + ".log");
+            addOptionalArtifact(root, files, "logs/engines/" + engine.engine() + "-stdout.log");
+            addOptionalArtifact(root, files, "logs/engines/" + engine.engine() + "-stderr.log");
+        }
+        addOptionalArtifact(root, files, "logs/engines/maven-build.log");
+        addOptionalArtifact(root, files, "logs/engines/maven-build-stdout.log");
+        addOptionalArtifact(root, files, "logs/engines/maven-build-stderr.log");
+        addOptionalArtifact(root, files, "sbom/bom.json");
         return List.copyOf(files);
+    }
+
+    private void addDeclaredArtifact(Path root, Set<Path> files, String relative) throws IOException {
+        if (relative == null || relative.isBlank()) {
+            return;
+        }
+        Path file = root.resolve(relative).normalize();
+        String portable = portable(root.relativize(file));
+        if (!file.startsWith(root) || forbiddenReportArtifact(portable)
+                || Files.isSymbolicLink(file) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("declared report artifact is missing or unsafe: " + relative);
+        }
+        files.add(file);
+    }
+
+    private void addOptionalArtifact(Path root, Set<Path> files, String relative) throws IOException {
+        Path file = root.resolve(relative).normalize();
+        if (!file.startsWith(root)) {
+            throw new IOException("optional report artifact escapes job root: " + relative);
+        }
+        if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        addDeclaredArtifact(root, files, relative);
     }
 
     private Map<String, Object> manifest(ReportInput input, Path root, List<Path> files) throws IOException {
@@ -482,13 +512,18 @@ public final class ReportGenerator {
     }
 
     private boolean forbiddenReportArtifact(String portablePath) {
-        return portablePath.startsWith("source/")
-                || portablePath.startsWith("workspace/")
-                || portablePath.startsWith("build/")
-                || portablePath.startsWith("codeql-db/")
-                || portablePath.startsWith("raw/codeql/database/")
-                || portablePath.equals("raw/codeql/database")
-                || portablePath.contains("/target/");
+        if (portablePath.startsWith("/") || portablePath.contains("../") || portablePath.equals("..")) {
+            return true;
+        }
+        Set<String> forbiddenSegments = Set.of(
+                "source", "workspace", "repository", "target", "build", "codeql-db", "database",
+                "home", "cache", ".m2", "tmp");
+        for (String segment : portablePath.split("/")) {
+            if (forbiddenSegments.contains(segment)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Path verifiedJobRoot(Path jobRoot) throws IOException {

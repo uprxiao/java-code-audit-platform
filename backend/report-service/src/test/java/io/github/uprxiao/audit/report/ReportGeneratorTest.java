@@ -48,6 +48,9 @@ class ReportGeneratorTest {
         Path jobRoot = Files.createDirectories(temporaryDirectory.resolve("job"));
         Path raw = Files.createDirectories(jobRoot.resolve("raw/semgrep"));
         Files.writeString(raw.resolve("report.json"), "{\"results\":[]}");
+        Files.writeString(Files.createDirectories(raw.resolve("home/.semgrep")).resolve("settings.yml"),
+                "anonymous_user_id: must-not-leave-job");
+        Files.writeString(Files.createDirectories(raw.resolve("cache")).resolve("index"), "cache-data");
         Path logs = Files.createDirectories(jobRoot.resolve("logs/engines"));
         Files.writeString(logs.resolve("semgrep.log"), "done");
         UUID scanId = UUID.fromString("00000000-0000-0000-0000-000000000123");
@@ -95,11 +98,15 @@ class ReportGeneratorTest {
         assertEquals(1, sarif.path("runs").get(0).path("results").size());
 
         JsonNode manifest = json.readTree(bundle.manifest().toFile());
+        Set<String> manifestPaths = new HashSet<>();
         for (JsonNode file : manifest.path("files")) {
+            manifestPaths.add(file.path("path").asText());
             Path actual = jobRoot.resolve(file.path("path").asText());
             assertEquals(file.path("size").asLong(), Files.size(actual));
             assertEquals(file.path("sha256").asText(), sha256(actual));
         }
+        assertFalse(manifestPaths.contains("raw/semgrep/home/.semgrep/settings.yml"));
+        assertFalse(manifestPaths.contains("raw/semgrep/cache/index"));
 
         Set<String> entries = new HashSet<>();
         try (ZipFile archive = new ZipFile(bundle.archive().toFile())) {
@@ -110,6 +117,8 @@ class ReportGeneratorTest {
         assertTrue(entries.contains("manifest.json"));
         assertTrue(entries.contains("raw/semgrep/report.json"));
         assertTrue(entries.contains("logs/engines/semgrep.log"));
+        assertFalse(entries.contains("raw/semgrep/home/.semgrep/settings.yml"));
+        assertFalse(entries.contains("raw/semgrep/cache/index"));
         assertTrue(entries.stream().noneMatch(name -> name.contains("source") || name.contains("workspace")
                 || name.contains("target") || name.contains("codeql-db")));
     }

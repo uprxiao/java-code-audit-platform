@@ -8,6 +8,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -16,8 +17,9 @@ import java.util.zip.ZipOutputStream;
 
 final class ReportArchiveBuilder {
 
-    Path build(UUID scanId, Path jobRoot, Path archiveTarget) throws IOException {
+    Path build(UUID scanId, Path jobRoot, Path archiveTarget, List<Path> declaredArtifacts) throws IOException {
         Objects.requireNonNull(scanId, "scanId");
+        Objects.requireNonNull(declaredArtifacts, "declaredArtifacts");
         Path root = jobRoot.toAbsolutePath().normalize();
         Path target = archiveTarget.toAbsolutePath().normalize();
         if (!target.startsWith(root)) {
@@ -33,10 +35,13 @@ final class ReportArchiveBuilder {
         Path temporary = target.getParent().resolve(target.getFileName() + ".tmp-" + UUID.randomUUID());
         try {
             try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)))) {
-                addTree(zip, root.resolve("report"), root.resolve("report"), "");
-                addTree(zip, root.resolve("raw"), root.resolve("raw"), "raw");
-                addTree(zip, root.resolve("logs"), root.resolve("logs"), "logs");
-                addTree(zip, root.resolve("sbom"), root.resolve("sbom"), "sbom");
+                for (Path file : declaredArtifacts.stream()
+                        .map(path -> path.toAbsolutePath().normalize())
+                        .distinct()
+                        .sorted(Comparator.comparing(path -> portable(root.relativize(path))))
+                        .toList()) {
+                    addDeclaredArtifact(zip, root, file);
+                }
             }
             move(temporary, target);
         } catch (IOException exception) {
@@ -46,40 +51,24 @@ final class ReportArchiveBuilder {
         return target;
     }
 
-    private void addTree(ZipOutputStream zip, Path allowedRoot, Path source, String prefix) throws IOException {
-        if (Files.isSymbolicLink(source)) {
-            throw new IOException("symbolic links are forbidden in report archives: " + source);
+    private void addDeclaredArtifact(ZipOutputStream zip, Path root, Path file) throws IOException {
+        if (!file.startsWith(root) || Files.isSymbolicLink(file)
+                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("declared report artifact is not a safe regular file: " + file);
         }
-        if (!Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) {
-            return;
+        String name = portable(root.relativize(file));
+        if (name.startsWith("/") || name.contains("../") || name.equals("..")) {
+            throw new IOException("unsafe ZIP entry name: " + name);
         }
-        try (var paths = Files.walk(source)) {
-            List<Path> entries = paths.sorted().toList();
-            for (Path file : entries) {
-                if (Files.isSymbolicLink(file)) {
-                    throw new IOException("symbolic links are forbidden in report archives: " + file);
-                }
-                if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-                    continue;
-                }
-                if (!file.toAbsolutePath().normalize().startsWith(allowedRoot.toAbsolutePath().normalize())) {
-                    throw new IOException("unsafe report archive path: " + file);
-                }
-                String relative = allowedRoot.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
-                String name = prefix.isBlank() ? relative : prefix + "/" + relative;
-                if (name.startsWith("/") || name.contains("../") || name.equals("..")) {
-                    throw new IOException("unsafe ZIP entry name: " + name);
-                }
-                if (name.startsWith("raw/codeql/database/") || name.equals("raw/codeql/database")) {
-                    continue;
-                }
-                zip.putNextEntry(new ZipEntry(name));
-                try (var input = new BufferedInputStream(Files.newInputStream(file))) {
-                    input.transferTo(zip);
-                }
-                zip.closeEntry();
-            }
+        zip.putNextEntry(new ZipEntry(name.startsWith("report/") ? name.substring("report/".length()) : name));
+        try (var input = new BufferedInputStream(Files.newInputStream(file))) {
+            input.transferTo(zip);
         }
+        zip.closeEntry();
+    }
+
+    private String portable(Path path) {
+        return path.toString().replace(path.getFileSystem().getSeparator(), "/");
     }
 
     private void move(Path source, Path target) throws IOException {

@@ -189,6 +189,29 @@ class CodeqlAdapterTest {
     }
 
     @Test
+    void missingSarifKindsNeverFabricatesSourceOrSink() throws Exception {
+        Path projectRoot = copyProject(temporaryDirectory.resolve("unlabelled-flow-project"));
+        ProjectContext project = project(projectRoot);
+        Path output = Files.createDirectories(temporaryDirectory.resolve("unlabelled-flow-output"));
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode sarif = mapper.readTree(resource("findings.sarif").toFile());
+        for (JsonNode location : sarif.path("runs").path(0).path("results").path(0)
+                .path("codeFlows").path(0).path("threadFlows").path(0).path("locations")) {
+            ((ObjectNode) location).remove("kinds");
+        }
+        Path report = output.resolve("report.sarif");
+        mapper.writeValue(report.toFile(), sarif);
+
+        NormalizationResult normalized = new CodeqlAdapter(createPinnedQuerySuite()).normalize(
+                scan(project, output), artifacts(report, output, ExecutionResult.Status.SUCCEEDED, 0));
+
+        assertEquals(1, normalized.findings().size());
+        assertTrue(normalized.findings().get(0).dataFlows().isEmpty());
+        assertEquals(EngineStatus.PARTIAL, normalized.coverage().status());
+        assertTrue(normalized.warnings().stream().anyMatch(warning -> warning.contains("explicit SARIF source")));
+    }
+
+    @Test
     void workflowDeletesOnlyValidatedDatabaseAndReturnsOnlySarifArtifact() throws Exception {
         Path suite = createPinnedQuerySuite();
         Path projectRoot = copyProject(temporaryDirectory.resolve("workflow-project"));

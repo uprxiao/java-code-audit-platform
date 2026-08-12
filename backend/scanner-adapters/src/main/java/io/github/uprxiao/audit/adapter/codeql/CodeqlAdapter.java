@@ -288,7 +288,8 @@ public final class CodeqlAdapter implements ScannerAdapter {
         properties.put("precision", ruleProperty(rule, "precision"));
         properties.put("securitySeverity", ruleProperty(rule, "security-severity"));
         properties.put("codeFlowCount", dataFlows.size());
-        properties.put("dataFlowRoles", "SARIF thread-flow order: first=SOURCE, middle=PROPAGATION, last=SINK");
+        properties.put("dataFlowRoles",
+                "Explicit SARIF kinds are preserved; unlabelled locations remain PROPAGATION");
         properties.put("severityMappingId", severity.mappingId());
         properties.put("severityMappingReason", severity.reason());
         FindingEvidence evidence = new FindingEvidence(ID.value(), CLI_VERSION, ruleId, engineSeverity,
@@ -321,11 +322,18 @@ public final class CodeqlAdapter implements ScannerAdapter {
                         JsonNode threadLocation = locations.get(index);
                         JsonNode sarifLocation = threadLocation.path("location");
                         SourceLocation location = sourceLocation(project, sarifLocation.path("physicalLocation"));
-                        DataFlowNode.Kind kind = flowKind(threadLocation, index, locations.size());
+                        DataFlowNode.Kind kind = flowKind(threadLocation);
                         nodes.add(new DataFlowNode(index, kind, location,
                                 message(sarifLocation.path("message"), kind.name())));
                     }
-                    flows.add(new DataFlow(ID.value(), nodes));
+                    boolean hasSource = nodes.stream().anyMatch(node -> node.kind() == DataFlowNode.Kind.SOURCE);
+                    boolean hasSink = nodes.stream().anyMatch(node -> node.kind() == DataFlowNode.Kind.SINK);
+                    if (hasSource && hasSink) {
+                        flows.add(new DataFlow(ID.value(), nodes));
+                    } else {
+                        warnings.add("CODEQL_FLOW_" + runIndex + "_" + resultIndex + "_" + flowIndex
+                                + ": explicit SARIF source and sink kinds are required; flow omitted");
+                    }
                 } catch (IOException | IllegalArgumentException exception) {
                     warnings.add("CODEQL_FLOW_" + runIndex + "_" + resultIndex + "_" + flowIndex
                             + ": " + exception.getMessage() + "; flow omitted");
@@ -336,14 +344,12 @@ public final class CodeqlAdapter implements ScannerAdapter {
         return List.copyOf(flows);
     }
 
-    private DataFlowNode.Kind flowKind(JsonNode threadLocation, int index, int count) {
+    private DataFlowNode.Kind flowKind(JsonNode threadLocation) {
         for (JsonNode kind : threadLocation.path("kinds")) {
             String value = kind.asText().toLowerCase(Locale.ROOT);
             if (value.contains("source")) return DataFlowNode.Kind.SOURCE;
             if (value.contains("sink")) return DataFlowNode.Kind.SINK;
         }
-        if (index == 0) return DataFlowNode.Kind.SOURCE;
-        if (index == count - 1) return DataFlowNode.Kind.SINK;
         return DataFlowNode.Kind.PROPAGATION;
     }
 
