@@ -13,8 +13,22 @@ public record ScanContext(
         ScanProfile profile,
         ProjectContext project,
         Path engineOutputDirectory,
+        Path engineTemporaryDirectory,
         List<String> mavenProfiles,
         Map<String, String> mavenProperties) {
+
+    public ScanContext(
+            UUID scanId,
+            ScanProfile profile,
+            ProjectContext project,
+            Path engineOutputDirectory,
+            List<String> mavenProfiles,
+            Map<String, String> mavenProperties) {
+        this(scanId, profile, project, engineOutputDirectory,
+                Objects.requireNonNull(engineOutputDirectory, "engineOutputDirectory")
+                        .toAbsolutePath().normalize().resolve("database"),
+                mavenProfiles, mavenProperties);
+    }
 
     public ScanContext {
         Objects.requireNonNull(scanId, "scanId");
@@ -22,6 +36,8 @@ public record ScanContext(
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(engineOutputDirectory, "engineOutputDirectory");
         engineOutputDirectory = engineOutputDirectory.toAbsolutePath().normalize();
+        Objects.requireNonNull(engineTemporaryDirectory, "engineTemporaryDirectory");
+        engineTemporaryDirectory = engineTemporaryDirectory.toAbsolutePath().normalize();
         mavenProfiles = mavenProfiles == null ? List.of() : List.copyOf(mavenProfiles);
         mavenProperties = mavenProperties == null ? Map.of() : Map.copyOf(mavenProperties);
     }

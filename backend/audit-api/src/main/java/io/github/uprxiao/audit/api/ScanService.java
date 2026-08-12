@@ -1,5 +1,6 @@
 package io.github.uprxiao.audit.api;
 
+import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.EngineTaskState;
 import io.github.uprxiao.audit.finding.FailureDetails;
@@ -671,7 +672,11 @@ public final class ScanService {
                 return EngineExecutionResult.failed(applicability.reasonCode(), applicability.detail());
             }
             Path engineOutput = runtime.layout.rawEngine(id.value());
+            Path engineTemporary = CodeqlAdapter.ID.equals(id)
+                    ? runtime.layout.safeResolve("codeql-db/database")
+                    : engineOutput.resolve("database");
             ScanContext context = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
+                    engineTemporary,
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             ExecutionSpec specification = adapter.prepare(context, scanners.tools());
             ExecutionResult execution = processes.execute(specification,

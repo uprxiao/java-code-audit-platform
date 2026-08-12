@@ -184,9 +184,11 @@ public final class CodeqlAdapter implements ScannerAdapter {
     }
 
     Path databaseDirectory(ScanContext context) throws IOException {
-        Path output = context.engineOutputDirectory().toAbsolutePath().normalize();
-        Path database = output.resolve(DATABASE_DIRECTORY).normalize();
-        if (!database.startsWith(output) || !Objects.equals(database.getParent(), output)) {
+        Path database = context.engineTemporaryDirectory().toAbsolutePath().normalize();
+        if (!DATABASE_DIRECTORY.equals(database.getFileName().toString())
+                || database.getParent() == null
+                || database.equals(context.project().workspaceRoot())
+                || database.startsWith(context.project().workspaceRoot())) {
             throw new IOException("unsafe CodeQL database path");
         }
         return database;

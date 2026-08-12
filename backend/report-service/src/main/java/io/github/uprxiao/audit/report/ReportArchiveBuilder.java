@@ -70,6 +70,9 @@ final class ReportArchiveBuilder {
                 if (name.startsWith("/") || name.contains("../") || name.equals("..")) {
                     throw new IOException("unsafe ZIP entry name: " + name);
                 }
+                if (name.startsWith("raw/codeql/database/") || name.equals("raw/codeql/database")) {
+                    continue;
+                }
                 zip.putNextEntry(new ZipEntry(name));
                 try (var input = new BufferedInputStream(Files.newInputStream(file))) {
                     input.transferTo(zip);

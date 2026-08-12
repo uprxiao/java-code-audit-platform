@@ -45,7 +45,7 @@ public final class CodeqlWorkflow {
             throw new CodeqlWorkflowException(Phase.OUTPUT_VALIDATION,
                     "CodeQL SARIF validation failed: " + validation.errors(), analyzeResult);
         }
-        deleteDatabase(adapter.databaseDirectory(context), context.engineOutputDirectory());
+        deleteDatabase(adapter.databaseDirectory(context), context.engineTemporaryDirectory());
         return new Result(artifacts, createResult, analyzeResult, true);
     }
 
@@ -56,10 +56,11 @@ public final class CodeqlWorkflow {
         }
     }
 
-    private void deleteDatabase(Path database, Path engineOutput) throws IOException {
-        Path safeOutput = engineOutput.toAbsolutePath().normalize();
+    private void deleteDatabase(Path database, Path configuredTemporaryDirectory) throws IOException {
+        Path safeTemporaryDirectory = configuredTemporaryDirectory.toAbsolutePath().normalize();
         Path safeDatabase = database.toAbsolutePath().normalize();
-        if (!safeDatabase.startsWith(safeOutput) || !Objects.equals(safeDatabase.getParent(), safeOutput)
+        if (!safeDatabase.equals(safeTemporaryDirectory)
+                || safeDatabase.getParent() == null
                 || !CodeqlAdapter.DATABASE_DIRECTORY.equals(safeDatabase.getFileName().toString())) {
             throw new IOException("refusing to delete unsafe CodeQL database path: " + safeDatabase);
         }

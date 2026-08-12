@@ -424,7 +424,10 @@ public final class ReportGenerator {
                         throw new IOException("symbolic link is forbidden in manifest inputs: " + path);
                     }
                     if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
-                        files.add(path);
+                        String relative = portable(root.relativize(path));
+                        if (!forbiddenReportArtifact(relative)) {
+                            files.add(path);
+                        }
                     }
                 }
             }
@@ -471,13 +474,21 @@ public final class ReportGenerator {
             while (entries.hasMoreElements()) {
                 String name = entries.nextElement().getName();
                 if (name.startsWith("/") || name.contains("../") || name.equals("..")
-                        || name.startsWith("source/") || name.startsWith("workspace/")
-                        || name.startsWith("build/") || name.startsWith("codeql-db/")
-                        || name.contains("/target/")) {
+                        || forbiddenReportArtifact(name)) {
                     throw new IOException("unsafe or forbidden report archive entry: " + name);
                 }
             }
         }
+    }
+
+    private boolean forbiddenReportArtifact(String portablePath) {
+        return portablePath.startsWith("source/")
+                || portablePath.startsWith("workspace/")
+                || portablePath.startsWith("build/")
+                || portablePath.startsWith("codeql-db/")
+                || portablePath.startsWith("raw/codeql/database/")
+                || portablePath.equals("raw/codeql/database")
+                || portablePath.contains("/target/");
     }
 
     private Path verifiedJobRoot(Path jobRoot) throws IOException {

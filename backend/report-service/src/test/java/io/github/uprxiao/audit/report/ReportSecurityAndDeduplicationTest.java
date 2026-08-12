@@ -61,6 +61,8 @@ class ReportSecurityAndDeduplicationTest {
         Files.writeString(logs.resolve("build.log"), "password=" + EXACT_SECRET + " " + CANARY);
         Files.createDirectories(root.resolve("source"));
         Files.writeString(root.resolve("source/DoNotArchive.java"), "class DoNotArchive {}");
+        Path failedCodeqlDatabase = Files.createDirectories(root.resolve("raw/codeql/database/src"));
+        Files.writeString(failedCodeqlDatabase.resolve("Captured.java"), "class MustNeverLeaveTheJob {}");
 
         Finding semgrep = sqlFinding("semgrep", 20, 70, null);
         Finding findsecbugs = sqlFinding("findsecbugs", 20, 70, null);
@@ -107,6 +109,7 @@ class ReportSecurityAndDeduplicationTest {
             assertTrue(archive.getEntry("raw/semgrep/report.json") != null);
             assertTrue(archive.getEntry("logs/engines/build.log") != null);
             assertTrue(archive.getEntry("source/DoNotArchive.java") == null);
+            assertTrue(archive.getEntry("raw/codeql/database/src/Captured.java") == null);
             var entries = archive.entries();
             while (entries.hasMoreElements()) {
                 var entry = entries.nextElement();
