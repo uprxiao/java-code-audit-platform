@@ -9,11 +9,13 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.text.Normalizer;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import org.apache.commons.compress.archivers.zip.UnixStat;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
@@ -39,6 +41,7 @@ public final class SafeZipExtractor {
         Files.createDirectories(root);
         Counters counters = new Counters();
         Set<Path> targets = new HashSet<>();
+        Set<String> portableCollisionKeys = new HashSet<>();
         try (ZipFile zip = ZipFile.builder().setPath(normalizedArchive).get()) {
             Enumeration<ZipArchiveEntry> entries = zip.getEntries();
             while (entries.hasMoreElements()) {
@@ -47,7 +50,7 @@ public final class SafeZipExtractor {
                 if (counters.entries > limits.maxEntries()) {
                     throw limit("archive contains too many entries", counters);
                 }
-                Path target = validateEntry(root, entry, targets);
+                Path target = validateEntry(root, entry, targets, portableCollisionKeys);
                 if (entry.isDirectory()) {
                     Files.createDirectories(target);
                     continue;
@@ -67,7 +70,11 @@ public final class SafeZipExtractor {
         return new ZipExtractionResult(root, counters.entries, counters.files, counters.expandedBytes);
     }
 
-    private Path validateEntry(Path root, ZipArchiveEntry entry, Set<Path> targets) throws IOException {
+    private Path validateEntry(
+            Path root,
+            ZipArchiveEntry entry,
+            Set<Path> targets,
+            Set<String> portableCollisionKeys) throws IOException {
         String name = entry.getName();
         if (hasForbiddenRawNameByte(entry.getRawName()) || name == null || name.isBlank()
                 || name.indexOf('\0') >= 0 || name.indexOf('\\') >= 0
@@ -87,6 +94,11 @@ public final class SafeZipExtractor {
         }
         if (!targets.add(target)) {
             throw new SourceIntakeException("UNSAFE_ARCHIVE_ENTRY", "duplicate ZIP entry target: " + name);
+        }
+        String collisionKey = Normalizer.normalize(name, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
+        if (!portableCollisionKeys.add(collisionKey)) {
+            throw new SourceIntakeException("UNSAFE_ARCHIVE_ENTRY",
+                    "ZIP entries collide on a supported target file system: " + name);
         }
         ensureNoSymbolicLink(root, target.getParent());
         return target;

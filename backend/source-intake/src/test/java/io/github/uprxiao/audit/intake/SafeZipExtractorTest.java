@@ -70,6 +70,23 @@ class SafeZipExtractorTest {
     }
 
     @Test
+    void rejectsCaseAndUnicodeNormalizationCollisionsAcrossSupportedPlatforms() throws Exception {
+        Path caseCollision = zip("case-collision.zip", Map.of("src/App.java", "one", "src/app.java", "two"));
+        SourceIntakeException caseError = assertThrows(SourceIntakeException.class,
+                () -> extractor.extract(caseCollision, temporaryDirectory.resolve("case-output"),
+                        new ZipExtractionLimits(100_000, 100_000, 50_000, 10, 100)));
+        assertEquals("UNSAFE_ARCHIVE_ENTRY", caseError.code());
+
+        Path unicodeCollision = zip("unicode-collision.zip", Map.of(
+                "src/caf\u00e9.java", "one",
+                "src/cafe\u0301.java", "two"));
+        SourceIntakeException unicodeError = assertThrows(SourceIntakeException.class,
+                () -> extractor.extract(unicodeCollision, temporaryDirectory.resolve("unicode-output"),
+                        new ZipExtractionLimits(100_000, 100_000, 50_000, 10, 100)));
+        assertEquals("UNSAFE_ARCHIVE_ENTRY", unicodeError.code());
+    }
+
+    @Test
     void rejectsCompressionBombSingleFileAndEntryCountLimits() throws Exception {
         Path bomb = zip("bomb.zip", Map.of("bomb.txt", "a".repeat(50_000)));
         SourceIntakeException ratio = assertThrows(SourceIntakeException.class,
