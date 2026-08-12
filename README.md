@@ -76,13 +76,29 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 ./mvnw clean verify
 ./scripts/build-semgrep-pack.sh darwin-arm64
 ./scripts/build-quick-tool-pack.sh darwin-arm64
+./scripts/build-standard-analysis-pack.sh
+./scripts/build-standard-supply-tool-pack.sh darwin-arm64
 
 export AUDIT_SEMGREP_EXECUTABLE="$PWD/tools/downloads/tool-pack/darwin-arm64/semgrep/semgrep/bin/semgrep"
 export AUDIT_QUICK_TOOL_ROOT="$PWD/tools/downloads/tool-pack/darwin-arm64/quick"
+export AUDIT_STANDARD_ANALYSIS_ROOT="$PWD/tools/downloads/tool-pack/common/standard-analysis"
+export AUDIT_STANDARD_SUPPLY_ROOT="$PWD/tools/downloads/tool-pack/darwin-arm64/standard-supply"
+export AUDIT_VULNERABILITY_DATA_ROOT="$PWD/data/databases"
 ./mvnw -pl backend/audit-api -am spring-boot:run
 ```
 
-当前可用 `POST /api/v1/scans/zip` 执行真实 Quick 扫描；进度、引擎、Finding、取消、删除和报告下载接口见 [API 契约](docs/v1/api-contract.md)。
+Standard 还要求先通过 `bin/update-vulnerability-data.sh`（发布包）或
+`scripts/update-standard-vulnerability-data.sh`（源码树）初始化 Dependency-Check、Trivy 和
+Trivy Java 数据库；缺库时 Standard 会明确显示不可用，不会把缺库解释成零漏洞。
+
+Deep 使用本机 CodeQL，且必须显式记录授权和条款确认：
+
+```bash
+export AUDIT_CODEQL_ENABLED=true
+export AUDIT_CODEQL_TERMS_ACCEPTED=true
+```
+
+当前可用 `POST /api/v1/scans/zip` 执行 Quick、Standard 或受控 Deep 扫描；进度、引擎、Finding、取消、删除和报告下载接口见 [API 契约](docs/v1/api-contract.md)。
 
 ## 核心文档
 

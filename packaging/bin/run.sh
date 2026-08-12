@@ -49,6 +49,7 @@ export AUDIT_STANDARD_SUPPLY_ROOT="${AUDIT_STANDARD_SUPPLY_ROOT:-${BUNDLE_ROOT}/
 export AUDIT_VULNERABILITY_DATA_ROOT="${AUDIT_VULNERABILITY_DATA_ROOT:-${BUNDLE_ROOT}/data/databases}"
 export AUDIT_CODEQL_EXECUTABLE="${AUDIT_CODEQL_EXECUTABLE:-${BUNDLE_ROOT}/tools/local/codeql-v2.26.2/codeql/codeql}"
 export AUDIT_CODEQL_QUERY_ROOT="${AUDIT_CODEQL_QUERY_ROOT:-${BUNDLE_ROOT}/tools/local/codeql-packs}"
+export AUDIT_CODEQL_QUERY_SUITE="${AUDIT_CODEQL_QUERY_SUITE:-${AUDIT_CODEQL_QUERY_ROOT}/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}"
 
 exec java ${AUDIT_JAVA_OPTS:--Xms512m -Xmx4g -Djava.awt.headless=true} \
   -jar "${APP_JAR}" \

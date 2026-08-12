@@ -127,10 +127,13 @@ CodeQL 不是常驻服务。安装后由 Java 进程调用 CLI：
 
 ```text
 tools/local/codeql-v2.26.2/
-├── codeql
-├── java/
-├── qlpacks/
-└── ...
+└── codeql/
+    ├── codeql
+    └── ...
+
+tools/local/codeql-packs/codeql/java-queries/1.11.7/
+├── qlpack.yml
+└── codeql-suites/java-security-and-quality.qls
 ```
 
 规则：
@@ -139,6 +142,9 @@ tools/local/codeql-v2.26.2/
 - 目录被 `.gitignore` 排除；
 - 启动时检查 CLI 和查询包版本兼容；
 - 目标项目必须通过使用资格策略；
+- 服务端必须同时设置 `AUDIT_CODEQL_ENABLED=true` 与
+  `AUDIT_CODEQL_TERMS_ACCEPTED=true`；任一缺失时 Deep 健康状态返回明确 reason code，
+  不影响 Quick/Standard；
 - 未安装时 Quick/Standard 可用，Deep 显示不可用；
 - Deep 请求不能静默退化；
 - CodeQL 数据库只存在于任务工作区，报告完成后删除；
