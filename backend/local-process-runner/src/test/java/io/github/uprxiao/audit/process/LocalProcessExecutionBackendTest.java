@@ -43,6 +43,12 @@ class LocalProcessExecutionBackendTest {
     private final LocalProcessExecutionBackend backend = new LocalProcessExecutionBackend(configuration, Clock.systemUTC());
 
     @Test
+    void defaultEnvironmentAllowsTheFixedPythonNoBytecodeGuard() {
+        assertTrue(ProcessRunnerConfiguration.defaults().allowedEnvironmentKeys()
+                .contains("PYTHONDONTWRITEBYTECODE"));
+    }
+
+    @Test
     void handlesSuccessFindingFailureAndInvalidReportModes() throws Exception {
         ExecutionResult success = backend.execute(spec("success", Duration.ofSeconds(5)), CancellationToken.NONE);
         assertEquals(ExecutionResult.Status.SUCCEEDED, success.status());

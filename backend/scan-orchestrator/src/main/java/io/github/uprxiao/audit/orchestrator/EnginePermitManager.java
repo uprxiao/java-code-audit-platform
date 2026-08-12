@@ -3,9 +3,13 @@ package io.github.uprxiao.audit.orchestrator;
 import io.github.uprxiao.audit.scanner.EngineId;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -53,8 +57,16 @@ public final class EnginePermitManager {
 
     public Optional<PermitLease> tryAcquire(
             UUID scanId, EngineId toolPermit, int weight, Duration maximumWait) throws InterruptedException {
+        return tryAcquire(scanId, Set.of(Objects.requireNonNull(toolPermit, "toolPermit")), weight, maximumWait);
+    }
+
+    public Optional<PermitLease> tryAcquire(
+            UUID scanId, Set<EngineId> toolPermits, int weight, Duration maximumWait) throws InterruptedException {
         Objects.requireNonNull(scanId, "scanId");
-        Objects.requireNonNull(toolPermit, "toolPermit");
+        Objects.requireNonNull(toolPermits, "toolPermits");
+        if (toolPermits.isEmpty() || toolPermits.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("at least one non-null tool permit is required");
+        }
         Objects.requireNonNull(maximumWait, "maximumWait");
         if (weight < 1 || weight > weightedLimit) {
             throw new IllegalArgumentException("engine weight must fit the configured weighted permit pool");
@@ -63,13 +75,17 @@ public final class EnginePermitManager {
             throw new IllegalArgumentException("maximumWait must not be negative");
         }
         Semaphore scan = scans.computeIfAbsent(scanId, ignored -> new Semaphore(perScanLimit, true));
-        Semaphore tool = tools.get(toolPermit);
+        List<Semaphore> requestedTools = toolPermits.stream()
+                .sorted(Comparator.comparing(EngineId::value))
+                .map(tools::get)
+                .filter(Objects::nonNull)
+                .toList();
         long deadline = System.nanoTime() + maximumWait.toNanos();
         do {
             boolean globalAcquired = global.tryAcquire();
             boolean scanAcquired = false;
             boolean weightAcquired = false;
-            boolean toolAcquired = false;
+            List<Semaphore> acquiredTools = new ArrayList<>();
             if (globalAcquired) {
                 scanAcquired = scan.tryAcquire();
             }
@@ -77,14 +93,16 @@ public final class EnginePermitManager {
                 weightAcquired = weighted.tryAcquire(weight);
             }
             if (weightAcquired) {
-                toolAcquired = tool == null || tool.tryAcquire();
+                for (Semaphore tool : requestedTools) {
+                    if (!tool.tryAcquire()) break;
+                    acquiredTools.add(tool);
+                }
             }
+            boolean toolAcquired = acquiredTools.size() == requestedTools.size();
             if (globalAcquired && scanAcquired && weightAcquired && toolAcquired) {
-                return Optional.of(new PermitLease(global, scan, weighted, tool, weight));
+                return Optional.of(new PermitLease(global, scan, weighted, acquiredTools, weight));
             }
-            if (toolAcquired && tool != null) {
-                tool.release();
-            }
+            acquiredTools.forEach(Semaphore::release);
             if (weightAcquired) {
                 weighted.release(weight);
             }
@@ -151,24 +169,23 @@ public final class EnginePermitManager {
         private final Semaphore global;
         private final Semaphore scan;
         private final Semaphore weighted;
-        private final Semaphore tool;
+        private final List<Semaphore> tools;
         private final int weight;
         private final AtomicBoolean closed = new AtomicBoolean();
 
-        private PermitLease(Semaphore global, Semaphore scan, Semaphore weighted, Semaphore tool, int weight) {
+        private PermitLease(
+                Semaphore global, Semaphore scan, Semaphore weighted, List<Semaphore> tools, int weight) {
             this.global = global;
             this.scan = scan;
             this.weighted = weighted;
-            this.tool = tool;
+            this.tools = List.copyOf(tools);
             this.weight = weight;
         }
 
         @Override
         public void close() {
             if (closed.compareAndSet(false, true)) {
-                if (tool != null) {
-                    tool.release();
-                }
+                tools.forEach(Semaphore::release);
                 weighted.release(weight);
                 scan.release();
                 global.release();

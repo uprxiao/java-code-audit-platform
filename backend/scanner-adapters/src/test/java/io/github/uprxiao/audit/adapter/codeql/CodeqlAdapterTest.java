@@ -52,7 +52,7 @@ class CodeqlAdapterTest {
     Path temporaryDirectory;
 
     @Test
-    void contractUsesTwoSafeShellFreePinnedPhases() throws Exception {
+    void contractUsesFourSafeShellFreePinnedPhases() throws Exception {
         Path suite = createPinnedQuerySuite();
         Path projectRoot = copyProject(temporaryDirectory.resolve("contract-project"));
         ProjectContext project = project(projectRoot);
@@ -64,12 +64,22 @@ class CodeqlAdapterTest {
 
         assertDescriptorContract(adapter);
         assertEquals(Applicability.Status.APPLICABLE, adapter.checkApplicability(project, tools).status());
-        ExecutionSpec creation = adapter.prepareDatabaseCreation(scan, tools);
-        assertSafeExecutionSpec(creation, temporaryDirectory.resolve("task"));
-        assertTrue(creation.command().contains("--build-mode=none"));
-        assertFalse(creation.command().stream().anyMatch(argument -> argument.startsWith("--command")));
+        ExecutionSpec initialization = adapter.prepareDatabaseInitialization(scan, tools);
+        assertSafeExecutionSpec(initialization, temporaryDirectory.resolve("task"));
+        assertTrue(initialization.command().contains("--build-mode=manual"));
+        assertFalse(initialization.command().stream().anyMatch(argument -> argument.startsWith("--command")));
 
         Files.createDirectories(adapter.databaseDirectory(scan));
+        ExecutionSpec trace = adapter.prepareBuildTrace(scan, tools);
+        assertSafeExecutionSpec(trace, temporaryDirectory.resolve("task"));
+        assertTrue(trace.command().contains("trace-command"));
+        assertTrue(trace.command().contains("clean"));
+        assertTrue(trace.command().contains("package"));
+        assertTrue(trace.command().contains("--"));
+        assertFalse(trace.command().stream().anyMatch(argument -> argument.startsWith("--command")));
+        ExecutionSpec finalization = adapter.prepareDatabaseFinalization(scan, tools);
+        assertSafeExecutionSpec(finalization, temporaryDirectory.resolve("task"));
+        assertTrue(finalization.command().contains("finalize"));
         ExecutionSpec analysis = adapter.prepareAnalysis(scan, tools);
         assertSafeExecutionSpec(analysis, temporaryDirectory.resolve("task"));
         assertTrue(analysis.command().contains("--format=sarifv2.1.0"));
@@ -261,7 +271,9 @@ class CodeqlAdapterTest {
             if (calls.size() == 1) {
                 Path database = Files.createDirectories(adapter.databaseDirectory(scan));
                 Files.writeString(database.resolve("sentinel"), "database");
-            } else {
+                Files.writeString(Files.createDirectories(database.resolve("db-java/default/cache"))
+                        .resolve("cache-entry"), "cache");
+            } else if (calls.size() == 4) {
                 copyReport("findings.sarif", adapter.reportPath(scan));
             }
             return execution(specification.workingDirectory(), ExecutionResult.Status.SUCCEEDED, 0);
@@ -270,7 +282,7 @@ class CodeqlAdapterTest {
         CodeqlWorkflow.Result result = new CodeqlWorkflow(fake).execute(adapter, scan,
                 tools(executable, CodeqlAdapter.CLI_VERSION), CancellationToken.NONE);
 
-        assertEquals(2, calls.size());
+        assertEquals(4, calls.size());
         assertTrue(result.databaseDeleted());
         assertFalse(Files.exists(adapter.databaseDirectory(scan)));
         assertEquals(Set.of("report"), result.artifacts().artifacts().keySet());
@@ -292,7 +304,9 @@ class CodeqlAdapterTest {
                 Files.createDirectories(failedAdapter.databaseDirectory(failedScan));
                 return execution(specification.workingDirectory(), ExecutionResult.Status.SUCCEEDED, 0);
             }
-            return execution(specification.workingDirectory(), ExecutionResult.Status.FAILED, 2);
+            return execution(specification.workingDirectory(),
+                    failedCalls[0] == 4 ? ExecutionResult.Status.FAILED : ExecutionResult.Status.SUCCEEDED,
+                    failedCalls[0] == 4 ? 2 : 0);
         };
 
         CodeqlWorkflow.CodeqlWorkflowException analysisFailure = assertThrows(
@@ -310,7 +324,7 @@ class CodeqlAdapterTest {
             invalidCalls[0]++;
             if (invalidCalls[0] == 1) {
                 Files.createDirectories(invalidAdapter.databaseDirectory(invalidScan));
-            } else {
+            } else if (invalidCalls[0] == 4) {
                 copyReport("malformed.sarif", invalidAdapter.reportPath(invalidScan));
             }
             return execution(specification.workingDirectory(), ExecutionResult.Status.SUCCEEDED, 0);
@@ -341,7 +355,7 @@ class CodeqlAdapterTest {
                     () -> new CodeqlWorkflow(backend).execute(
                             adapter, scan, tools(executable, CodeqlAdapter.CLI_VERSION), CancellationToken.NONE));
 
-            assertEquals(CodeqlWorkflow.Phase.DATABASE_CREATE, failure.phase());
+            assertEquals(CodeqlWorkflow.Phase.DATABASE_INITIALIZE, failure.phase());
             assertEquals(status, failure.execution().status());
         }
     }

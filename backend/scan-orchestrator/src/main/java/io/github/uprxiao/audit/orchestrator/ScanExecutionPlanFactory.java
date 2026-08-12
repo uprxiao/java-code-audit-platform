@@ -45,7 +45,8 @@ public final class ScanExecutionPlanFactory {
                 dependencies.add(MAVEN_BUILD);
             }
             tasks.add(new ScheduledEngineTask(
-                    engine.engine().id(), dependencies, engine.weight(), toolPermit(engine.engine()), action));
+                    engine.engine().id(), dependencies, engine.weight(), toolPermits(engine.engine()),
+                    DependencyFailurePolicy.SKIP, action));
         }
         return new ScheduledScanJob(scanId, tasks, listener);
     }
@@ -58,12 +59,14 @@ public final class ScanExecutionPlanFactory {
         return create(scanId, plan, mavenBuild, actions, ScanJobListener.NONE);
     }
 
-    private EngineId toolPermit(ScanEngine engine) {
+    private Set<EngineId> toolPermits(ScanEngine engine) {
         return switch (engine) {
-            case MAVEN_DEPENDENCY_ANALYSIS, MAVEN_ENFORCER, CYCLONEDX -> MAVEN_TOOL_PERMIT;
-            case DEPENDENCY_CHECK -> DEPENDENCY_CHECK_TOOL_PERMIT;
-            case CODEQL -> CODEQL_TOOL_PERMIT;
-            default -> engine.id();
+            case MAVEN_DEPENDENCY_ANALYSIS, MAVEN_ENFORCER, CYCLONEDX -> Set.of(MAVEN_TOOL_PERMIT);
+            case DEPENDENCY_CHECK -> Set.of(DEPENDENCY_CHECK_TOOL_PERMIT);
+            // The manual CodeQL workflow traces a fixed Maven build and therefore
+            // must obey both independent global limits atomically.
+            case CODEQL -> Set.of(CODEQL_TOOL_PERMIT, MAVEN_TOOL_PERMIT);
+            default -> Set.of(engine.id());
         };
     }
 }

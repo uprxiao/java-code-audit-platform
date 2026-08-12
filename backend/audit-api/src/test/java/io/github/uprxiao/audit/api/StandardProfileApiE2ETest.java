@@ -109,6 +109,7 @@ class StandardProfileApiE2ETest {
             assertEquals(14, unique(created.path("plannedEngines")).size());
             JsonNode terminal = waitForTerminal(created.path("scanId").asText());
             assertEquals("COMPLETED", terminal.path("status").asText(), terminal.toPrettyString());
+            assertEquals("SUCCEEDED", terminal.path("build").path("status").asText());
             assertEquals(14, terminal.path("progress").path("enginesTotal").asInt());
             JsonNode engines = engines(created.path("scanId").asText());
             assertEquals(14, engines.size());
@@ -135,7 +136,8 @@ class StandardProfileApiE2ETest {
         assertEquals(15, created.path("plannedEngines").size());
         JsonNode terminal = waitForTerminal(created.path("scanId").asText());
         assertEquals("COMPLETED", terminal.path("status").asText(), terminal.toPrettyString());
-        assertEquals(2, CODEQL_PHASES.get(), "CodeQL must execute database-create and database-analyze");
+        assertEquals(4, CODEQL_PHASES.get(),
+                "CodeQL must initialize, trace Maven, finalize, and analyze");
         JsonNode sarif = json.readTree(mvc.perform(get("/api/v1/scans/{scanId}/reports/sarif",
                         created.path("scanId").asText()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
@@ -164,6 +166,7 @@ class StandardProfileApiE2ETest {
         JsonNode terminal = waitForTerminal(created.path("scanId").asText());
 
         assertEquals("COMPLETED_WITH_ERRORS", terminal.path("status").asText(), terminal.toPrettyString());
+        assertEquals("FAILED", terminal.path("build").path("status").asText());
         JsonNode engines = engines(created.path("scanId").asText());
         Set<String> quick = Set.of(
                 "gitleaks", "semgrep", "pmd", "pmd-cpd", "checkstyle", "trivy-repository");
@@ -390,7 +393,7 @@ class StandardProfileApiE2ETest {
             return new CodeqlWorkflow((specification, cancellationToken) -> {
                 CODEQL_PHASES.incrementAndGet();
                 List<String> command = specification.command();
-                if (command.contains("create")) {
+                if (command.contains("init")) {
                     Files.createDirectories(Path.of(command.get(command.size() - 1)));
                 } else if (command.contains("analyze")) {
                     String output = command.stream().filter(value -> value.startsWith("--output="))

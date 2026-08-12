@@ -8,7 +8,7 @@ public record ScheduledEngineTask(
         EngineId id,
         Set<EngineId> dependsOn,
         int weight,
-        EngineId toolPermit,
+        Set<EngineId> toolPermits,
         DependencyFailurePolicy dependencyFailurePolicy,
         EngineAction action) {
 
@@ -21,7 +21,7 @@ public record ScheduledEngineTask(
         if (weight < 1) {
             throw new IllegalArgumentException("engine weight must be positive");
         }
-        toolPermit = toolPermit == null ? id : toolPermit;
+        toolPermits = toolPermits == null || toolPermits.isEmpty() ? Set.of(id) : Set.copyOf(toolPermits);
         dependencyFailurePolicy = dependencyFailurePolicy == null
                 ? DependencyFailurePolicy.SKIP
                 : dependencyFailurePolicy;
@@ -33,11 +33,23 @@ public record ScheduledEngineTask(
             Set<EngineId> dependsOn,
             int weight,
             EngineId toolPermit,
+            DependencyFailurePolicy dependencyFailurePolicy,
             EngineAction action) {
-        this(id, dependsOn, weight, toolPermit, DependencyFailurePolicy.SKIP, action);
+        this(id, dependsOn, weight, Set.of(toolPermit == null ? id : toolPermit),
+                dependencyFailurePolicy, action);
+    }
+
+    public ScheduledEngineTask(
+            EngineId id,
+            Set<EngineId> dependsOn,
+            int weight,
+            EngineId toolPermit,
+            EngineAction action) {
+        this(id, dependsOn, weight, Set.of(toolPermit == null ? id : toolPermit),
+                DependencyFailurePolicy.SKIP, action);
     }
 
     public ScheduledEngineTask(EngineId id, Set<EngineId> dependsOn, int weight, EngineAction action) {
-        this(id, dependsOn, weight, id, DependencyFailurePolicy.SKIP, action);
+        this(id, dependsOn, weight, Set.of(id), DependencyFailurePolicy.SKIP, action);
     }
 }

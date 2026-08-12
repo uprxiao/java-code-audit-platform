@@ -20,6 +20,7 @@ import io.github.uprxiao.audit.finding.SeverityMappingService;
 import io.github.uprxiao.audit.finding.SourceLocation;
 import io.github.uprxiao.audit.finding.VulnerabilityIdentifiers;
 import io.github.uprxiao.audit.intake.ProjectContext;
+import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.ArtifactValidation;
 import io.github.uprxiao.audit.scanner.EngineDescriptor;
@@ -69,22 +70,36 @@ public final class CodeqlAdapter implements ScannerAdapter {
     private final Path querySuite;
     private final Path mavenExecutable;
     private final Path javaHome;
+    private final Path mavenLocalRepository;
+    private final Path mavenSettings;
     private final ObjectMapper json;
+    private final MavenArgumentValidator mavenArguments = new MavenArgumentValidator();
     private final FindingFingerprintService fingerprints = new FindingFingerprintService();
     private final SeverityMappingService severities = new SeverityMappingService();
 
     public CodeqlAdapter(Path querySuite) {
-        this(querySuite, resolveMavenExecutable(), Path.of(System.getProperty("java.home")));
+        this(querySuite, resolveMavenExecutable(), Path.of(System.getProperty("java.home")),
+                Path.of(System.getProperty("user.home"), ".m2/repository"), null);
     }
 
     public CodeqlAdapter(Path querySuite, Path mavenExecutable, Path javaHome) {
-        this(querySuite, mavenExecutable, javaHome, new ObjectMapper());
+        this(querySuite, mavenExecutable, javaHome,
+                Path.of(System.getProperty("user.home"), ".m2/repository"), null);
     }
 
-    CodeqlAdapter(Path querySuite, Path mavenExecutable, Path javaHome, ObjectMapper json) {
+    public CodeqlAdapter(Path querySuite, Path mavenExecutable, Path javaHome,
+            Path mavenLocalRepository, Path mavenSettings) {
+        this(querySuite, mavenExecutable, javaHome, mavenLocalRepository, mavenSettings, new ObjectMapper());
+    }
+
+    CodeqlAdapter(Path querySuite, Path mavenExecutable, Path javaHome,
+            Path mavenLocalRepository, Path mavenSettings, ObjectMapper json) {
         this.querySuite = Objects.requireNonNull(querySuite, "querySuite").toAbsolutePath().normalize();
         this.mavenExecutable = Objects.requireNonNull(mavenExecutable, "mavenExecutable").toAbsolutePath().normalize();
         this.javaHome = Objects.requireNonNull(javaHome, "javaHome").toAbsolutePath().normalize();
+        this.mavenLocalRepository = Objects.requireNonNull(mavenLocalRepository, "mavenLocalRepository")
+                .toAbsolutePath().normalize();
+        this.mavenSettings = mavenSettings == null ? null : mavenSettings.toAbsolutePath().normalize();
         this.json = Objects.requireNonNull(json, "json");
     }
 
@@ -135,10 +150,15 @@ public final class CodeqlAdapter implements ScannerAdapter {
     /** The ScannerAdapter compatibility entry point returns phase one. Use CodeqlWorkflow for full execution. */
     @Override
     public ExecutionSpec prepare(ScanContext context, ToolContext tools) throws IOException {
-        return prepareDatabaseCreation(context, tools);
+        return prepareDatabaseInitialization(context, tools);
     }
 
+    /** Compatibility alias retained for callers compiled against the original two-phase workflow. */
     public ExecutionSpec prepareDatabaseCreation(ScanContext context, ToolContext tools) throws IOException {
+        return prepareDatabaseInitialization(context, tools);
+    }
+
+    public ExecutionSpec prepareDatabaseInitialization(ScanContext context, ToolContext tools) throws IOException {
         requireApplicable(context, tools);
         ToolContext.ToolInstallation installation = AdapterSupport.requireInstallation(tools, ID);
         Path output = Files.createDirectories(context.engineOutputDirectory());
@@ -146,13 +166,70 @@ public final class CodeqlAdapter implements ScannerAdapter {
         if (Files.exists(database)) {
             throw new IOException("CodeQL database path already exists: " + database);
         }
-        Path phaseDirectory = Files.createDirectories(output.resolve("database-create"));
+        Path phaseDirectory = Files.createDirectories(output.resolve("database-initialize"));
         List<String> command = List.of(
-                installation.executable().toString(), "database", "create",
-                "--language=java", "--build-mode=none",
+                installation.executable().toString(), "database", "init",
+                "--language=java", "--build-mode=manual",
                 "--source-root=" + context.project().workspaceRoot(),
-                "--threads=2", "--ram=8192", "--quiet",
+                "--quiet",
                 database.toString());
+        return new ExecutionSpec(ID, command, phaseDirectory,
+                isolatedEnvironment(phaseDirectory, installation.executable()),
+                descriptor().defaultTimeout(), descriptor().resources(), Set.of(), RedactionPolicy.NONE);
+    }
+
+    public ExecutionSpec prepareBuildTrace(ScanContext context, ToolContext tools) throws IOException {
+        requireApplicable(context, tools);
+        mavenArguments.validate(context.mavenProfiles(), context.mavenProperties());
+        ToolContext.ToolInstallation installation = AdapterSupport.requireInstallation(tools, ID);
+        Path database = databaseDirectory(context);
+        if (!Files.isDirectory(database)) {
+            throw new IOException("CodeQL database is unavailable: " + database);
+        }
+        Files.createDirectories(mavenLocalRepository);
+        Path phaseDirectory = Files.createDirectories(context.engineOutputDirectory().resolve("build-trace"));
+        List<String> command = new ArrayList<>(List.of(
+                installation.executable().toString(), "database", "trace-command",
+                "--threads=2", "--ram=8192",
+                "--working-dir=" + context.project().workspaceRoot(), "--quiet",
+                database.toString(), "--",
+                mavenExecutable.toString(), "--batch-mode", "--no-transfer-progress",
+                "--file", context.project().workspaceRoot().resolve("pom.xml").toString(),
+                "-DskipTests", "-Dmaven.repo.local=" + mavenLocalRepository));
+        if (mavenSettings != null) {
+            command.add("--settings");
+            command.add(mavenSettings.toString());
+        }
+        if (!context.mavenProfiles().isEmpty()) {
+            command.add("-P" + String.join(",", context.mavenProfiles()));
+        }
+        Set<Integer> sensitiveArguments = new LinkedHashSet<>();
+        context.mavenProperties().forEach((key, value) -> {
+            int index = command.size();
+            command.add("-D" + key + "=" + value);
+            if (mavenArguments.isSensitiveProperty(key)) sensitiveArguments.add(index);
+        });
+        command.add("clean");
+        command.add("package");
+        command.add("org.apache.maven.plugins:maven-dependency-plugin:3.9.0:build-classpath");
+        command.add("-Dmdep.outputFile=target/audit-runtime-classpath.txt");
+        return new ExecutionSpec(ID, command, phaseDirectory,
+                isolatedEnvironment(phaseDirectory, installation.executable()),
+                descriptor().defaultTimeout(), descriptor().resources(), Set.of(),
+                new RedactionPolicy(sensitiveArguments, Set.of()));
+    }
+
+    public ExecutionSpec prepareDatabaseFinalization(ScanContext context, ToolContext tools) throws IOException {
+        requireApplicable(context, tools);
+        ToolContext.ToolInstallation installation = AdapterSupport.requireInstallation(tools, ID);
+        Path database = databaseDirectory(context);
+        if (!Files.isDirectory(database)) {
+            throw new IOException("CodeQL database is unavailable: " + database);
+        }
+        Path phaseDirectory = Files.createDirectories(context.engineOutputDirectory().resolve("database-finalize"));
+        List<String> command = List.of(
+                installation.executable().toString(), "database", "finalize",
+                "--threads=2", "--ram=8192", "--quiet", database.toString());
         return new ExecutionSpec(ID, command, phaseDirectory,
                 isolatedEnvironment(phaseDirectory, installation.executable()),
                 descriptor().defaultTimeout(), descriptor().resources(), Set.of(), RedactionPolicy.NONE);
@@ -488,7 +565,8 @@ public final class CodeqlAdapter implements ScannerAdapter {
                 "JAVA_HOME", javaHome.toString(),
                 "HOME", home.toString(),
                 "TMPDIR", temporary.toString(),
-                "LANG", "C.UTF-8");
+                "LANG", "C.UTF-8",
+                "MAVEN_OPTS", "-Xmx3072m -Djava.awt.headless=true");
     }
 
     private static Path resolveMavenExecutable() {

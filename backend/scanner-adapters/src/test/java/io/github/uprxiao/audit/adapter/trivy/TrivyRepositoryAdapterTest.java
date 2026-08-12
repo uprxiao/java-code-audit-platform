@@ -33,6 +33,7 @@ class TrivyRepositoryAdapterTest {
         assertDescriptorContract(adapter); assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
         assertTrue(specification.command().contains("misconfig,secret,license"));
         assertTrue(specification.command().contains("--cache-dir"));
+        assertTrue(specification.command().contains("--offline-scan"));
         assertFalse(specification.command().contains("sh"));
     }
 

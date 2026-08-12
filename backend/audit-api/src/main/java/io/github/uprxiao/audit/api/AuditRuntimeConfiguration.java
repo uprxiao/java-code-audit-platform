@@ -328,6 +328,7 @@ class AuditRuntimeConfiguration {
             Clock clock,
             DefaultScanPlanner planner,
             SemgrepAdapter semgrep,
+            MavenProcessConfiguration mavenConfiguration,
             ToolInstallationHealth semgrepHealth,
             @Value("${audit.maven.executable:mvn}") String mavenExecutable,
             @Value("${audit.tools.codeql-enabled:false}") boolean codeqlEnabled,
@@ -369,7 +370,8 @@ class AuditRuntimeConfiguration {
                 new CodeqlAdapter(
                         paths.codeqlQuerySuite(),
                         resolvedMaven == null ? Path.of("/codeql-maven-unavailable") : resolvedMaven,
-                        Path.of(System.getProperty("java.home"))));
+                        Path.of(System.getProperty("java.home")),
+                        mavenConfiguration.localRepository(), mavenConfiguration.settingsFile()));
         boolean mavenAvailable = standardHealth.stream()
                 .filter(tool -> tool.id().startsWith("maven-"))
                 .allMatch(ToolInstallationHealth::available);

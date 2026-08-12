@@ -922,23 +922,6 @@ public final class ScanService {
             runtime.mavenBuild = result;
             runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
             copyMavenBuildLogs(runtime, result.execution());
-            if (result.status() == MavenBuildResult.Status.SUCCEEDED) {
-                ExecutionResult classpath = maven.resolveClasspath(new MavenBuildRequest(
-                                project.workspaceRoot(),
-                                runtime.layout.rawEngine(ScanExecutionPlanFactory.MAVEN_BUILD.value()),
-                                runtime.request.mavenProfiles(), runtime.request.mavenProperties(),
-                                mavenBuildTimeout), workspace);
-                if (classpath.status() != ExecutionResult.Status.SUCCEEDED) {
-                    return switch (classpath.status()) {
-                        case CANCELLED -> EngineExecutionResult.cancelled();
-                        case TIMED_OUT -> EngineExecutionResult.timedOut(
-                                "MAVEN_CLASSPATH_TIMEOUT", classpath.message());
-                        case FAILED -> EngineExecutionResult.failed(
-                                "MAVEN_CLASSPATH_FAILED", classpath.message());
-                        case SUCCEEDED -> throw new IllegalStateException("unreachable classpath status");
-                    };
-                }
-            }
             workspace.verifyNow();
             if (workspace.failure() != null) {
                 return workspaceFailure(workspace.failure());
@@ -999,7 +982,7 @@ public final class ScanService {
                     adapter, context, scanners.tools(),
                     workspace,
                     specification -> executionPolicy.apply(planned(runtime, CodeqlAdapter.ID), specification));
-            runtime.executions.put(CodeqlAdapter.ID, result.analysis());
+            runtime.executions.put(CodeqlAdapter.ID, result.totalExecution());
             workspace.verifyNow();
             if (workspace.failure() != null) {
                 return workspaceFailure(workspace.failure());
@@ -1295,8 +1278,17 @@ public final class ScanService {
             if (runtime.report != null && runtime.report.build() != null && !runtime.report.build().isEmpty()) {
                 return runtime.report.build();
             }
+            String status = runtime.job.profile() == ScanProfile.QUICK ? "NOT_REQUIRED" : switch (runtime.job.status()) {
+                case QUEUED, ACQUIRING_SOURCE, PREFLIGHT -> "PENDING";
+                case RUNNING -> "RUNNING";
+                case FINALIZING -> "FINALIZING";
+                case CANCELLED -> "CANCELLED";
+                case INTERRUPTED -> "INTERRUPTED";
+                case FAILED, COMPLETED_WITH_ERRORS -> "UNAVAILABLE";
+                case COMPLETED -> "SUCCEEDED";
+            };
             return Map.of(
-                    "status", "NOT_REQUIRED",
+                    "status", status,
                     "mavenProfiles", runtime.request.mavenProfiles());
         }
         return Map.of(

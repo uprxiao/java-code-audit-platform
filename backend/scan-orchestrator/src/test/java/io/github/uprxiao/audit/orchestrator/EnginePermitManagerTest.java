@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.uprxiao.audit.scanner.EngineId;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -47,5 +48,26 @@ class EnginePermitManagerTest {
         lease.close();
         assertEquals(0, manager.snapshot().enginesInUse());
         assertEquals(0, manager.snapshot().weightInUse());
+    }
+
+    @Test
+    void compositeLeaseAtomicallyHoldsAndReleasesMavenAndCodeql() throws Exception {
+        EngineId maven = new EngineId("maven");
+        EngineId codeql = new EngineId("codeql");
+        EnginePermitManager manager = new EnginePermitManager(
+                3, 2, 12, Map.of(maven, 1, codeql, 1));
+
+        try (EnginePermitManager.PermitLease ignored = manager.tryAcquire(
+                UUID.randomUUID(), Set.of(maven, codeql), 8, Duration.ZERO).orElseThrow()) {
+            assertEquals(1, manager.snapshot().toolsInUse().get(maven));
+            assertEquals(1, manager.snapshot().toolsInUse().get(codeql));
+            assertTrue(manager.tryAcquire(
+                    UUID.randomUUID(), maven, 4, Duration.ofMillis(20)).isEmpty());
+            assertTrue(manager.tryAcquire(
+                    UUID.randomUUID(), codeql, 4, Duration.ofMillis(20)).isEmpty());
+        }
+
+        assertEquals(0, manager.snapshot().toolsInUse().get(maven));
+        assertEquals(0, manager.snapshot().toolsInUse().get(codeql));
     }
 }

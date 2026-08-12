@@ -113,7 +113,8 @@ public final class SemgrepAdapter implements ScannerAdapter {
         Map<String, String> environment = Map.of(
                 "PATH", safePath,
                 "HOME", isolatedHome.toString(),
-                "TMPDIR", isolatedTemp.toString());
+                "TMPDIR", isolatedTemp.toString(),
+                "PYTHONDONTWRITEBYTECODE", "1");
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(), environment, descriptor().defaultTimeout(),
                 descriptor().resources(), Set.of(new ExpectedArtifact("report.json", true, MAX_REPORT_BYTES)),
                 RedactionPolicy.NONE);

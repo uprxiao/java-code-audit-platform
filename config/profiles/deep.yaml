@@ -4,6 +4,11 @@ requiresBuild: true
 engines:
   - id: codeql
     requiresBuild: true
+    # Manual tracing performs a controlled `mvn clean package`. Run it only
+    # after every inherited engine has released the original build outputs.
+    dependsOn: [semgrep, gitleaks, pmd, pmd-cpd, checkstyle, trivy-repository,
+                spotbugs, findsecbugs, dependency-check, osv-scanner,
+                maven-dependency-analysis, maven-enforcer, cyclonedx, trivy-artifact]
     resourceClass: DEEP
     weight: 8
     memoryMb: 8192

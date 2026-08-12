@@ -35,6 +35,13 @@ class RedactionAndSnippetTest {
         assertFalse(result.text().contains("AUDIT_CANARY_SECRET_XYZ123"));
         assertFalse(result.text().contains("\nabc\n"));
         assertTrue(result.text().contains("sha256:"));
+        assertFalse(redactor.containsSensitiveData(result.text()), "redacted output must be safe and idempotent");
+        assertFalse(redactor.containsSensitiveData("password = RE****ED"));
+        assertFalse(redactor.containsSensitiveData("password = &quot;su***et&quot;"));
+        assertFalse(redactor.containsSensitiveData("token=&#39;ab*de&#39;"));
+        assertFalse(redactor.containsSensitiveData("password = \\\"su***et\\\""));
+        assertTrue(redactor.containsSensitiveData(input));
+        assertFalse(redactor.containsSensitiveData("text.contains(\"AUDIT_CANARY_SECRET_\")"));
     }
 
     @Test

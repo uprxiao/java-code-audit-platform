@@ -74,6 +74,11 @@ public final class MavenProcessAdapter {
             }
         }
         command.add("package");
+        // Keep reactor packaging and classpath materialization in one Maven
+        // session. A second invocation cannot resolve sibling modules that
+        // were packaged but deliberately not installed into the local repo.
+        command.add(CLASSPATH_GOAL);
+        command.add("-Dmdep.outputFile=target/" + CLASSPATH_FILE);
 
         Map<String, String> environment = Map.of(
                 "PATH", configuration.pathEnvironment(),
@@ -101,49 +106,6 @@ public final class MavenProcessAdapter {
             case CANCELLED -> MavenBuildResult.Status.CANCELLED;
         };
         return new MavenBuildResult(status, execution, outputParser.parse(execution.stdout()));
-    }
-
-    /** Resolves each reactor module's dependency classpath without accepting a user goal. */
-    public ExecutionResult resolveClasspath(MavenBuildRequest request, CancellationToken cancellationToken)
-            throws IOException, InterruptedException {
-        Objects.requireNonNull(request, "request");
-        Path output = Files.createDirectories(request.engineOutputDirectory().resolve("classpath"));
-        Files.createDirectories(configuration.localRepository());
-        Path home = Files.createDirectories(request.engineOutputDirectory().resolve("home"));
-        List<String> command = new ArrayList<>();
-        Set<Integer> sensitiveArguments = new HashSet<>();
-        command.add(configuration.executable());
-        command.add("--batch-mode");
-        command.add("--no-transfer-progress");
-        command.add("--file");
-        command.add(request.projectRoot().resolve("pom.xml").toString());
-        command.add("-DskipTests");
-        command.add("-Dmaven.repo.local=" + configuration.localRepository());
-        if (configuration.settingsFile() != null) {
-            command.add("--settings");
-            command.add(configuration.settingsFile().toString());
-        }
-        if (!request.profiles().isEmpty()) {
-            request.profiles().forEach(MavenProcessAdapter::validateName);
-            command.add("-P" + String.join(",", request.profiles()));
-        }
-        for (Map.Entry<String, String> property : request.properties().entrySet()) {
-            validateProperty(property.getKey(), property.getValue());
-            int argumentIndex = command.size();
-            command.add("-D" + property.getKey() + "=" + property.getValue());
-            if (isSensitive(property.getKey())) sensitiveArguments.add(argumentIndex);
-        }
-        command.add(CLASSPATH_GOAL);
-        command.add("-Dmdep.outputFile=target/" + CLASSPATH_FILE);
-        Map<String, String> environment = Map.of(
-                "PATH", configuration.pathEnvironment(),
-                "JAVA_HOME", configuration.javaHome().toString(),
-                "HOME", home.toString(),
-                "MAVEN_OPTS", "-Xmx" + configuration.maxHeapMb() + "m -Djava.awt.headless=true");
-        return backend.execute(new ExecutionSpec(
-                ID, command, output, environment, request.timeout(),
-                new ResourceRequest(ResourceClass.HEAVY, 4, configuration.maxHeapMb()), Set.of(),
-                new RedactionPolicy(sensitiveArguments, Set.of())), cancellationToken);
     }
 
     private static void validateName(String name) {

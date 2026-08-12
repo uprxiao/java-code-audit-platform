@@ -19,7 +19,8 @@ public final class SensitiveDataRedactor {
     private static final Pattern BEARER = Pattern.compile("(?i)(authorization\\s*[:=]\\s*bearer\\s+)([^\\s,;]+)");
     private static final Pattern URL_USER_INFO = Pattern.compile("(?i)(https?://)([^/@\\s:]+):([^/@\\s]+)@");
     private static final Pattern GENERIC_ASSIGNMENT = Pattern.compile(
-            "(?i)(\\b(?:password|passwd|pwd|secret|token|api[_-]?key|client[_-]?secret)\\b\\s*[:=]\\s*[\"']?)([^\"'\\s,;}]+)");
+            "(?i)(\\b(?:password|passwd|pwd|secret|token|api[_-]?key|client[_-]?secret)\\b\\s*[:=]\\s*"
+                    + "(?:\\\\[\"']|[\"']|&quot;|&#34;|&#39;|&apos;)?)([^\\\\\"'&<>\\s,;}]+)");
     private static final Pattern AWS_ACCESS_KEY = Pattern.compile("\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b");
     private static final Pattern GITHUB_TOKEN = Pattern.compile("\\bgh[pousr]_[A-Za-z0-9]{20,255}\\b");
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b");
@@ -62,7 +63,25 @@ public final class SensitiveDataRedactor {
     }
 
     public boolean containsSensitiveData(String input) {
-        return redact(input).redacted();
+        Objects.requireNonNull(input, "input");
+        if (exactSecrets.stream().anyMatch(input::contains)
+                || PRIVATE_KEY.matcher(input).find()
+                || URL_USER_INFO.matcher(input).find()
+                || AWS_ACCESS_KEY.matcher(input).find()
+                || GITHUB_TOKEN.matcher(input).find()
+                || JWT.matcher(input).find()
+                || CANARY.matcher(input).find()) {
+            return true;
+        }
+        Matcher bearer = BEARER.matcher(input);
+        while (bearer.find()) {
+            if (!looksMasked(bearer.group(2))) return true;
+        }
+        Matcher assignment = GENERIC_ASSIGNMENT.matcher(input);
+        while (assignment.find()) {
+            if (!looksMasked(assignment.group(2))) return true;
+        }
+        return false;
     }
 
     public List<String> exactSecrets() {
@@ -136,6 +155,20 @@ public final class SensitiveDataRedactor {
         }
         return value.substring(0, 2) + "*".repeat(Math.min(32, value.length() - 4))
                 + value.substring(value.length() - 2);
+    }
+
+    private boolean looksMasked(String value) {
+        if (value == null || value.isBlank() || value.startsWith("[REDACTED")) {
+            return true;
+        }
+        if (value.chars().allMatch(character -> character == '*')) {
+            return true;
+        }
+        if (value.length() > 4) {
+            String middle = value.substring(2, value.length() - 2);
+            return !middle.isEmpty() && middle.chars().allMatch(character -> character == '*');
+        }
+        return false;
     }
 
     private String digest(String value) {

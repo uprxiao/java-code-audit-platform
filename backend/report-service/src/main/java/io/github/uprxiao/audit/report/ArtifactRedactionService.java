@@ -72,8 +72,8 @@ final class ArtifactRedactionService {
             } catch (CharacterCodingException exception) {
                 continue;
             }
-            if (text.contains("AUDIT_CANARY_SECRET_") || text.contains("-----BEGIN PRIVATE KEY-----")) {
-                throw new IOException("sensitive canary remains in finalized artifact: " + file);
+            if (redactor.containsSensitiveData(text)) {
+                throw new IOException("sensitive data remains in finalized artifact: " + file);
             }
         }
     }
@@ -82,11 +82,6 @@ final class ArtifactRedactionService {
         for (String secret : redactor.exactSecrets()) {
             if (contains(content, secret.getBytes(StandardCharsets.UTF_8))) {
                 throw new IOException("configured sensitive value remains in artifact: " + path);
-            }
-        }
-        for (String marker : List.of("AUDIT_CANARY_SECRET_", "-----BEGIN PRIVATE KEY-----")) {
-            if (contains(content, marker.getBytes(StandardCharsets.UTF_8))) {
-                throw new IOException("sensitive marker remains in binary artifact: " + path);
             }
         }
     }

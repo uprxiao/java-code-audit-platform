@@ -10,6 +10,7 @@ import io.github.uprxiao.audit.scanner.ResourceClass;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class ScanExecutionPlanFactoryTest {
         assertEquals(3, scheduled.engines().size());
         assertTrue(scheduled.engines().stream()
                 .filter(task -> task.id().equals(ScanExecutionPlanFactory.MAVEN_BUILD))
-                .allMatch(task -> task.toolPermit().equals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT)));
+                .allMatch(task -> task.toolPermits().equals(Set.of(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT))));
         try (FairDagScheduler scheduler = new FairDagScheduler(new SchedulerConfiguration(
                 2, 1, 2, 2, 8,
                 Map.of(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT, 1), Duration.ofSeconds(30)))) {
@@ -67,21 +68,22 @@ class ScanExecutionPlanFactoryTest {
 
         ScheduledScanJob scheduled = factory.create(
                 UUID.randomUUID(), plan, token -> EngineExecutionResult.succeeded(), actions);
-        Map<io.github.uprxiao.audit.scanner.EngineId, io.github.uprxiao.audit.scanner.EngineId> permits =
+        Map<io.github.uprxiao.audit.scanner.EngineId, Set<io.github.uprxiao.audit.scanner.EngineId>> permits =
                 scheduled.engines().stream().collect(java.util.stream.Collectors.toMap(
-                        ScheduledEngineTask::id, ScheduledEngineTask::toolPermit));
+                        ScheduledEngineTask::id, ScheduledEngineTask::toolPermits));
 
-        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+        assertEquals(Set.of(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT),
                 permits.get(ScanEngine.MAVEN_DEPENDENCY_ANALYSIS.id()));
-        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+        assertEquals(Set.of(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT),
                 permits.get(ScanEngine.MAVEN_ENFORCER.id()));
-        assertEquals(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT,
+        assertEquals(Set.of(ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT),
                 permits.get(ScanEngine.CYCLONEDX.id()));
-        assertEquals(ScanExecutionPlanFactory.DEPENDENCY_CHECK_TOOL_PERMIT,
+        assertEquals(Set.of(ScanExecutionPlanFactory.DEPENDENCY_CHECK_TOOL_PERMIT),
                 permits.get(ScanEngine.DEPENDENCY_CHECK.id()));
-        assertEquals(ScanExecutionPlanFactory.CODEQL_TOOL_PERMIT,
+        assertEquals(Set.of(ScanExecutionPlanFactory.CODEQL_TOOL_PERMIT,
+                        ScanExecutionPlanFactory.MAVEN_TOOL_PERMIT),
                 permits.get(ScanEngine.CODEQL.id()));
-        assertEquals(ScanEngine.SEMGREP.id(), permits.get(ScanEngine.SEMGREP.id()));
+        assertEquals(Set.of(ScanEngine.SEMGREP.id()), permits.get(ScanEngine.SEMGREP.id()));
     }
 
     private PlannedEngine planned(ScanEngine engine, boolean build) {

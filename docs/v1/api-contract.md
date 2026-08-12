@@ -210,6 +210,11 @@ GET /api/v1/profiles
 - 507：磁盘低于阈值；
 - 500：平台内部错误。
 
+ZIP 解压和 Maven 根识别属于异步 `PREFLIGHT`。因此这两类校验在任务已返回
+`202 Accepted` 后发生时，任务会进入 `FAILED`，并在 `GET /api/v1/scans/{scanId}`
+的 `failure.code/details` 中返回同一错误码（例如 `UNSAFE_ARCHIVE_ENTRY`、
+`MULTIPLE_MAVEN_ROOTS`）；不会为已经创建的异步任务再补发一个 HTTP 422。
+
 ## 13. 上传流与服务器配置
 
 HTTP 层、临时文件层和解压层都设置限制。不能只依赖 Spring multipart 最大值，因为 SVN和解压后的体积不受它覆盖。反向代理使用时，其 body size、timeout 和 buffering 也必须与应用配置一致。

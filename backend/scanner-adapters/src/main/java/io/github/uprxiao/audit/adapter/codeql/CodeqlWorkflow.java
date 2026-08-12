@@ -9,14 +9,17 @@ import io.github.uprxiao.audit.scanner.RawArtifactSet;
 import io.github.uprxiao.audit.scanner.ScanContext;
 import io.github.uprxiao.audit.scanner.ToolContext;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.Comparator;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
-/** Runs CodeQL's database-create and database-analyze phases without a shell or a user command string. */
+/** Runs a pinned, shell-free CodeQL manual Maven trace and analysis workflow. */
 public final class CodeqlWorkflow {
 
     private final ExecutionBackend executionBackend;
@@ -39,22 +42,44 @@ public final class CodeqlWorkflow {
         cancellationToken = cancellationToken == null ? CancellationToken.NONE : cancellationToken;
         executionPolicy = Objects.requireNonNull(executionPolicy, "executionPolicy");
 
-        ExecutionSpec createSpec = executionPolicy.apply(adapter.prepareDatabaseCreation(context, tools));
-        ExecutionResult createResult = executionBackend.execute(createSpec, cancellationToken);
-        requireSuccess(Phase.DATABASE_CREATE, createResult);
+        ExecutionSpec initializeSpec = executionPolicy.apply(adapter.prepareDatabaseInitialization(context, tools));
+        ExecutionResult initializeResult = executionBackend.execute(initializeSpec, cancellationToken);
+        requireSuccess(Phase.DATABASE_INITIALIZE, initializeResult);
+
+        ExecutionSpec traceSpec = executionPolicy.apply(adapter.prepareBuildTrace(context, tools));
+        ExecutionResult traceResult = executionBackend.execute(traceSpec, cancellationToken);
+        requireSuccess(Phase.BUILD_TRACE, traceResult);
+
+        ExecutionSpec finalizeSpec = executionPolicy.apply(adapter.prepareDatabaseFinalization(context, tools));
+        ExecutionResult finalizeResult = executionBackend.execute(finalizeSpec, cancellationToken);
+        requireSuccess(Phase.DATABASE_FINALIZE, finalizeResult);
 
         ExecutionSpec analyzeSpec = executionPolicy.apply(adapter.prepareAnalysis(context, tools));
         ExecutionResult analyzeResult = executionBackend.execute(analyzeSpec, cancellationToken);
         requireSuccess(Phase.DATABASE_ANALYZE, analyzeResult);
+        ExecutionResult totalResult = totalExecution(initializeResult, traceResult, finalizeResult, analyzeResult);
         RawArtifactSet artifacts = new RawArtifactSet(CodeqlAdapter.ID,
-                Map.of("report", adapter.reportPath(context)), analyzeResult);
+                Map.of("report", adapter.reportPath(context)), totalResult);
         ArtifactValidation validation = adapter.validate(artifacts);
         if (!validation.valid()) {
             throw new CodeqlWorkflowException(Phase.OUTPUT_VALIDATION,
                     "CodeQL SARIF validation failed: " + validation.errors(), analyzeResult);
         }
         deleteDatabase(adapter.databaseDirectory(context), context.engineTemporaryDirectory());
-        return new Result(artifacts, createResult, analyzeResult, true);
+        return new Result(artifacts, initializeResult, traceResult, finalizeResult, analyzeResult, totalResult, true);
+    }
+
+    private ExecutionResult totalExecution(ExecutionResult initialize, ExecutionResult trace,
+            ExecutionResult finalizeResult, ExecutionResult analyze) {
+        return new ExecutionResult(
+                ExecutionResult.Status.SUCCEEDED, 0, initialize.startedAt(), analyze.completedAt(),
+                java.time.Duration.between(initialize.startedAt(), analyze.completedAt()),
+                analyze.processId(), analyze.stdout(), analyze.stderr(),
+                initialize.stdoutTruncated() || trace.stdoutTruncated() || finalizeResult.stdoutTruncated()
+                        || analyze.stdoutTruncated(),
+                initialize.stderrTruncated() || trace.stderrTruncated() || finalizeResult.stderrTruncated()
+                        || analyze.stderrTruncated(),
+                "");
     }
 
     private void requireSuccess(Phase phase, ExecutionResult result) throws CodeqlWorkflowException {
@@ -73,28 +98,51 @@ public final class CodeqlWorkflow {
             throw new IOException("refusing to delete unsafe CodeQL database path: " + safeDatabase);
         }
         if (!Files.exists(safeDatabase)) return;
-        try (var paths = Files.walk(safeDatabase)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
+        Files.walkFileTree(safeDatabase, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                Files.deleteIfExists(file);
+                return FileVisitResult.CONTINUE;
             }
-        }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
+                if (exception instanceof NoSuchFileException) return FileVisitResult.CONTINUE;
+                throw exception;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
+                if (exception != null && !(exception instanceof NoSuchFileException)) throw exception;
+                Files.deleteIfExists(directory);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     public enum Phase {
-        DATABASE_CREATE,
+        DATABASE_INITIALIZE,
+        BUILD_TRACE,
+        DATABASE_FINALIZE,
         DATABASE_ANALYZE,
         OUTPUT_VALIDATION
     }
 
     public record Result(
             RawArtifactSet artifacts,
-            ExecutionResult databaseCreation,
+            ExecutionResult databaseInitialization,
+            ExecutionResult buildTrace,
+            ExecutionResult databaseFinalization,
             ExecutionResult analysis,
+            ExecutionResult totalExecution,
             boolean databaseDeleted) {
         public Result {
             Objects.requireNonNull(artifacts, "artifacts");
-            Objects.requireNonNull(databaseCreation, "databaseCreation");
+            Objects.requireNonNull(databaseInitialization, "databaseInitialization");
+            Objects.requireNonNull(buildTrace, "buildTrace");
+            Objects.requireNonNull(databaseFinalization, "databaseFinalization");
             Objects.requireNonNull(analysis, "analysis");
+            Objects.requireNonNull(totalExecution, "totalExecution");
         }
     }
 
