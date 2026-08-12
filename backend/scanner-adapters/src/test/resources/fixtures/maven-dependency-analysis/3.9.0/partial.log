@@ -1,0 +1,3 @@
+[INFO] --- dependency:3.9.0:analyze (default-cli) @ dependency-fixture ---
+[WARNING] Could not analyze classes from optional generated source AUDIT_PARTIAL
+[INFO] BUILD SUCCESS

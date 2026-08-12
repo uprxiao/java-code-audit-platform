@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BugCollection version="4.9.3" sequence="0" timestamp="0" analysisTimestamp="0">
+  <BugInstance type="SQL_INJECTION_JDBC" priority="1" rank="9" abbrev="SQL" category="SECURITY">
+    <ShortMessage>Potential SQL Injection</ShortMessage>
+    <LongMessage>This use of java/sql/Statement.execute(Ljava/lang/String;)Z can be vulnerable to SQL injection</LongMessage>
+    <Class classname="example.SqlIssue" primary="true"/>
+    <Method classname="example.SqlIssue" name="query" signature="(Ljava/sql/Connection;Ljava/lang/String;)V" primary="true"/>
+    <SourceLine classname="example.SqlIssue" start="8" end="8" sourcefile="SqlIssue.java" sourcepath="example/SqlIssue.java" role="PRIMARY"/>
+  </BugInstance>
+  <BugPattern type="SQL_INJECTION_JDBC" abbrev="SQL" category="SECURITY" cweid="89"><ShortDescription>Potential SQL Injection</ShortDescription></BugPattern>
+  <Errors errors="0" missingClasses="0"/>
+</BugCollection>

@@ -1,0 +1,6 @@
+[INFO] --- dependency:3.9.0:analyze (default-cli) @ dependency-fixture ---
+[WARNING] Used undeclared dependencies found:
+[WARNING]    org.slf4j:slf4j-api:jar:2.0.17:compile
+[WARNING] Unused declared dependencies found:
+[WARNING]    org.apache.commons:commons-lang3:jar:3.17.0:compile
+[INFO] BUILD SUCCESS

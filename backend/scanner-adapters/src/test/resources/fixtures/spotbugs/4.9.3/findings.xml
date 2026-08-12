@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BugCollection version="4.9.3" sequence="0" timestamp="0" analysisTimestamp="0">
+  <BugInstance type="NP_ALWAYS_NULL" priority="1" rank="1" abbrev="NP" category="CORRECTNESS">
+    <ShortMessage>Null pointer dereference</ShortMessage>
+    <LongMessage>Null pointer dereference of value in example.SpotBugsIssue.dereference(Object)</LongMessage>
+    <Class classname="example.SpotBugsIssue" primary="true"/>
+    <Method classname="example.SpotBugsIssue" name="dereference" signature="(Ljava/lang/Object;)Ljava/lang/String;" primary="true"/>
+    <SourceLine classname="example.SpotBugsIssue" start="6" end="6" sourcefile="SpotBugsIssue.java" sourcepath="example/SpotBugsIssue.java" role="PRIMARY"/>
+  </BugInstance>
+  <BugPattern type="NP_ALWAYS_NULL" abbrev="NP" category="CORRECTNESS" cweid="476">
+    <ShortDescription>Null pointer dereference</ShortDescription>
+  </BugPattern>
+  <Errors errors="0" missingClasses="0"/>
+</BugCollection>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BugCollection version="4.9.3" sequence="0" timestamp="0" analysisTimestamp="0">
+  <BugInstance type="SQL_INJECTION_JDBC" priority="1" rank="9" category="SECURITY">
+    <ShortMessage>Potential SQL Injection</ShortMessage><LongMessage>Potential SQL injection</LongMessage>
+    <Class classname="example.SqlIssue"/><Method name="query"/>
+    <SourceLine start="8" end="8" sourcepath="example/SqlIssue.java" role="PRIMARY"/>
+  </BugInstance>
+  <BugPattern type="SQL_INJECTION_JDBC" category="SECURITY" cweid="89"><ShortDescription>Potential SQL Injection</ShortDescription></BugPattern>
+  <Errors errors="1" missingClasses="0"><Error><ErrorMessage>fixture partial analysis</ErrorMessage></Error></Errors>
+</BugCollection>

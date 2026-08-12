@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Keep the default ruleset broad. Generated-code suppressions belong in a reviewed project policy. -->
+</FindBugsFilter>

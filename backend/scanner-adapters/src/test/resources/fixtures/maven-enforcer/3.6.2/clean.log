@@ -1,0 +1,3 @@
+[INFO] --- enforcer:3.6.2:enforce (default-cli) @ enforcer-fixture ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] BUILD SUCCESS

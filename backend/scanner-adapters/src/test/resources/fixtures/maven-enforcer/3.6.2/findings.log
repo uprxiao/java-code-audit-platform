@@ -1,0 +1,4 @@
+[INFO] --- enforcer:3.6.2:enforce (default-cli) @ enforcer-fixture ---
+[WARNING] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence failed with message:
+Dependency convergence error for com.fasterxml.jackson.core:jackson-databind:jar:2.17.0 paths to dependency are:
+[ERROR] BUILD FAILURE

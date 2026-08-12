@@ -1,0 +1,1 @@
+[{"engine":"findsecbugs","ruleFamily":"SQL_INJECTION","category":"WEB_SECURITY","file":"src/main/java/example/SqlIssue.java","startLine":8,"cwe":"CWE-89"}]

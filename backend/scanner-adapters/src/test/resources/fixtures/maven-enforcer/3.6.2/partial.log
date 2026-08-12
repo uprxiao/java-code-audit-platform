@@ -1,0 +1,3 @@
+[INFO] --- enforcer:3.6.2:enforce (default-cli) @ enforcer-fixture ---
+[WARNING] optional module could not be evaluated AUDIT_PARTIAL
+[INFO] BUILD SUCCESS

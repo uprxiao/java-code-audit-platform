@@ -1,0 +1,1 @@
+[{"engine":"spotbugs","ruleFamily":"NULL_DEREFERENCE","category":"CORRECTNESS","file":"src/main/java/example/SpotBugsIssue.java","startLine":6}]
