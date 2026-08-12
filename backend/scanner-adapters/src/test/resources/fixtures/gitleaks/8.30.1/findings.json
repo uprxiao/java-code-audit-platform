@@ -1,0 +1,16 @@
+[
+  {
+    "RuleID": "generic-audit-api-key",
+    "Description": "Generic API key or token assignment",
+    "StartLine": 5,
+    "EndLine": 5,
+    "StartColumn": 20,
+    "EndColumn": 63,
+    "Match": "apiKey = \"************************************\"",
+    "Secret": "************************************",
+    "File": "src/main/java/example/Secrets.java",
+    "Entropy": 4.6,
+    "Tags": ["generic", "credential"],
+    "Fingerprint": "src/main/java/example/Secrets.java:generic-audit-api-key:5"
+  }
+]

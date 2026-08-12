@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pmd-cpd xmlns="https://pmd-code.org/schema/cpd-report" pmdVersion="7.26.0" version="1.0.0">
+  <duplication lines="8" tokens="62">
+    <file column="5" endcolumn="6" line="4" endline="11" path="@PROJECT_ROOT@/src/main/java/example/DuplicateA.java"/>
+    <file column="5" endcolumn="6" line="4" endline="11" path="@PROJECT_ROOT@/src/main/java/example/DuplicateB.java"/>
+    <codefragment><![CDATA[int total = 0; for (int value : values) { if (value > 0) { total += value; } } return total;]]></codefragment>
+  </duplication>
+</pmd-cpd>

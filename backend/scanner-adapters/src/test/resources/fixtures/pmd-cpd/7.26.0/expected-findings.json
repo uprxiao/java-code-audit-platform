@@ -1,0 +1,1 @@
+[{"category":"DUPLICATION","severity":"P3","ruleFamily":"DUPLICATE_CODE","path":"src/main/java/example/DuplicateA.java","line":4,"occurrences":2}]

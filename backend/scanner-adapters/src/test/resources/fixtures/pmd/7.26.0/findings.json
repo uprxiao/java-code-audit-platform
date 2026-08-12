@@ -1,0 +1,14 @@
+{
+  "formatVersion": 0,
+  "pmdVersion": "7.26.0",
+  "files": [{
+    "filename": "@PROJECT_ROOT@/src/main/java/example/PmdIssue.java",
+    "violations": [{
+      "beginline": 10, "begincolumn": 9, "endline": 10, "endcolumn": 61,
+      "description": "Ensure that resources like this FileInputStream object are closed after use",
+      "rule": "CloseResource", "ruleset": "Error Prone", "priority": 3,
+      "externalInfoUrl": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_java_errorprone.html#closeresource"
+    }]
+  }],
+  "suppressedViolations": [], "processingErrors": [], "configurationErrors": []
+}

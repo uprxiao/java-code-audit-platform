@@ -1,0 +1,13 @@
+[
+  {
+    "RuleID": "generic-audit-api-key",
+    "Description": "Generic API key or token assignment",
+    "StartLine": 5,
+    "EndLine": 5,
+    "Match": "apiKey = \"************************************\"",
+    "Secret": "************************************",
+    "File": "src/main/java/example/Secrets.java",
+    "Fingerprint": "valid:1"
+  },
+  {"RuleID": "broken-entry", "Secret": "********************"}
+]

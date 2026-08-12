@@ -1,0 +1,5 @@
+{
+  "formatVersion":0,"pmdVersion":"7.26.0","files":[],"suppressedViolations":[],
+  "processingErrors":[{"filename":"src/main/java/example/Broken.java","message":"Parse error"}],
+  "configurationErrors":[]
+}

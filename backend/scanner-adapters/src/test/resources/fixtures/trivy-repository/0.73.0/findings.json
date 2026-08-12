@@ -1,0 +1,17 @@
+{
+  "SchemaVersion":2,"ArtifactName":"fixture","ArtifactType":"repository",
+  "Results":[
+    {"Target":"Dockerfile","Class":"config","Type":"dockerfile","Misconfigurations":[{
+      "Type":"Dockerfile Security Check","ID":"DS-0017","Title":"RUN update instruction alone",
+      "Description":"Package update and install should be in one instruction.",
+      "Message":"Combine update and install in one RUN instruction.","Namespace":"builtin.dockerfile.DS017",
+      "Resolution":"Combine update and install.","Severity":"HIGH","PrimaryURL":"https://avd.aquasec.com/misconfig/ds-0017",
+      "Status":"FAIL","CauseMetadata":{"Provider":"Dockerfile","StartLine":2,"EndLine":2}
+    }]},
+    {"Target":"secret.txt","Class":"secret","Secrets":[{
+      "RuleID":"github-pat","Category":"GitHub","Severity":"CRITICAL","Title":"GitHub Personal Access Token",
+      "StartLine":1,"EndLine":1,"Match":"github_token = \"****************************************AB\"",
+      "Code":{"Lines":[{"Number":1,"Content":"github_token = \"****************************************AB\"","IsCause":true}]}
+    }]}
+  ]
+}

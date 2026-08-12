@@ -25,7 +25,108 @@ tools:
     parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/semgrep/1.170.0
     rules: config/rules/semgrep/java-audit.yaml
 
+  - id: gitleaks
+    version: 8.30.1
+    upstreamCommit: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e
+    distribution: locally-assembled-official-release
+    parserSchemaVersion: 1
+    license: MIT
+    licenseReview: redistributable-with-license
+    sourceUrl: https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1
+    expectedVersionOutput: "8.30.1"
+    healthCheck: [version]
+    platforms:
+      darwin-arm64:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/darwin-arm64/quick/gitleaks/bin/gitleaks
+        entrypointSha256: ba52fb1bfabbcde42f032afad3d6e0b19dff8ed105229a16e7caa338bbc0e84f
+        sourceArchiveSha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+      linux-x86_64:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/linux-x86_64/quick/gitleaks/bin/gitleaks
+        entrypointSha256: 88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509
+        sourceArchiveSha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/gitleaks/8.30.1
+    rules: config/rules/gitleaks/gitleaks.toml
+
+  - id: pmd
+    logicalEngines: [pmd, pmd-cpd]
+    version: 7.26.0
+    upstreamCommit: 8fd38edf285a33e1164f66205ebe243441db9557
+    distribution: locally-assembled-official-java-release
+    parserSchemaVersion: 1
+    license: LicenseRef-PMD-BSD-Style
+    licenseReview: redistributable-with-license-and-bundled-notices
+    sourceUrl: https://github.com/pmd/pmd/releases/tag/pmd_releases%2F7.26.0
+    sourceArchiveSha256: 9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9
+    expectedVersionOutput: "PMD 7.26.0"
+    healthCheck: [net.sourceforge.pmd.cli.PmdCli, --version]
+    runtime: JDK-17
+    platforms:
+      common-java:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/{platform}/quick/pmd/home
+        launchMode: java-classpath
+        entrypoint: lib/pmd-cli-7.26.0.jar
+        entrypointSha256: b246662ee8e8c474cbe3b1d7fd1ba8d6d22f381c284ea20359c2c717394665d0
+    parserFixtures:
+      pmd: backend/scanner-adapters/src/test/resources/fixtures/pmd/7.26.0
+      pmd-cpd: backend/scanner-adapters/src/test/resources/fixtures/pmd-cpd/7.26.0
+    rules: config/rules/pmd/java-audit.xml
+
+  - id: checkstyle
+    version: 12.3.1
+    upstreamCommit: b1e9d8e396d36f867d6a71514e6fe020053170e3
+    distribution: locally-assembled-official-java-release
+    parserSchemaVersion: 1
+    license: LGPL-2.1-or-later
+    licenseReview: redistributable-with-license-and-source-offer-obligations
+    sourceUrl: https://github.com/checkstyle/checkstyle/releases/tag/checkstyle-12.3.1
+    sourceArchiveSha256: 4ecdfa8504452e1557d2e2c364085f0ae5703b67ec9c759976ca378d41cb8f7a
+    expectedVersionOutput: "Checkstyle version: 12.3.1"
+    healthCheck: [--version]
+    runtime: JDK-17
+    compatibilityNote: Checkstyle 13.x requires JDK 21, so V1 intentionally pins the newest JDK17-compatible release line.
+    platforms:
+      common-java:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/{platform}/quick/checkstyle/checkstyle-12.3.1-all.jar
+        launchMode: java-jar
+        entrypointSha256: 4ecdfa8504452e1557d2e2c364085f0ae5703b67ec9c759976ca378d41cb8f7a
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/checkstyle/12.3.1
+    rules: config/rules/checkstyle/java-audit.xml
+
+  - id: trivy
+    logicalEngines: [trivy-repository]
+    version: 0.73.0
+    upstreamCommit: 40c73e5d6166dcc0346a1ab4e94499d1572854e4
+    distribution: locally-assembled-official-release
+    parserSchemaVersion: 1
+    license: Apache-2.0
+    licenseReview: redistributable-with-license-and-notice
+    sourceUrl: https://github.com/aquasecurity/trivy/releases/tag/v0.73.0
+    expectedVersionOutput: "Version: 0.73.0"
+    healthCheck: [--version]
+    dynamicData: trivy-checks bundle is downloaded at runtime and is never committed or included in the fixed tool pack.
+    platforms:
+      darwin-arm64:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/darwin-arm64/quick/trivy/bin/trivy
+        entrypointSha256: 6b61392e1798f42a66fc78ddf4829b5d26500d259439bb00ae10ed93217ff38f
+        sourceArchiveSha256: 80cc25faaf6378e37701202d0b4f9f43d9e413d198d594ba60fdf559fe44a683
+      linux-x86_64:
+        assemblyScript: scripts/build-quick-tool-pack.sh
+        localPath: tools/downloads/tool-pack/linux-x86_64/quick/trivy/bin/trivy
+        entrypointSha256: 5b3ebab0f98d95196c85efc3a9d31a01520c96fa342e4e611f56db64c516df1d
+        sourceArchiveSha256: 2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b
+    parserFixtures: backend/scanner-adapters/src/test/resources/fixtures/trivy-repository/0.73.0
+    rules: config/rules/trivy/README.md
+
 notes:
   - Tool-pack binaries and Python runtime remain under gitignored tools/downloads until release assembly.
   - Installed wheel metadata retains Semgrep and transitive dependency license files.
+  - Quick tool pack assembly verifies official archive SHA256 before extraction and emits per-tool stable pack-metadata.json.
+  - Gitleaks and Trivy native entrypoint SHA256 values above were measured from both official platform archives.
+  - Trivy 0.73.0 is pinned after the upstream March 2026 supply-chain incident; do not use latest tags or unverified setup actions.
+  - PMD is BSD-style licensed; its official distribution LICENSE also carries required bundled dependency notices.
   - CodeQL is intentionally absent and is never redistributed by this public manifest.
