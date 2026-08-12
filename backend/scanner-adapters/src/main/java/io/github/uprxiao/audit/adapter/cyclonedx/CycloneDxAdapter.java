@@ -6,6 +6,7 @@ import io.github.uprxiao.audit.adapter.support.AdapterSupport;
 import io.github.uprxiao.audit.finding.EngineCoverage;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.intake.ProjectContext;
+import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.scanner.Applicability;
 import io.github.uprxiao.audit.scanner.ArtifactValidation;
 import io.github.uprxiao.audit.scanner.EngineDescriptor;
@@ -26,10 +27,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /** Generates a CycloneDX 1.6 JSON asset. SBOM components are inventory, never findings by themselves. */
 public final class CycloneDxAdapter implements ScannerAdapter {
@@ -40,6 +43,7 @@ public final class CycloneDxAdapter implements ScannerAdapter {
             "org.cyclonedx:cyclonedx-maven-plugin:" + TOOL_VERSION + ":makeAggregateBom";
     private static final long MAX_SBOM_BYTES = 512L * 1024 * 1024;
     private final ObjectMapper json = new ObjectMapper();
+    private final MavenArgumentValidator mavenArguments = new MavenArgumentValidator();
 
     @Override
     public EngineDescriptor descriptor() {
@@ -67,18 +71,28 @@ public final class CycloneDxAdapter implements ScannerAdapter {
     public ExecutionSpec prepare(ScanContext context, ToolContext tools) throws IOException {
         ToolContext.ToolInstallation installation = AdapterSupport.requireInstallation(tools, ID);
         Path sbomDirectory = Files.createDirectories(context.engineOutputDirectory().resolve("sbom"));
-        List<String> command = List.of(
+        mavenArguments.validate(context.mavenProfiles(), context.mavenProperties());
+        List<String> command = new ArrayList<>(List.of(
                 installation.executable().toString(), "--batch-mode", "--no-transfer-progress",
-                "--file", context.project().resolveProjectPath(context.project().manifest().rootPom()).toString(), MAVEN_COORDINATE,
-                "-DskipTests", "-DoutputFormat=json", "-DoutputName=bom",
+                "--file", context.project().resolveProjectPath(context.project().manifest().rootPom()).toString()));
+        Set<Integer> sensitiveArguments = new HashSet<>();
+        if (!context.mavenProfiles().isEmpty()) command.add("-P" + String.join(",", context.mavenProfiles()));
+        for (Map.Entry<String, String> property : new TreeMap<>(context.mavenProperties()).entrySet()) {
+            int index = command.size();
+            command.add("-D" + property.getKey() + "=" + property.getValue());
+            if (mavenArguments.isSensitiveProperty(property.getKey())) sensitiveArguments.add(index);
+        }
+        command.addAll(List.of(
+                MAVEN_COORDINATE, "-DskipTests", "-DoutputFormat=json", "-DoutputName=bom",
                 "-DoutputDirectory=" + sbomDirectory,
-                "-Dcyclonedx.skipAttach=true", "-DincludeBomSerialNumber=true");
+                "-Dcyclonedx.skipAttach=true", "-DincludeBomSerialNumber=true"));
         Map<String, String> environment = new LinkedHashMap<>(
                 AdapterSupport.isolatedEnvironment(context.engineOutputDirectory(), installation.executable()));
         environment.put("JAVA_HOME", Path.of(System.getProperty("java.home")).toAbsolutePath().normalize().toString());
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(), environment,
                 descriptor().defaultTimeout(), descriptor().resources(),
-                Set.of(new ExpectedArtifact("sbom/bom.json", true, MAX_SBOM_BYTES)), RedactionPolicy.NONE);
+                Set.of(new ExpectedArtifact("sbom/bom.json", true, MAX_SBOM_BYTES)),
+                new RedactionPolicy(sensitiveArguments, Set.of()));
     }
 
     @Override

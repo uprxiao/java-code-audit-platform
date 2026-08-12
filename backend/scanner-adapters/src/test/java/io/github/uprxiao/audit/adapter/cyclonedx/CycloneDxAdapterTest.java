@@ -10,6 +10,7 @@ import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.scanner.CancellationToken;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
 import io.github.uprxiao.audit.scanner.RawArtifactSet;
+import io.github.uprxiao.audit.scanner.ScanContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +36,32 @@ class CycloneDxAdapterTest {
         assertTrue(specification.command().contains(CycloneDxAdapter.MAVEN_COORDINATE));
         assertTrue(specification.expectedArtifacts().stream()
                 .anyMatch(artifact -> artifact.relativePath().equals("sbom/bom.json")));
+    }
+
+    @Test
+    void propagatesOnlyValidatedProfilesAndPropertiesAndRedactsCredentials() throws Exception {
+        Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("arguments-project"));
+        Path output = temporaryDirectory.resolve("arguments-task/raw/cyclonedx");
+        var project = project(root, "supply-fixture");
+        ScanContext context = new ScanContext(java.util.UUID.randomUUID(),
+                io.github.uprxiao.audit.finding.ScanProfile.STANDARD, project, output,
+                java.util.List.of("opensource"), Map.of("revision", "1.0.0", "repositoryToken", "redacted-token"));
+
+        var specification = new CycloneDxAdapter().prepare(context,
+                tools(CycloneDxAdapter.ID, Path.of(System.getProperty("java.home"), "bin", "java"),
+                        CycloneDxAdapter.TOOL_VERSION));
+
+        assertTrue(specification.command().contains("-Popensource"));
+        assertTrue(specification.command().contains("-Drevision=1.0.0"));
+        int secret = specification.command().indexOf("-DrepositoryToken=redacted-token");
+        assertTrue(secret > 0);
+        assertTrue(specification.redactionPolicy().sensitiveArgumentIndexes().contains(secret));
+        assertThrows(io.github.uprxiao.audit.intake.SourceIntakeException.class,
+                () -> new CycloneDxAdapter().prepare(new ScanContext(java.util.UUID.randomUUID(),
+                        io.github.uprxiao.audit.finding.ScanProfile.STANDARD, project, output.resolve("unsafe"),
+                        java.util.List.of(), Map.of("maven.repo.local", "/tmp/escape")),
+                        tools(CycloneDxAdapter.ID, Path.of(System.getProperty("java.home"), "bin", "java"),
+                                CycloneDxAdapter.TOOL_VERSION)));
     }
 
     @Test
