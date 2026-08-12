@@ -27,6 +27,8 @@ final class StartupPrerequisiteChecker {
 
     private static final Pattern MAVEN_VERSION = Pattern.compile("Apache Maven (\\d+)\\.(\\d+)(?:\\.(\\d+))?.*");
     private static final Pattern MAVEN_JAVA = Pattern.compile("Java version: (\\d+)(?:\\.[^, ]*)?.*");
+    private static final Pattern GLIBC_VERSION = Pattern.compile(".*(?:GLIBC|GNU libc|GNU C Library)[^0-9]*(\\d+)\\.(\\d+).*",
+            Pattern.CASE_INSENSITIVE);
 
     private final AuditRuntimePaths paths;
     private final LocalProcessExecutionBackend processes;
@@ -96,10 +98,12 @@ final class StartupPrerequisiteChecker {
                 + Files.readString(result.stderr(), StandardCharsets.UTF_8);
         String mavenVersion = extractMavenVersion(output);
         String mavenJavaVersion = extractMavenJavaVersion(output);
+        String runtimeLibc = runtimeLibc(paths.dataRoot().resolve("health/probes/libc"));
         StartupHealthSnapshot snapshot = new StartupHealthSnapshot(
                 tools.stream().allMatch(ToolInstallationHealth::available) ? "UP" : "DEGRADED",
                 System.getProperty("os.name", "unknown"),
                 System.getProperty("os.arch", "unknown"),
+                runtimeLibc,
                 System.getProperty("java.version", "unknown"),
                 mavenVersion,
                 mavenJavaVersion,
@@ -109,6 +113,40 @@ final class StartupPrerequisiteChecker {
                 clock.instant());
         files.write(paths.dataRoot().resolve("health/startup.json"), json.writeValueAsBytes(snapshot));
         return snapshot;
+    }
+
+    private String runtimeLibc(Path probe) throws IOException, InterruptedException {
+        String operatingSystem = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+        if (!operatingSystem.contains("linux")) {
+            return "not-applicable";
+        }
+        Path ldd = List.of(Path.of("/usr/bin/ldd"), Path.of("/bin/ldd")).stream()
+                .filter(Files::isRegularFile).filter(Files::isExecutable).findFirst()
+                .orElseThrow(() -> new IllegalStateException("Linux V1 requires an executable ldd for glibc verification"));
+        Files.createDirectories(probe);
+        ExecutionSpec specification = new ExecutionSpec(
+                new EngineId("glibc-health"), List.of(ldd.toString(), "--version"), probe,
+                Map.of("PATH", "/usr/bin:/bin", "LANG", "C", "LC_ALL", "C"), Duration.ofSeconds(10),
+                new ResourceRequest(ResourceClass.LIGHT, 1, 64), Set.of(), RedactionPolicy.NONE);
+        ExecutionResult result = processes.execute(specification, CancellationToken.NONE);
+        if (result.status() != ExecutionResult.Status.SUCCEEDED) {
+            throw new IllegalStateException("glibc version check failed: " + result.message());
+        }
+        String output = Files.readString(result.stdout(), StandardCharsets.UTF_8) + "\n"
+                + Files.readString(result.stderr(), StandardCharsets.UTF_8);
+        for (String line : output.lines().toList()) {
+            Matcher matcher = GLIBC_VERSION.matcher(line.trim());
+            if (!matcher.matches()) {
+                continue;
+            }
+            int major = Integer.parseInt(matcher.group(1));
+            int minor = Integer.parseInt(matcher.group(2));
+            if (major < 2 || (major == 2 && minor < 34)) {
+                throw new IllegalStateException("glibc 2.34 or newer is required, found " + major + "." + minor);
+            }
+            return "glibc " + major + "." + minor;
+        }
+        throw new IllegalStateException("Linux V1 requires glibc 2.34+; ldd output was not recognized");
     }
 
     private ExecutionSpec mavenVersionSpec(Path probe) {

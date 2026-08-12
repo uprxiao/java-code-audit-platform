@@ -7,6 +7,7 @@ public record StartupHealthSnapshot(
         String status,
         String operatingSystem,
         String architecture,
+        String runtimeLibc,
         String javaVersion,
         String mavenVersion,
         String mavenJavaVersion,

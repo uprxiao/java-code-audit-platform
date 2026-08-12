@@ -32,6 +32,9 @@ class StartupPrerequisiteCheckerTest {
         assertEquals("DEGRADED", snapshot.status());
         assertTrue(snapshot.mavenVersion().startsWith("3."));
         assertEquals("17", snapshot.mavenJavaVersion());
+        assertTrue(System.getProperty("os.name").toLowerCase().contains("linux")
+                ? snapshot.runtimeLibc().startsWith("glibc ")
+                : "not-applicable".equals(snapshot.runtimeLibc()));
         assertTrue(Files.readString(temporaryDirectory.resolve("health/startup.json"))
                 .contains("\"status\":\"DEGRADED\""));
     }
