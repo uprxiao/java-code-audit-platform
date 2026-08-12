@@ -26,8 +26,10 @@ if [[ -e "$INSTALL_ROOT" ]]; then
   exit 2
 fi
 mkdir -p "$DOWNLOAD_ROOT" "$(dirname "$INSTALL_ROOT")" "$PACK_ROOT"
-curl -fL --retry 3 --retry-delay 2 \
-  -o "$ARCHIVE" "https://github.com/github/codeql-cli-binaries/releases/download/v$VERSION/$ASSET"
+if [[ ! -f "$ARCHIVE" ]]; then
+  curl -fL --retry 3 --retry-delay 2 \
+    -o "$ARCHIVE" "https://github.com/github/codeql-cli-binaries/releases/download/v$VERSION/$ASSET"
+fi
 if command -v sha256sum >/dev/null 2>&1; then
   ACTUAL_SHA="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
 else
@@ -47,7 +49,7 @@ CODEQL_EXECUTABLE="$INSTALL_ROOT/codeql/codeql"
   exit 3
 }
 "$CODEQL_EXECUTABLE" version --format=json | grep -q '"version" : "2.26.2"'
-"$INSTALL_ROOT/codeql" pack download "codeql/java-queries@$JAVA_PACK_VERSION" --dir "$PACK_ROOT"
+"$CODEQL_EXECUTABLE" pack download "codeql/java-queries@$JAVA_PACK_VERSION" --dir "$PACK_ROOT"
 
 echo "CodeQL local installation ready: $INSTALL_ROOT"
 echo "Query packs: $PACK_ROOT"
