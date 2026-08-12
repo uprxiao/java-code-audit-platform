@@ -28,8 +28,12 @@ final class ApiExceptionHandler {
         ResponseEntity<ApiErrorResponse> response = response(
                 exception.status(), exception.code(), exception.getMessage(), exception.details(), request);
         if (exception.code() == ApiErrorCode.QUEUE_FULL) {
+            Object configured = exception.details().getOrDefault("retryAfterSeconds", 30);
+            String retryAfter = configured instanceof Number number
+                    ? Long.toString(Math.max(1, number.longValue()))
+                    : "30";
             return ResponseEntity.status(response.getStatusCode())
-                    .header("Retry-After", "30")
+                    .header("Retry-After", retryAfter)
                     .body(response.getBody());
         }
         return response;

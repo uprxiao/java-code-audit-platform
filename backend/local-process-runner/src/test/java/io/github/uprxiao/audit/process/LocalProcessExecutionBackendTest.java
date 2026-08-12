@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -103,6 +107,35 @@ class LocalProcessExecutionBackendTest {
 
         assertEquals(ExecutionResult.Status.CANCELLED, result.status());
         assertFalse(ProcessHandle.of(result.processId()).map(ProcessHandle::isAlive).orElse(false));
+    }
+
+    @Test
+    void cancellationKillsParentAndDescendantWithoutLeavingAnOrphan() throws Exception {
+        Path directory = Files.createDirectory(temporaryDirectory.resolve("cancel-tree"));
+        AtomicBoolean cancelled = new AtomicBoolean();
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        try {
+            Future<ExecutionResult> execution = caller.submit(() -> backend.execute(
+                    spec(directory, "spawn-child", Duration.ofSeconds(10), Map.of(), RedactionPolicy.NONE),
+                    cancelled::get));
+            Path childPidFile = directory.resolve("child.pid");
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!Files.isRegularFile(childPidFile) && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertTrue(Files.isRegularFile(childPidFile));
+            long childPid = Long.parseLong(Files.readString(childPidFile));
+            cancelled.set(true);
+
+            ExecutionResult result = execution.get(5, TimeUnit.SECONDS);
+            assertEquals(ExecutionResult.Status.CANCELLED, result.status());
+            assertFalse(ProcessHandle.of(result.processId()).map(ProcessHandle::isAlive).orElse(false));
+            assertFalse(ProcessHandle.of(childPid).map(ProcessHandle::isAlive).orElse(false));
+        } finally {
+            cancelled.set(true);
+            caller.shutdownNow();
+            caller.awaitTermination(5, TimeUnit.SECONDS);
+        }
     }
 
     @Test

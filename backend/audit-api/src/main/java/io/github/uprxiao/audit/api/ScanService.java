@@ -20,13 +20,13 @@ import io.github.uprxiao.audit.intake.SourceIntakeException;
 import io.github.uprxiao.audit.intake.StagedUpload;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
+import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportBundle;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.report.ReportGenerationOptions;
 import io.github.uprxiao.audit.report.ReportInput;
 import io.github.uprxiao.audit.scanner.Applicability;
-import io.github.uprxiao.audit.scanner.CancellationToken;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
 import io.github.uprxiao.audit.scanner.ExecutionSpec;
 import io.github.uprxiao.audit.scanner.NormalizationResult;
@@ -49,11 +49,11 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -62,7 +62,7 @@ public final class ScanService {
 
     private final AuditRuntimePaths paths;
     private final JobStore jobs;
-    private final ExecutorService executor;
+    private final ThreadPoolExecutor executor;
     private final Clock clock;
     private final ScanIdGenerator ids;
     private final UploadStager uploads;
@@ -81,7 +81,7 @@ public final class ScanService {
     ScanService(
             AuditRuntimePaths paths,
             JobStore jobs,
-            ExecutorService executor,
+            ThreadPoolExecutor executor,
             Clock clock,
             ScanIdGenerator ids,
             UploadStager uploads,
@@ -136,13 +136,26 @@ public final class ScanService {
         RuntimeScan runtime = new RuntimeScan(layout, job, Map.of(SemgrepAdapter.ID.value(), semgrepTask), staged, request);
         persist(runtime);
         scans.put(scanId, runtime);
+        Runnable workItem = () -> run(runtime, originalName);
+        runtime.workItem = workItem;
         try {
-            executor.execute(() -> run(runtime, originalName));
+            executor.execute(workItem);
+        } catch (ScanJobQueueFullException exception) {
+            scans.remove(scanId);
+            cleaner.deleteEntireJob(layout);
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, ApiErrorCode.QUEUE_FULL,
+                    "扫描队列已满，请稍后重试。", Map.of(
+                            "retryAfterSeconds", exception.retryAfter().toSeconds(),
+                            "queueLength", exception.queueLength(),
+                            "queueCapacity", exception.queueCapacity()));
         } catch (RejectedExecutionException exception) {
             scans.remove(scanId);
             cleaner.deleteEntireJob(layout);
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, ApiErrorCode.QUEUE_FULL,
-                    "扫描队列已满，请稍后重试。", Map.of("retryAfterSeconds", 30));
+                    "扫描服务正在停止，请稍后重试。", Map.of(
+                            "retryAfterSeconds", 30,
+                            "queueLength", executor.getQueue().size(),
+                            "queueCapacity", executor.getQueue().size() + executor.getQueue().remainingCapacity()));
         }
         return new CreateScanResponse(scanId, job.status(), job.profile(), job.createdAt(), List.of("semgrep"));
     }
@@ -184,6 +197,23 @@ public final class ScanService {
         }
     }
 
+    public CancelScanResult cancel(UUID scanId) {
+        RuntimeScan runtime = require(scanId);
+        boolean accepted;
+        synchronized (runtime) {
+            if (runtime.job.status().isTerminal()) {
+                accepted = false;
+            } else {
+                runtime.cancelRequested.set(true);
+                accepted = true;
+                if (runtime.job.status() == ScanStatus.QUEUED && executor.remove(runtime.workItem)) {
+                    cancelRuntime(runtime);
+                }
+            }
+        }
+        return new CancelScanResult(view(scanId), accepted);
+    }
+
     public Path report(UUID scanId, String type) {
         RuntimeScan runtime = require(scanId);
         synchronized (runtime) {
@@ -213,10 +243,18 @@ public final class ScanService {
 
     private void run(RuntimeScan runtime, String originalName) {
         try {
+            if (runtime.cancelRequested.get()) {
+                cancelRuntime(runtime);
+                return;
+            }
             transition(runtime, ScanStatus.ACQUIRING_SOURCE, null);
             Path extracted = runtime.layout.workspace().resolve("extracted");
             archives.extract(runtime.staged.path(), extracted, zipLimits);
             Files.deleteIfExists(runtime.staged.path());
+            if (runtime.cancelRequested.get()) {
+                cancelRuntime(runtime);
+                return;
+            }
 
             SourceDescriptor source = new SourceDescriptor(
                     SourceType.ZIP,
@@ -238,7 +276,11 @@ public final class ScanService {
             ScanContext scanContext = new ScanContext(runtime.job.id(), runtime.job.profile(), project, engineOutput,
                     runtime.request.mavenProfiles(), runtime.request.mavenProperties());
             ExecutionSpec specification = semgrep.prepare(scanContext, toolContext());
-            ExecutionResult execution = processes.execute(specification, CancellationToken.NONE);
+            ExecutionResult execution = processes.execute(specification, runtime.cancelRequested::get);
+            if (execution.status() == ExecutionResult.Status.CANCELLED) {
+                cancelRuntime(runtime);
+                return;
+            }
             RawArtifactSet raw = new RawArtifactSet(SemgrepAdapter.ID,
                     Map.of("report", engineOutput.resolve("report.json")), execution);
             NormalizationResult normalized = semgrep.normalize(scanContext, raw);
@@ -297,9 +339,35 @@ public final class ScanService {
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            fail(runtime, new FailureDetails("SCAN_INTERRUPTED", "scan worker was interrupted", Map.of()));
+            if (runtime.cancelRequested.get()) {
+                cancelRuntime(runtime);
+            } else {
+                fail(runtime, new FailureDetails("SCAN_INTERRUPTED", "scan worker was interrupted", Map.of()));
+            }
         } catch (Exception exception) {
-            fail(runtime, failure(exception));
+            if (runtime.cancelRequested.get()) {
+                cancelRuntime(runtime);
+            } else {
+                fail(runtime, failure(exception));
+            }
+        }
+    }
+
+    private void cancelRuntime(RuntimeScan runtime) {
+        synchronized (runtime) {
+            if (runtime.job.status().isTerminal()) {
+                return;
+            }
+            EngineTaskState engine = runtime.engines.get(SemgrepAdapter.ID.value());
+            if (engine != null && !engine.status().isTerminal()) {
+                runtime.engines = Map.of(engine.engineId(), engine.transitionTo(EngineStatus.CANCELLED, clock.instant()));
+            }
+            runtime.job = runtime.job.transitionTo(ScanStatus.CANCELLED, clock.instant());
+            try {
+                persist(runtime);
+            } catch (IOException ignored) {
+                // The in-memory terminal state remains queryable; startup recovery validates persisted state.
+            }
         }
     }
 
@@ -412,6 +480,8 @@ public final class ScanService {
         private List<Finding> findings = List.of();
         private ScanCoverage coverage;
         private ReportBundle bundle;
+        private final AtomicBoolean cancelRequested = new AtomicBoolean();
+        private Runnable workItem;
 
         private RuntimeScan(
                 JobDirectoryLayout layout,

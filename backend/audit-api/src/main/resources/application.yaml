@@ -21,6 +21,14 @@ audit:
   concurrency:
     max-queued-scan-jobs: ${AUDIT_MAX_QUEUED_SCAN_JOBS:20}
     max-concurrent-scan-jobs: ${AUDIT_MAX_CONCURRENT_SCAN_JOBS:2}
+    max-concurrent-engines: ${AUDIT_MAX_CONCURRENT_ENGINES:4}
+    max-engines-per-scan: ${AUDIT_MAX_ENGINES_PER_SCAN:2}
+    weighted-permits: ${AUDIT_WEIGHTED_PERMITS:8}
+    retry-after-seconds: ${AUDIT_QUEUE_RETRY_AFTER_SECONDS:30}
+    tool-limits:
+      maven: ${AUDIT_MAVEN_CONCURRENCY:1}
+      dependency-check: ${AUDIT_DEPENDENCY_CHECK_CONCURRENCY:1}
+      codeql: ${AUDIT_CODEQL_CONCURRENCY:1}
   intake:
     max-archive-bytes: ${AUDIT_MAX_ARCHIVE_BYTES:1073741824}
     max-expanded-bytes: ${AUDIT_MAX_EXPANDED_BYTES:10737418240}

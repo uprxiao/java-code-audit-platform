@@ -2,6 +2,7 @@ package io.github.uprxiao.audit.orchestrator;
 
 import io.github.uprxiao.audit.scanner.EngineId;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,6 +20,7 @@ public final class EnginePermitManager {
     private final Semaphore global;
     private final Semaphore weighted;
     private final Map<EngineId, Semaphore> tools;
+    private final Map<EngineId, Integer> toolLimits;
     private final Map<UUID, Semaphore> scans = new ConcurrentHashMap<>();
 
     public EnginePermitManager(
@@ -46,12 +48,13 @@ public final class EnginePermitManager {
             configuredTools.put(id, new Semaphore(limit, true));
         });
         this.tools = Map.copyOf(configuredTools);
+        this.toolLimits = Map.copyOf(toolLimits);
     }
 
     public Optional<PermitLease> tryAcquire(
-            UUID scanId, EngineId engineId, int weight, Duration maximumWait) throws InterruptedException {
+            UUID scanId, EngineId toolPermit, int weight, Duration maximumWait) throws InterruptedException {
         Objects.requireNonNull(scanId, "scanId");
-        Objects.requireNonNull(engineId, "engineId");
+        Objects.requireNonNull(toolPermit, "toolPermit");
         Objects.requireNonNull(maximumWait, "maximumWait");
         if (weight < 1 || weight > weightedLimit) {
             throw new IllegalArgumentException("engine weight must fit the configured weighted permit pool");
@@ -60,7 +63,7 @@ public final class EnginePermitManager {
             throw new IllegalArgumentException("maximumWait must not be negative");
         }
         Semaphore scan = scans.computeIfAbsent(scanId, ignored -> new Semaphore(perScanLimit, true));
-        Semaphore tool = tools.get(engineId);
+        Semaphore tool = tools.get(toolPermit);
         long deadline = System.nanoTime() + maximumWait.toNanos();
         do {
             boolean globalAcquired = global.tryAcquire();
@@ -100,9 +103,24 @@ public final class EnginePermitManager {
     }
 
     public PermitSnapshot snapshot() {
+        Map<UUID, Integer> scansInUse = new LinkedHashMap<>();
+        scans.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    int inUse = perScanLimit - entry.getValue().availablePermits();
+                    if (inUse > 0) {
+                        scansInUse.put(entry.getKey(), inUse);
+                    }
+                });
+        Map<EngineId, Integer> toolsInUse = new LinkedHashMap<>();
+        tools.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> toolsInUse.put(
+                        entry.getKey(), toolLimits.get(entry.getKey()) - entry.getValue().availablePermits()));
         return new PermitSnapshot(
                 globalLimit - global.availablePermits(), globalLimit,
-                weightedLimit - weighted.availablePermits(), weightedLimit);
+                weightedLimit - weighted.availablePermits(), weightedLimit,
+                scansInUse, perScanLimit, toolsInUse, toolLimits);
     }
 
     public void forgetScan(UUID scanId) {
@@ -112,7 +130,21 @@ public final class EnginePermitManager {
         }
     }
 
-    public record PermitSnapshot(int enginesInUse, int engineLimit, int weightInUse, int weightLimit) {
+    public record PermitSnapshot(
+            int enginesInUse,
+            int engineLimit,
+            int weightInUse,
+            int weightLimit,
+            Map<UUID, Integer> scansInUse,
+            int perScanLimit,
+            Map<EngineId, Integer> toolsInUse,
+            Map<EngineId, Integer> toolLimits) {
+
+        public PermitSnapshot {
+            scansInUse = Map.copyOf(scansInUse);
+            toolsInUse = Map.copyOf(toolsInUse);
+            toolLimits = Map.copyOf(toolLimits);
+        }
     }
 
     public static final class PermitLease implements AutoCloseable {

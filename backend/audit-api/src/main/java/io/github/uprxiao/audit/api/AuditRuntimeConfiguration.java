@@ -7,6 +7,7 @@ import io.github.uprxiao.audit.intake.MavenArgumentValidator;
 import io.github.uprxiao.audit.intake.SafeZipExtractor;
 import io.github.uprxiao.audit.intake.UploadStager;
 import io.github.uprxiao.audit.intake.ZipExtractionLimits;
+import io.github.uprxiao.audit.orchestrator.ScanJobQueueFullException;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.report.ReportGenerator;
 import io.github.uprxiao.audit.storage.FileJobStore;
@@ -23,7 +24,6 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,10 +68,11 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean(destroyMethod = "shutdown")
-    ExecutorService scanExecutor(
+    ThreadPoolExecutor scanExecutor(
             @Value("${audit.concurrency.max-concurrent-scan-jobs:2}") int workers,
-            @Value("${audit.concurrency.max-queued-scan-jobs:20}") int queueCapacity) {
-        if (workers < 1 || queueCapacity < 1) {
+            @Value("${audit.concurrency.max-queued-scan-jobs:20}") int queueCapacity,
+            @Value("${audit.concurrency.retry-after-seconds:30}") long retryAfterSeconds) {
+        if (workers < 1 || queueCapacity < 1 || retryAfterSeconds < 1) {
             throw new IllegalArgumentException("scan worker and queue limits must be positive");
         }
         AtomicInteger sequence = new AtomicInteger();
@@ -82,7 +83,13 @@ class AuditRuntimeConfiguration {
                     thread.setDaemon(false);
                     return thread;
                 },
-                new ThreadPoolExecutor.AbortPolicy());
+                (task, executor) -> {
+                    if (executor.isShutdown()) {
+                        throw new java.util.concurrent.RejectedExecutionException("scan executor is shutting down");
+                    }
+                    throw new ScanJobQueueFullException(
+                            executor.getQueue().size(), queueCapacity, Duration.ofSeconds(retryAfterSeconds));
+                });
     }
 
     @Bean

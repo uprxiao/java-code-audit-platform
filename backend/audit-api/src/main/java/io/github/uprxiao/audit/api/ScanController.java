@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,5 +52,12 @@ class ScanController {
     @GetMapping("/{scanId}/findings")
     List<Finding> findings(@PathVariable UUID scanId) {
         return scans.findings(scanId);
+    }
+
+    @PostMapping("/{scanId}/cancel")
+    ResponseEntity<ScanView> cancel(@PathVariable UUID scanId) {
+        CancelScanResult result = scans.cancel(scanId);
+        return ResponseEntity.status(result.accepted() ? HttpStatus.ACCEPTED : HttpStatus.OK)
+                .body(result.scan());
     }
 }

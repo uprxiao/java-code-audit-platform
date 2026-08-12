@@ -3,6 +3,7 @@ package io.github.uprxiao.audit.process;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public final class FakeToolMain {
 
@@ -31,7 +32,9 @@ public final class FakeToolMain {
             }
             case "spawn-child" -> {
                 Process child = new ProcessBuilder("/bin/sleep", "60").start();
-                Files.writeString(Path.of("child.pid"), Long.toString(child.pid()));
+                Path temporaryPid = Path.of("child.pid.tmp");
+                Files.writeString(temporaryPid, Long.toString(child.pid()));
+                Files.move(temporaryPid, Path.of("child.pid"), StandardCopyOption.ATOMIC_MOVE);
                 Thread.sleep(60_000);
             }
             case "invalid-report" -> Files.writeString(Path.of("report.json"), "{not-json");
