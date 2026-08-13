@@ -32,6 +32,7 @@ import io.github.uprxiao.audit.scanner.ToolContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -290,6 +292,83 @@ class CodeqlAdapterTest {
     }
 
     @Test
+    void workflowTreatsAConcurrentlyDisappearingDatabaseEntryAsSuccessfulCleanup() throws Exception {
+        Path projectRoot = copyProject(temporaryDirectory.resolve("cleanup-race-project"));
+        ScanContext scan = scan(project(projectRoot), temporaryDirectory.resolve("cleanup-race-output"));
+        CodeqlAdapter adapter = new CodeqlAdapter(createPinnedQuerySuite());
+        int[] calls = {0};
+        ExecutionBackend backend = (specification, cancellation) -> {
+            calls[0]++;
+            if (calls[0] == 1) {
+                Path cache = Files.createDirectories(
+                        adapter.databaseDirectory(scan).resolve("db-java/default/cache"));
+                Files.writeString(cache.resolve("cached-strings"), "transient");
+            } else if (calls[0] == 4) {
+                copyReport("findings.sarif", adapter.reportPath(scan));
+            }
+            return execution(specification.workingDirectory(), ExecutionResult.Status.SUCCEEDED, 0);
+        };
+        AtomicBoolean simulatedRace = new AtomicBoolean();
+        CodeqlWorkflow.DatabaseEntryDeleter racingDeleter = entry -> {
+            if (entry.getFileName().toString().equals("cached-strings")
+                    && simulatedRace.compareAndSet(false, true)) {
+                Files.deleteIfExists(entry);
+                throw new NoSuchFileException(entry.toString());
+            }
+            Files.deleteIfExists(entry);
+        };
+
+        CodeqlWorkflow.Result result = new CodeqlWorkflow(backend, racingDeleter).execute(
+                adapter, scan, tools(Path.of(System.getProperty("java.home"), "bin", "java"),
+                        CodeqlAdapter.CLI_VERSION), CancellationToken.NONE);
+
+        assertTrue(simulatedRace.get());
+        assertTrue(result.databaseDeleted());
+        assertFalse(Files.exists(adapter.databaseDirectory(scan)));
+    }
+
+    @Test
+    void workflowAcceptsAFileWalkerFailureOnlyWhenTheVerifiedDatabaseRootIsAlreadyGone() throws Exception {
+        Path projectRoot = copyProject(temporaryDirectory.resolve("cleanup-root-race-project"));
+        ScanContext scan = scan(project(projectRoot), temporaryDirectory.resolve("cleanup-root-race-output"));
+        CodeqlAdapter adapter = new CodeqlAdapter(createPinnedQuerySuite());
+        int[] calls = {0};
+        ExecutionBackend backend = (specification, cancellation) -> {
+            calls[0]++;
+            if (calls[0] == 1) {
+                Path cache = Files.createDirectories(
+                        adapter.databaseDirectory(scan).resolve("db-java/default/cache"));
+                Files.writeString(cache.resolve("cached-strings"), "transient");
+            } else if (calls[0] == 4) {
+                copyReport("findings.sarif", adapter.reportPath(scan));
+            }
+            return execution(specification.workingDirectory(), ExecutionResult.Status.SUCCEEDED, 0);
+        };
+        AtomicBoolean simulatedRace = new AtomicBoolean();
+        CodeqlWorkflow.DatabaseEntryDeleter racingDeleter = entry -> {
+            if (entry.getFileName().toString().equals("cached-strings")
+                    && simulatedRace.compareAndSet(false, true)) {
+                Path database = adapter.databaseDirectory(scan);
+                Files.deleteIfExists(entry);
+                Files.deleteIfExists(entry.getParent());
+                Files.deleteIfExists(entry.getParent().getParent());
+                Files.deleteIfExists(entry.getParent().getParent().getParent());
+                Files.deleteIfExists(database);
+                throw new IOException(entry.toString());
+            }
+            Files.deleteIfExists(entry);
+        };
+
+        CodeqlWorkflow.Result result = new CodeqlWorkflow(backend, racingDeleter).execute(
+                adapter, scan, tools(Path.of(System.getProperty("java.home"), "bin", "java"),
+                        CodeqlAdapter.CLI_VERSION), CancellationToken.NONE);
+
+        assertTrue(simulatedRace.get());
+        assertTrue(result.databaseDeleted());
+        assertTrue(Files.notExists(adapter.databaseDirectory(scan)));
+    }
+
+    @Test
     void workflowPreservesDatabaseOnAnalysisAndOutputFailure() throws Exception {
         Path executable = Path.of(System.getProperty("java.home"), "bin", "java");
         ToolContext tools = tools(executable, CodeqlAdapter.CLI_VERSION);
@@ -336,6 +415,101 @@ class CodeqlAdapterTest {
                         invalidAdapter, invalidScan, tools, CancellationToken.NONE));
         assertEquals(CodeqlWorkflow.Phase.OUTPUT_VALIDATION, invalidOutput.phase());
         assertTrue(Files.isDirectory(invalidAdapter.databaseDirectory(invalidScan)));
+    }
+
+    @Test
+    void workflowRetriesOnlyTheKnownTransientTrapCleanupFailureOnce() throws Exception {
+        Path executable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path projectRoot = copyProject(temporaryDirectory.resolve("finalize-retry-project"));
+        ScanContext scan = scan(project(projectRoot), temporaryDirectory.resolve("finalize-retry-output"));
+        CodeqlAdapter adapter = new CodeqlAdapter(createPinnedQuerySuite());
+        List<ExecutionSpec> calls = new ArrayList<>();
+        ExecutionBackend backend = (specification, cancellation) -> {
+            calls.add(specification);
+            if (calls.size() == 1) {
+                Files.createDirectories(adapter.databaseDirectory(scan));
+            }
+            ExecutionResult result = execution(specification.workingDirectory(),
+                    calls.size() == 3 ? ExecutionResult.Status.FAILED : ExecutionResult.Status.SUCCEEDED,
+                    calls.size() == 3 ? 2 : 0);
+            if (calls.size() == 3) {
+                Files.writeString(result.stderr(), "Error while recursively deleting '/job/codeql-db/database/trap'\n"
+                        + "eventual cause: Failed to delete /job/codeql-db/database/trap/java");
+            } else if (calls.size() == 5) {
+                copyReport("findings.sarif", adapter.reportPath(scan));
+            }
+            return result;
+        };
+
+        CodeqlWorkflow.Result result = new CodeqlWorkflow(backend).execute(
+                adapter, scan, tools(executable, CodeqlAdapter.CLI_VERSION), CancellationToken.NONE);
+
+        assertEquals(5, calls.size());
+        assertTrue(calls.get(3).workingDirectory().getFileName().toString().endsWith("-retry"));
+        assertTrue(result.databaseDeleted());
+    }
+
+    @Test
+    void workflowContinuesWhenKnownTrapCleanupFailureActuallyFinalizedTheDatabase() throws Exception {
+        Path executable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path projectRoot = copyProject(temporaryDirectory.resolve("already-finalized-project"));
+        ScanContext scan = scan(project(projectRoot), temporaryDirectory.resolve("already-finalized-output"));
+        CodeqlAdapter adapter = new CodeqlAdapter(createPinnedQuerySuite());
+        List<ExecutionSpec> calls = new ArrayList<>();
+        ExecutionBackend backend = (specification, cancellation) -> {
+            calls.add(specification);
+            if (calls.size() == 1) {
+                Files.createDirectories(adapter.databaseDirectory(scan));
+            }
+            ExecutionResult result = execution(specification.workingDirectory(),
+                    calls.size() == 3 || calls.size() == 4
+                            ? ExecutionResult.Status.FAILED : ExecutionResult.Status.SUCCEEDED,
+                    calls.size() == 3 || calls.size() == 4 ? 2 : 0);
+            if (calls.size() == 3) {
+                Files.writeString(result.stderr(), "Error while recursively deleting '/job/codeql-db/database/trap'\n"
+                        + "eventual cause: Failed to delete /job/codeql-db/database/trap/java");
+            } else if (calls.size() == 4) {
+                Files.writeString(result.stderr(), "A fatal error occurred: Database /job/codeql-db/database"
+                        + " is already finalized.\n");
+            } else if (calls.size() == 5) {
+                copyReport("findings.sarif", adapter.reportPath(scan));
+            }
+            return result;
+        };
+
+        CodeqlWorkflow.Result result = new CodeqlWorkflow(backend).execute(
+                adapter, scan, tools(executable, CodeqlAdapter.CLI_VERSION), CancellationToken.NONE);
+
+        assertEquals(5, calls.size());
+        assertEquals(ExecutionResult.Status.SUCCEEDED, result.databaseFinalization().status());
+        assertTrue(result.databaseFinalization().message().contains("already complete"));
+        assertTrue(result.databaseDeleted());
+    }
+
+    @Test
+    void workflowDoesNotRetryUnrelatedFinalizeFailures() throws Exception {
+        Path executable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path projectRoot = copyProject(temporaryDirectory.resolve("finalize-hard-failure-project"));
+        ScanContext scan = scan(project(projectRoot), temporaryDirectory.resolve("finalize-hard-failure-output"));
+        CodeqlAdapter adapter = new CodeqlAdapter(createPinnedQuerySuite());
+        int[] calls = {0};
+        ExecutionBackend backend = (specification, cancellation) -> {
+            calls[0]++;
+            if (calls[0] == 1) Files.createDirectories(adapter.databaseDirectory(scan));
+            ExecutionResult result = execution(specification.workingDirectory(),
+                    calls[0] == 3 ? ExecutionResult.Status.FAILED : ExecutionResult.Status.SUCCEEDED,
+                    calls[0] == 3 ? 2 : 0);
+            if (calls[0] == 3) Files.writeString(result.stderr(), "database schema is invalid");
+            return result;
+        };
+
+        CodeqlWorkflow.CodeqlWorkflowException failure = assertThrows(
+                CodeqlWorkflow.CodeqlWorkflowException.class,
+                () -> new CodeqlWorkflow(backend).execute(
+                        adapter, scan, tools(executable, CodeqlAdapter.CLI_VERSION), CancellationToken.NONE));
+
+        assertEquals(CodeqlWorkflow.Phase.DATABASE_FINALIZE, failure.phase());
+        assertEquals(3, calls[0]);
     }
 
     @Test

@@ -25,7 +25,21 @@ public record Finding(
         List<DataFlow> dataFlows,
         List<FindingEvidence> evidence,
         FindingSuppression suppression,
-        ReviewState reviewState) {
+        ReviewState reviewState,
+        FindingGovernance governance) {
+
+    /** Source-compatible constructor for adapters that have not applied contextual governance yet. */
+    public Finding(
+            String id, String fingerprint, int fingerprintVersion, IssueCategory category, Severity severity,
+            Confidence confidence, String ruleFamily, String titleZh, String titleOriginal, String descriptionZh,
+            String messageOriginal, String impactZh, String remediationZh, String module, SourceLocation location,
+            CodeSnippet snippet, VulnerabilityIdentifiers identifiers, ComponentEvidence component,
+            List<DataFlow> dataFlows, List<FindingEvidence> evidence, FindingSuppression suppression,
+            ReviewState reviewState) {
+        this(id, fingerprint, fingerprintVersion, category, severity, confidence, ruleFamily, titleZh, titleOriginal,
+                descriptionZh, messageOriginal, impactZh, remediationZh, module, location, snippet, identifiers,
+                component, dataFlows, evidence, suppression, reviewState, null);
+    }
 
     public Finding {
         id = requireText(id, "id");
@@ -57,6 +71,7 @@ public record Finding(
             throw new IllegalArgumentException("finding requires at least one evidence source");
         }
         reviewState = reviewState == null ? ReviewState.UNREVIEWED : reviewState;
+        governance = governance == null ? FindingGovernance.defaults(category, severity) : governance;
         if (category == IssueCategory.SECRET_EXPOSURE && snippet != null && !snippet.redacted()) {
             throw new IllegalArgumentException("secret snippets must be redacted");
         }
@@ -74,7 +89,12 @@ public record Finding(
     }
 
     public Finding withSuppression(FindingSuppression value) {
-        return copy(evidence, dataFlows, value, severity, confidence, fingerprint, id);
+        return copy(evidence, dataFlows, value, severity, confidence, fingerprint, id, reviewState, governance);
+    }
+
+    public Finding withGovernance(FindingGovernance value, ReviewState state) {
+        return copy(evidence, dataFlows, suppression, severity, confidence, fingerprint, id,
+                state == null ? reviewState : state, Objects.requireNonNull(value, "governance"));
     }
 
     public Finding withMergedEvidence(
@@ -85,7 +105,7 @@ public record Finding(
             String mergedFingerprint,
             String mergedId) {
         return copy(mergedEvidence, mergedDataFlows, suppression, mergedSeverity, mergedConfidence,
-                mergedFingerprint, mergedId);
+                mergedFingerprint, mergedId, reviewState, governance);
     }
 
     private Finding copy(
@@ -95,11 +115,13 @@ public record Finding(
             Severity copiedSeverity,
             Confidence copiedConfidence,
             String copiedFingerprint,
-            String copiedId) {
+            String copiedId,
+            ReviewState copiedReviewState,
+            FindingGovernance copiedGovernance) {
         return new Finding(copiedId, copiedFingerprint, fingerprintVersion, category, copiedSeverity,
                 copiedConfidence, ruleFamily, titleZh, titleOriginal, descriptionZh, messageOriginal,
                 impactZh, remediationZh, module, location, snippet, identifiers, component,
-                copiedDataFlows, copiedEvidence, copiedSuppression, reviewState);
+                copiedDataFlows, copiedEvidence, copiedSuppression, copiedReviewState, copiedGovernance);
     }
 
     private static String requireText(String value, String name) {

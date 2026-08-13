@@ -13,6 +13,8 @@ import io.github.uprxiao.audit.finding.Confidence;
 import io.github.uprxiao.audit.finding.EngineCoverage;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.Finding;
+import io.github.uprxiao.audit.finding.FindingApplicability;
+import io.github.uprxiao.audit.finding.FindingDisposition;
 import io.github.uprxiao.audit.finding.FindingEvidence;
 import io.github.uprxiao.audit.finding.IssueCategory;
 import io.github.uprxiao.audit.finding.ReviewState;
@@ -85,7 +87,14 @@ class ReportGeneratorTest {
         JsonNode report = json.readTree(bundle.json().toFile());
         assertEquals(1, report.path("summary").path("uniqueFindingCount").asInt());
         assertEquals(1, report.path("summary").path("actionableFindingCount").asInt());
+        assertEquals(0, report.path("summary").path("conditionalFindingCount").asInt());
         assertEquals(0, report.path("summary").path("advisoryFindingCount").asInt());
+        assertEquals(1, report.path("summary").path("governance")
+                .path("disposition.ACTIONABLE").asInt());
+        assertEquals(1, report.path("summary").path("governance")
+                .path("applicability.UNKNOWN").asInt());
+        assertEquals("ACTIONABLE", report.path("findings").get(0)
+                .path("governance").path("disposition").asText());
         assertEquals(1, report.path("summary").path("rawHitCount").asInt());
         assertEquals(1, sum(report.path("summary").path("severity")));
         assertEquals(1, sum(report.path("summary").path("categories")));
@@ -96,12 +105,16 @@ class ReportGeneratorTest {
         assertTrue(html.contains("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;"));
         assertFalse(html.contains("https://cdn"));
         assertTrue(html.contains("不依赖AI"));
-        assertTrue(html.contains("待复核问题（P0–P2）"));
-        assertTrue(html.contains("建议项（P3）"));
+        assertTrue(html.contains("可行动问题"));
+        assertTrue(html.contains("治理结论"));
+        assertTrue(html.contains("建议项"));
 
         JsonNode sarif = json.readTree(bundle.sarif().toFile());
         assertEquals("2.1.0", sarif.path("version").asText());
         assertEquals(1, sarif.path("runs").get(0).path("results").size());
+        JsonNode sarifProperties = sarif.path("runs").get(0).path("results").get(0).path("properties");
+        assertEquals(FindingDisposition.ACTIONABLE.name(), sarifProperties.path("disposition").asText());
+        assertEquals(FindingApplicability.UNKNOWN.name(), sarifProperties.path("applicability").asText());
 
         JsonNode manifest = json.readTree(bundle.manifest().toFile());
         Set<String> manifestPaths = new HashSet<>();

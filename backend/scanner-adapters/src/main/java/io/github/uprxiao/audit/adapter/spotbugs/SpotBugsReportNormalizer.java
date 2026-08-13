@@ -137,6 +137,11 @@ final class SpotBugsReportNormalizer {
         properties.put("bugCategory", categoryName);
         properties.put("priority", priority);
         properties.put("rank", rank);
+        String instanceHash = instance.getAttribute("instanceHash").trim();
+        if (!instanceHash.isEmpty()) {
+            properties.put("detectorInstanceKey", "spotbugs:"
+                    + instanceHash + ":" + integer(instance.getAttribute("instanceOccurrenceNum"), 0));
+        }
         properties.put("severityBasis", "bug-rank:" + rank);
         properties.put("class", className);
         properties.put("method", methodName);

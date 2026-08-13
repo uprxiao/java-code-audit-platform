@@ -8,6 +8,7 @@ Finding 是报告统计的最小风险单元。它既要统一不同扫描器，
 Raw Finding（扫描器原始条目）
   → Finding Candidate（平台归一化）
     → Finding Group（跨引擎去重后的展示问题）
+      → Governance Assessment（不改原始严重性的适用性/可行动性结论）
 ```
 
 首页“问题总数”统计 Finding Group；“原始命中数”统计有效 Raw Finding。
@@ -53,7 +54,16 @@ Raw Finding（扫描器原始条目）
   "dataFlow": [],
   "evidence": [],
   "suppression": null,
-  "reviewState": "UNREVIEWED"
+  "reviewState": "UNREVIEWED",
+  "governance": {
+    "disposition": "ACTIONABLE",
+    "applicability": "TRIGGER_PRESENT",
+    "policyId": "project-sqli-reviewed-2026-08",
+    "rationale": "污点路径和真实 SQL sink 都存在",
+    "evidence": ["src/main/java/example/UserController.java matches reviewed sink"],
+    "upstreamSeverity": "HIGH",
+    "expiresAt": "2026-11-13T00:00:00Z"
+  }
 }
 ```
 
@@ -85,6 +95,21 @@ Raw Finding（扫描器原始条目）
 4. 不因多个引擎命中自动提高严重性；
 5. 报告记录 `severityMappingId` 和映射理由；
 6. 未知规则保守映射并产生映射警告，不丢弃。
+
+### 严重性不等于处置优先级
+
+`severity` 回答“如果问题成立，影响有多大”；`governance.disposition` 回答“基于当前项目证据，
+现在怎么处理”。两者必须同时保留：
+
+| disposition | 含义 |
+| --- | --- |
+| `ACTIONABLE` | 触发条件已证实，或高优先级发现尚未完成上下文复核 |
+| `CONDITIONAL` | 版本/边界缺陷成立，但部署配置、输入或调用路径仍需确认 |
+| `ADVISORY` | 规范/低风险改进项，或已有可审计证据证明不适用/误报 |
+
+`applicability` 记录 `AFFECTED_VERSION`、`TRIGGER_PRESENT`、`TRIGGER_NOT_FOUND`、
+`NOT_AFFECTED`、`CONFIRMED_DEFECT`、`FALSE_POSITIVE` 或 `UNKNOWN`。治理层不得改写引擎原始
+severity/CVSS/规则，不得删除 evidence。
 
 ## 4. 置信度
 
@@ -187,6 +212,11 @@ normalized-token-hash | sorted-occurrence-paths
 
 保守原则：证据不足就不合并。错误地少报两个真实路径比展示一个重复组风险更大。
 
+Maven 依赖特例：同一模块内的“归一化 PURL + 同一漏洞 ID”是同一修复单元。
+`?type=jar` 这类 Maven 默认 qualifier 不制造新问题；Dependency-Check 与 Trivy 给出的
+依赖路径表达不同时可合并，但两条路径仍分别保留在 evidence 中。不同模块或
+`classifier=tests` 等有语义 qualifier 仍保持独立。
+
 ## 10. 抑制
 
 抑制匹配支持：
@@ -209,6 +239,13 @@ normalized-token-hash | sorted-occurrence-paths
 
 路径预排除的文件可能不会进入扫描器，因此只进入 coverage，不产生被抑制 Finding。两者统计不能混为一谈。
 
-## 11. 人工复核状态
+## 11. 复核与项目治理
 
-V1 文件模型预留 `UNREVIEWED`、`CONFIRMED`、`FALSE_POSITIVE`、`ACCEPTED_RISK`，但不建设多人工作流和权限。状态更新接口可以延后到核心报告稳定后；若未实现，所有 Finding 为 `UNREVIEWED`，不影响扫描完成。
+V1 保留 `UNREVIEWED`、`CONFIRMED`、`FALSE_POSITIVE`、`ACCEPTED_RISK`。当前不建设多人审批 UI，
+但支持版本化的 `config/rules/finding-governance.json`：
+
+- 已复核源码问题用稳定 fingerprint 精确匹配；
+- 依赖漏洞用 Maven PURL + CVE/GHSA/OSV + 项目触发证据匹配；
+- 必须填写 rationale、evidence 和 expiry；
+- 过期结论自动失效并生成 `GOVERNANCE_EXPIRED` warning；
+- 未知指纹 fail open 为未复核问题，不会被相似白名单隐藏。

@@ -215,10 +215,22 @@ def verify_completed_scan(client: EvidenceClient, scan_id: str, profile: str) ->
         require(detail.get("engineId") == engine_id, f"engine detail mismatch for {engine_id}")
 
     findings = all_findings(client, scan_id, profile.lower())
-    require(terminal.get("summary", {}).get("uniqueFindingCount") == len(findings),
+    terminal_summary = terminal.get("summary", {})
+    require(terminal_summary.get("uniqueFindingCount") == len(findings),
             f"{profile} state/finding count mismatch")
+    require(terminal_summary.get("actionableFindingCount", 0)
+            + terminal_summary.get("conditionalFindingCount", 0)
+            + terminal_summary.get("advisoryFindingCount", 0) == len(findings),
+            f"{profile} actionable/conditional/advisory state counts are inconsistent")
     if findings:
         first = findings[0]
+        governance = first.get("governance", {})
+        require(governance.get("disposition") in {"ACTIONABLE", "CONDITIONAL", "ADVISORY"},
+                "finding has no valid governance disposition")
+        require(governance.get("applicability") in {
+                    "UNKNOWN", "AFFECTED_VERSION", "TRIGGER_PRESENT", "TRIGGER_NOT_FOUND",
+                    "NOT_AFFECTED", "CONFIRMED_DEFECT", "FALSE_POSITIVE"
+                }, "finding has no valid governance applicability")
         finding_id = urllib.parse.quote(first["id"])
         _, _, detail = client.json(
             "GET", f"/api/v1/scans/{scan_id}/findings/{finding_id}",
@@ -233,6 +245,15 @@ def verify_completed_scan(client: EvidenceClient, scan_id: str, profile: str) ->
             )
             require(filtered and all(item[key] == first[key] for item in filtered),
                     f"finding {key} filter is inconsistent")
+        for key in ("disposition", "applicability"):
+            value = urllib.parse.quote(str(governance[key]))
+            _, _, filtered = client.json(
+                "GET", f"/api/v1/scans/{scan_id}/findings?{key}={value}&size=200",
+                expected={200}, label=f"findings-{profile.lower()}-{key}",
+            )
+            require(filtered and all(item.get("governance", {}).get(key) == governance[key]
+                                     for item in filtered),
+                    f"finding governance {key} filter is inconsistent")
         engine = first.get("evidence", [{}])[0].get("engine", "")
         if engine:
             _, _, filtered = client.json(
@@ -271,6 +292,12 @@ def verify_completed_scan(client: EvidenceClient, scan_id: str, profile: str) ->
         label=f"findings-{profile.lower()}-invalid-severity",
     )
     require(error_code(invalid_filter) == "INVALID_REQUEST", "invalid severity contract changed")
+    _, _, invalid_governance = client.json(
+        "GET", f"/api/v1/scans/{scan_id}/findings?disposition=NOT_A_DISPOSITION", expected={400},
+        label=f"findings-{profile.lower()}-invalid-disposition",
+    )
+    require(error_code(invalid_governance) == "INVALID_REQUEST",
+            "invalid governance disposition contract changed")
     for endpoint, label in (("engines/not-an-engine", "unknown-engine"),
                             ("findings/not-a-finding", "unknown-finding")):
         _, _, missing = client.json(
@@ -300,6 +327,27 @@ def verify_completed_scan(client: EvidenceClient, scan_id: str, profile: str) ->
             f"{profile} report/finding count mismatch")
     require(len(report.get("engines", [])) == PROFILE_ENGINES[profile],
             f"{profile} report engine count mismatch")
+    governance_counts = report.get("summary", {}).get("governance", {})
+    report_summary = report.get("summary", {})
+    require(report_summary.get("actionableFindingCount", 0)
+            + report_summary.get("conditionalFindingCount", 0)
+            + report_summary.get("advisoryFindingCount", 0) == len(findings),
+            f"{profile} report disposition headline counts are inconsistent")
+    require(report_summary.get("actionableFindingCount")
+            == governance_counts.get("disposition.ACTIONABLE"),
+            f"{profile} actionable headline/governance counts diverge")
+    require(report_summary.get("conditionalFindingCount")
+            == governance_counts.get("disposition.CONDITIONAL"),
+            f"{profile} conditional headline/governance counts diverge")
+    require(report_summary.get("advisoryFindingCount")
+            == governance_counts.get("disposition.ADVISORY"),
+            f"{profile} advisory headline/governance counts diverge")
+    require(sum(value for key, value in governance_counts.items()
+                if key.startswith("disposition.")) == len(findings),
+            f"{profile} disposition report counts are inconsistent")
+    require(sum(value for key, value in governance_counts.items()
+                if key.startswith("applicability.")) == len(findings),
+            f"{profile} applicability report counts are inconsistent")
     require(sarif.get("version") == "2.1.0", f"{profile} SARIF version is invalid")
     verify_archive(report_bodies["archive"], profile)
 

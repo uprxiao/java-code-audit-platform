@@ -65,6 +65,8 @@ class SpotBugsAdapterTest {
         assertEquals("src/main/java/example/SpotBugsIssue.java", finding.location().path());
         assertEquals(6, finding.location().startLine());
         assertTrue(finding.fingerprint().matches("sha256:[0-9a-f]{64}"));
+        assertEquals("spotbugs:fixture-instance-hash:2",
+                finding.evidence().get(0).properties().get("detectorInstanceKey"));
         assertEquals("java-audit-severity-v2", finding.evidence().get(0).properties().get("severityMappingId"));
 
         Path cleanOut = Files.createDirectories(temporaryDirectory.resolve("clean"));

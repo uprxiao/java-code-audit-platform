@@ -50,6 +50,7 @@ flowchart LR
 - [并发与资源](concurrency.md)：队列、权重、限流、公平性和资源保护。
 - [扫描器适配协议](scanner-adapter.md)：探测、命令准备、执行和归一化接口。
 - [Finding 模型](finding-model.md)：严重性、分类、证据、指纹和抑制。
+- [规则治理优化实施与真实复验](rule-governance-implementation-report-2026-08-13.md)：48 条定向真值、可行动性、PURL 去重和三档 Web 黑盒结果。
 - [报告规范](report-schema.md)：统计口径、详情、下载包和失败表达。
 - [API 契约](api-contract.md)：ZIP/SVN、进度、取消、删除和报告接口。
 - [文件存储](storage-layout.md)：无数据库状态、原子写入、恢复和保留。

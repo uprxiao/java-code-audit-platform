@@ -10,6 +10,8 @@ import io.github.uprxiao.audit.finding.EngineCoverage;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.Finding;
 import io.github.uprxiao.audit.finding.FindingEvidence;
+import io.github.uprxiao.audit.finding.FindingApplicability;
+import io.github.uprxiao.audit.finding.FindingDisposition;
 import io.github.uprxiao.audit.finding.IssueCategory;
 import io.github.uprxiao.audit.finding.ScanCoverage;
 import io.github.uprxiao.audit.finding.Severity;
@@ -175,15 +177,31 @@ public final class ReportGenerator {
                 engine.status().name().toLowerCase(Locale.ROOT), (ignored, count) -> count == null ? 1 : count + 1));
         long rawHitCount = input.coverage().engines().stream().mapToLong(EngineCoverage::rawHitCount).sum();
         Duration duration = Duration.between(input.createdAt(), input.completedAt());
-        int actionable = (int) active.stream().filter(finding -> finding.severity() != Severity.P3).count();
-        int advisory = active.size() - actionable;
+        int actionable = (int) active.stream()
+                .filter(finding -> finding.governance().disposition() == FindingDisposition.ACTIONABLE).count();
+        int conditional = (int) active.stream()
+                .filter(finding -> finding.governance().disposition() == FindingDisposition.CONDITIONAL).count();
+        int advisory = active.size() - actionable - conditional;
+        Map<String, Integer> governance = new LinkedHashMap<>();
+        for (FindingDisposition disposition : FindingDisposition.values()) {
+            governance.put("disposition." + disposition.name(), 0);
+        }
+        for (FindingApplicability applicability : FindingApplicability.values()) {
+            governance.put("applicability." + applicability.name(), 0);
+        }
+        active.forEach(finding -> {
+            governance.compute("disposition." + finding.governance().disposition().name(), (key, count) -> count + 1);
+            governance.compute("applicability." + finding.governance().applicability().name(), (key, count) -> count + 1);
+        });
         return new ReportSummary(
-                active.size(), actionable, advisory, rawHitCount, suppressed.size(), enumCounts(severity), enumCounts(categories),
+                active.size(), actionable, conditional, advisory, rawHitCount, suppressed.size(),
+                enumCounts(severity), enumCounts(categories),
                 Map.copyOf(engineCounts),
                 Map.of("discovered", input.coverage().modulesDiscovered(), "built", input.coverage().modulesBuilt(),
                         "scanned", input.coverage().modulesScanned()),
                 Map.of("components", number(input.sbomSummary().get("components")),
                         "vulnerableComponents", number(input.sbomSummary().get("vulnerableComponents"))),
+                Map.copyOf(governance),
                 Math.max(0, duration.toMillis()));
     }
 
@@ -203,9 +221,10 @@ public final class ReportGenerator {
                 || summary.uniqueFindingCount() != active.size() || summary.suppressedCount() != suppressed.size()) {
             throw new IllegalArgumentException("report severity/category/finding totals are inconsistent");
         }
-        if (summary.actionableFindingCount() + summary.advisoryFindingCount() != active.size()
-                || summary.advisoryFindingCount() != summary.severity().getOrDefault(Severity.P3.name(), 0)) {
-            throw new IllegalArgumentException("report actionable/advisory totals are inconsistent");
+        if (summary.actionableFindingCount() + summary.conditionalFindingCount()
+                + summary.advisoryFindingCount() != active.size()
+                || summary.governance().values().stream().mapToInt(Integer::intValue).sum() != active.size() * 2) {
+            throw new IllegalArgumentException("report disposition/applicability totals are inconsistent");
         }
         if (summary.rawHitCount() < active.size() + suppressed.size()) {
             throw new IllegalArgumentException("raw finding count is lower than normalized finding count");
@@ -303,6 +322,11 @@ public final class ReportGenerator {
             result.put("codeFlows", finding.dataFlows().stream().map(this::sarifCodeFlow).toList());
         }
         result.put("partialFingerprints", Map.of("javaAudit/v1", finding.fingerprint()));
+        if (finding.governance().applicability() == FindingApplicability.FALSE_POSITIVE
+                || finding.governance().applicability() == FindingApplicability.NOT_AFFECTED) {
+            result.put("suppressions", List.of(Map.of(
+                    "kind", "external", "justification", finding.governance().rationale())));
+        }
         result.put("properties", orderedMap(
                 "findingId", finding.id(), "fingerprint", finding.fingerprint(),
                 "category", finding.category().name(), "confidence", finding.confidence().name(),
@@ -311,7 +335,11 @@ public final class ReportGenerator {
                         "engine", evidence.engine(), "ruleId", evidence.ruleId(),
                         "rawArtifact", evidence.rawArtifact(), "rawItemId", evidence.rawItemId())).toList(),
                 "cwe", finding.identifiers().cwe(), "cve", finding.identifiers().cve(),
-                "titleZh", finding.titleZh(), "remediationZh", finding.remediationZh()));
+                "titleZh", finding.titleZh(), "remediationZh", finding.remediationZh(),
+                "disposition", finding.governance().disposition().name(),
+                "applicability", finding.governance().applicability().name(),
+                "governancePolicy", finding.governance().policyId(),
+                "governanceRationale", finding.governance().rationale()));
         return Map.copyOf(result);
     }
 
@@ -359,13 +387,18 @@ public final class ReportGenerator {
                 .finding h3{margin-top:0}pre{overflow:auto;background:#111827;color:#e5e7eb;border-radius:10px;padding:16px}.evidence{color:#526079}.warning{border-left:5px solid #e59b24}.suppressed{opacity:.8;border-left:5px solid #64748b}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
                 </style></head><body>
                 <section class="hero"><h1>Java代码审计报告</h1><p>任务 %s · %s · %s</p></section>
-                <section class="grid"><div class="card"><div class="metric">%d</div><div class="label">待复核问题（P0–P2）</div></div>
-                <div class="card"><div class="metric">%d</div><div class="label">建议项（P3）</div></div>
+                <section class="grid"><div class="card"><div class="metric">%d</div><div class="label">可行动问题</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">条件性结果</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">已证明不适用（建议项子集）</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">已复核误报（建议项子集）</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">全部建议项（含前两类）</div></div>
                 <div class="card"><div class="metric">%d</div><div class="label">全部 Finding</div></div>
                 <div class="card"><div class="metric">%d</div><div class="label">原始命中</div></div>
                 <div class="card"><div class="metric">%d</div><div class="label">抑制问题</div></div>
                 <div class="card"><div class="metric">%d ms</div><div class="label">总耗时</div></div></section>
-                <section class="card warning"><h2>阅读口径</h2><p>待复核问题是需要人工确认的静态分析候选，不等于已证实缺陷；P3 是代码规范、可维护性和重复度建议，默认不作为安全阻断依据。</p></section>
+                <section class="card warning"><h2>阅读口径</h2><p>
+                可行动问题已有当前项目适用性证据；条件性结果保留版本或边界事实，但尚未证明当前可利用。
+                已证明不适用和已复核误报仍保留原始引擎证据，不进入默认阻断队列。</p></section>
                 <section class="card warning"><h2>覆盖与失败状态</h2><p>发现模块 %d，构建 %d，完成扫描 %d。引擎失败或跳过不等于零问题。</p></section>
                 <section class="card"><h2>严重性统计</h2><p>%s</p><h2>十二类审计统计</h2><p>%s</p></section>
                 <section class="card"><h2>引擎执行</h2><table><thead><tr><th>引擎</th><th>状态</th><th>原始命中</th><th>耗时(ms)</th><th>原因</th></tr></thead><tbody>%s</tbody></table></section>
@@ -377,7 +410,11 @@ public final class ReportGenerator {
                 </body></html>
                 """.formatted(
                 escape(input.scanId()), escape(input.profile()), escape(input.status()),
-                report.summary().actionableFindingCount(), report.summary().advisoryFindingCount(),
+                report.summary().actionableFindingCount(),
+                report.summary().conditionalFindingCount(),
+                report.summary().governance().getOrDefault("applicability.NOT_AFFECTED", 0),
+                report.summary().governance().getOrDefault("applicability.FALSE_POSITIVE", 0),
+                report.summary().advisoryFindingCount(),
                 report.summary().uniqueFindingCount(), report.summary().rawHitCount(), report.summary().suppressedCount(),
                 report.summary().durationMs(), input.coverage().modulesDiscovered(), input.coverage().modulesBuilt(),
                 input.coverage().modulesScanned(), escape(report.summary().severity()),
@@ -393,6 +430,18 @@ public final class ReportGenerator {
                 .append(escape(firstNonBlank(finding.titleZh(), finding.titleOriginal()))).append("</h3>")
                 .append("<p><strong>分类：</strong>").append(escape(finding.category().name()))
                 .append("　<strong>规则族：</strong>").append(escape(finding.ruleFamily())).append("</p>");
+        result.append("<p><strong>治理结论：</strong>")
+                .append(escape(finding.governance().disposition())).append(" / ")
+                .append(escape(finding.governance().applicability())).append("</p>")
+                .append("<p><strong>判定依据：</strong>").append(escape(finding.governance().rationale())).append("</p>");
+        if (!finding.governance().evidence().isEmpty()) {
+            result.append("<p><strong>适用性证据：</strong>")
+                    .append(escape(String.join("；", finding.governance().evidence()))).append("</p>");
+        }
+        if (!finding.governance().upstreamSeverity().isBlank()) {
+            result.append("<p><strong>上游严重度：</strong>")
+                    .append(escape(finding.governance().upstreamSeverity())).append("</p>");
+        }
         if (finding.location() != null) {
             result.append("<p><strong>代码：</strong>").append(escape(finding.location().path()))
                     .append(":").append(finding.location().startLine()).append("</p>");

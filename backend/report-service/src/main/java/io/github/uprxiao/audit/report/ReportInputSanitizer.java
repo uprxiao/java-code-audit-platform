@@ -6,6 +6,7 @@ import io.github.uprxiao.audit.finding.DataFlow;
 import io.github.uprxiao.audit.finding.DataFlowNode;
 import io.github.uprxiao.audit.finding.Finding;
 import io.github.uprxiao.audit.finding.FindingEvidence;
+import io.github.uprxiao.audit.finding.FindingGovernance;
 import io.github.uprxiao.audit.finding.FindingSuppression;
 import io.github.uprxiao.audit.finding.SensitiveDataRedactor;
 import io.github.uprxiao.audit.finding.SourceLocation;
@@ -48,13 +49,18 @@ final class ReportInputSanitizer {
         FindingSuppression suppression = finding.suppression() == null ? null : new FindingSuppression(
                 finding.suppression().ruleId(), redact(finding.suppression().reason()),
                 finding.suppression().expiresAt());
+        FindingGovernance governance = new FindingGovernance(
+                finding.governance().disposition(), finding.governance().applicability(),
+                finding.governance().policyId(), redact(finding.governance().rationale()),
+                strings(finding.governance().evidence()), finding.governance().upstreamSeverity(),
+                finding.governance().expiresAt());
         return new Finding(finding.id(), finding.fingerprint(), finding.fingerprintVersion(), finding.category(),
                 finding.severity(), finding.confidence(), finding.ruleFamily(), redact(finding.titleZh()),
                 redact(finding.titleOriginal()), redact(finding.descriptionZh()), redact(finding.messageOriginal()),
                 redact(finding.impactZh()), redact(finding.remediationZh()), redact(finding.module()),
                 finding.location() == null ? null : location(finding.location()), snippet, finding.identifiers(),
                 component, flows, evidence, suppression,
-                finding.reviewState());
+                finding.reviewState(), governance);
     }
 
     private SourceLocation location(SourceLocation source) {

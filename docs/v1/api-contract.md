@@ -127,12 +127,12 @@ GET /api/v1/scans/{scanId}/engines/{engineId}
 ## 7. 查询 Finding
 
 ```http
-GET /api/v1/scans/{scanId}/findings?severity=P1&category=WEB_SECURITY&page=0&size=50
+GET /api/v1/scans/{scanId}/findings?severity=P1&disposition=ACTIONABLE&page=0&size=50
 ```
 
 - 仅终态任务保证稳定分页；
 - size 有上限；
-- 支持 severity、category、engine、module、suppressed 和 text 过滤；
+- 支持 severity、category、engine、module、disposition、applicability、suppressed 和 text 过滤；
 - 默认不返回 suppressed；
 - 详情：`GET /api/v1/scans/{scanId}/findings/{findingId}`。
 

@@ -66,6 +66,8 @@ public final class DependencyFindingSupport {
         properties.put("fixedVersions", distinct(fixedVersions));
         properties.put("dependencyPath", distinct(dependencyPath));
         properties.put("purl", completePurl);
+        properties.put("knownExploited", knownExploited);
+        if (cvss != null) properties.put("cvss", cvss);
         FindingEvidence evidence = new FindingEvidence(
                 engine, version, vulnerabilityId, engineSeverity, rawArtifact, rawItemId, properties);
         String safeTitle = title == null || title.isBlank() ? vulnerabilityId : title;

@@ -17,6 +17,7 @@ import java.util.Set;
 public final class ConservativeFindingDeduplicator {
 
     private final FindingFingerprintService fingerprints;
+    private final PackageUrlNormalizer purls = new PackageUrlNormalizer();
 
     public ConservativeFindingDeduplicator() {
         this(new FindingFingerprintService());
@@ -83,9 +84,8 @@ public final class ConservativeFindingDeduplicator {
         if (left.component() == null || right.component() == null) {
             return false;
         }
-        return left.component().purl().equals(right.component().purl())
+        return purls.identity(left.component().purl()).equals(purls.identity(right.component().purl()))
                 && Objects.equals(left.module(), right.module())
-                && left.component().dependencyPath().equals(right.component().dependencyPath())
                 && intersects(vulnerabilityIds(left), vulnerabilityIds(right));
     }
 
@@ -160,8 +160,8 @@ public final class ConservativeFindingDeduplicator {
     private String groupIdentity(Finding finding) {
         if (finding.component() != null) {
             return String.join("|", "component", RuleFamilyCatalog.canonical(finding.ruleFamily()),
-                    finding.component().purl(), finding.module(), String.join(",", vulnerabilityIds(finding)),
-                    String.join(">", finding.component().dependencyPath()));
+                    purls.identity(finding.component().purl()), finding.module(),
+                    String.join(",", vulnerabilityIds(finding)));
         }
         FlowIdentity flow = flowIdentity(finding);
         if (flow != null) {
@@ -169,7 +169,10 @@ public final class ConservativeFindingDeduplicator {
         }
         String anchor = evidenceProperty(finding, "semanticAnchor");
         String sink = evidenceProperty(finding, "sinkSymbol");
-        if (anchor.isBlank() && finding.snippet() != null) {
+        String detectorInstance = evidenceProperty(finding, "detectorInstanceKey");
+        if (!detectorInstance.isBlank()) {
+            anchor = detectorInstance;
+        } else if (anchor.isBlank() && finding.snippet() != null) {
             anchor = fingerprints.semanticCodeHash(finding.snippet().text());
         }
         return String.join("|", "source", RuleFamilyCatalog.canonical(finding.ruleFamily()),

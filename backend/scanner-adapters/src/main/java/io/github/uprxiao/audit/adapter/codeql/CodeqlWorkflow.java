@@ -15,6 +15,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -22,10 +23,19 @@ import java.util.function.UnaryOperator;
 /** Runs a pinned, shell-free CodeQL manual Maven trace and analysis workflow. */
 public final class CodeqlWorkflow {
 
+    private static final long TRANSIENT_FINALIZE_RETRY_DELAY_MILLIS = 250;
+    private static final int DATABASE_CLEANUP_DISAPPEARANCE_RESTARTS = 32;
+
     private final ExecutionBackend executionBackend;
+    private final DatabaseEntryDeleter databaseEntryDeleter;
 
     public CodeqlWorkflow(ExecutionBackend executionBackend) {
+        this(executionBackend, entry -> Files.deleteIfExists(entry));
+    }
+
+    CodeqlWorkflow(ExecutionBackend executionBackend, DatabaseEntryDeleter databaseEntryDeleter) {
         this.executionBackend = Objects.requireNonNull(executionBackend, "executionBackend");
+        this.databaseEntryDeleter = Objects.requireNonNull(databaseEntryDeleter, "databaseEntryDeleter");
     }
 
     public Result execute(CodeqlAdapter adapter, ScanContext context, ToolContext tools,
@@ -52,6 +62,14 @@ public final class CodeqlWorkflow {
 
         ExecutionSpec finalizeSpec = executionPolicy.apply(adapter.prepareDatabaseFinalization(context, tools));
         ExecutionResult finalizeResult = executionBackend.execute(finalizeSpec, cancellationToken);
+        if (isTransientTrapCleanupFailure(finalizeResult, adapter, context, cancellationToken)) {
+            Thread.sleep(TRANSIENT_FINALIZE_RETRY_DELAY_MILLIS);
+            if (!cancellationToken.isCancellationRequested()) {
+                ExecutionResult retryResult = executionBackend.execute(retrySpec(finalizeSpec), cancellationToken);
+                finalizeResult = isAlreadyFinalized(retryResult)
+                        ? recoveredFinalization(retryResult) : retryResult;
+            }
+        }
         requireSuccess(Phase.DATABASE_FINALIZE, finalizeResult);
 
         ExecutionSpec analyzeSpec = executionPolicy.apply(adapter.prepareAnalysis(context, tools));
@@ -89,6 +107,48 @@ public final class CodeqlWorkflow {
         }
     }
 
+    private boolean isTransientTrapCleanupFailure(
+            ExecutionResult result,
+            CodeqlAdapter adapter,
+            ScanContext context,
+            CancellationToken cancellationToken) throws IOException {
+        if (cancellationToken.isCancellationRequested()
+                || result.status() != ExecutionResult.Status.FAILED
+                || !Integer.valueOf(2).equals(result.exitCode())
+                || !Files.isDirectory(adapter.databaseDirectory(context))
+                || !Files.isRegularFile(result.stderr())) {
+            return false;
+        }
+        String stderr = Files.readString(result.stderr()).toLowerCase(Locale.ROOT);
+        return stderr.contains("error while recursively deleting")
+                && stderr.contains("failed to delete")
+                && stderr.contains("trap");
+    }
+
+    private ExecutionSpec retrySpec(ExecutionSpec original) {
+        Path retryDirectory = original.workingDirectory().resolveSibling(
+                original.workingDirectory().getFileName() + "-retry");
+        return new ExecutionSpec(
+                original.engine(), original.command(), retryDirectory, original.environment(), original.timeout(),
+                original.resources(), original.expectedArtifacts(), original.redactionPolicy());
+    }
+
+    private boolean isAlreadyFinalized(ExecutionResult result) throws IOException {
+        if (result.status() != ExecutionResult.Status.FAILED
+                || !Integer.valueOf(2).equals(result.exitCode())
+                || !Files.isRegularFile(result.stderr())) {
+            return false;
+        }
+        return Files.readString(result.stderr()).toLowerCase(Locale.ROOT).contains(" is already finalized");
+    }
+
+    private ExecutionResult recoveredFinalization(ExecutionResult retry) {
+        return new ExecutionResult(
+                ExecutionResult.Status.SUCCEEDED, 0, retry.startedAt(), retry.completedAt(), retry.duration(),
+                retry.processId(), retry.stdout(), retry.stderr(), retry.stdoutTruncated(), retry.stderrTruncated(),
+                "CodeQL finalization was already complete after the known trap-cleanup race");
+    }
+
     private void deleteDatabase(Path database, Path configuredTemporaryDirectory) throws IOException {
         Path safeTemporaryDirectory = configuredTemporaryDirectory.toAbsolutePath().normalize();
         Path safeDatabase = database.toAbsolutePath().normalize();
@@ -97,27 +157,57 @@ public final class CodeqlWorkflow {
                 || !CodeqlAdapter.DATABASE_DIRECTORY.equals(safeDatabase.getFileName().toString())) {
             throw new IOException("refusing to delete unsafe CodeQL database path: " + safeDatabase);
         }
-        if (!Files.exists(safeDatabase)) return;
-        Files.walkFileTree(safeDatabase, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
-                Files.deleteIfExists(file);
-                return FileVisitResult.CONTINUE;
-            }
+        try {
+            for (int restart = 0; !Files.notExists(safeDatabase); restart++) {
+                if (restart >= DATABASE_CLEANUP_DISAPPEARANCE_RESTARTS) {
+                    throw new IOException("CodeQL database cleanup did not converge: " + safeDatabase);
+                }
+                Files.walkFileTree(safeDatabase, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                        deleteIfPresent(file);
+                        return FileVisitResult.CONTINUE;
+                    }
 
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
-                if (exception instanceof NoSuchFileException) return FileVisitResult.CONTINUE;
-                throw exception;
-            }
+                    @Override
+                    public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
+                        if (exception instanceof NoSuchFileException) {
+                            return FileVisitResult.CONTINUE;
+                        }
+                        throw exception;
+                    }
 
-            @Override
-            public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
-                if (exception != null && !(exception instanceof NoSuchFileException)) throw exception;
-                Files.deleteIfExists(directory);
-                return FileVisitResult.CONTINUE;
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path directory, IOException exception)
+                            throws IOException {
+                        if (exception != null && !(exception instanceof NoSuchFileException)) {
+                            throw exception;
+                        }
+                        deleteIfPresent(directory);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
             }
-        });
+        } catch (IOException cleanupFailure) {
+            if (!Files.notExists(safeDatabase)) {
+                throw cleanupFailure;
+            }
+            // The database root disappearing proves that cleanup reached the required state,
+            // even if a child disappeared while FileTreeWalker was reading its attributes.
+        }
+    }
+
+    private void deleteIfPresent(Path entry) throws IOException {
+        try {
+            databaseEntryDeleter.deleteIfExists(entry);
+        } catch (NoSuchFileException ignored) {
+            // A concurrently disappearing child is a successful deletion, not an engine failure.
+        }
+    }
+
+    @FunctionalInterface
+    interface DatabaseEntryDeleter {
+        void deleteIfExists(Path entry) throws IOException;
     }
 
     public enum Phase {

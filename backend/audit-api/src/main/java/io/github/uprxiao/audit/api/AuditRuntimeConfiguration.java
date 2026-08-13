@@ -226,6 +226,28 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
+    FindingGovernanceService findingGovernanceService(
+            Clock clock,
+            @Value("${audit.rules.finding-governance:./config/rules/finding-governance.json}") String policy)
+            throws IOException {
+        Path configured = Path.of(policy).toAbsolutePath().normalize();
+        if (!java.nio.file.Files.isRegularFile(configured)
+                && configured.toString().replace('\\', '/').endsWith("/config/rules/finding-governance.json")) {
+            Path ancestor = Path.of("").toAbsolutePath().normalize();
+            while (ancestor != null) {
+                Path candidate = ancestor.resolve("config/rules/finding-governance.json");
+                if (java.nio.file.Files.isRegularFile(candidate)) {
+                    configured = candidate;
+                    break;
+                }
+                ancestor = ancestor.getParent();
+            }
+        }
+        return new FindingGovernanceService(configured,
+                new ObjectMapper().findAndRegisterModules(), clock);
+    }
+
+    @Bean
     ScanIdGenerator scanIdGenerator() {
         return ScanIdGenerator.RANDOM;
     }
