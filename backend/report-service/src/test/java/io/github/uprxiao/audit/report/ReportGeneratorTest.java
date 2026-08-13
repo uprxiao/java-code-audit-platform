@@ -84,6 +84,8 @@ class ReportGeneratorTest {
 
         JsonNode report = json.readTree(bundle.json().toFile());
         assertEquals(1, report.path("summary").path("uniqueFindingCount").asInt());
+        assertEquals(1, report.path("summary").path("actionableFindingCount").asInt());
+        assertEquals(0, report.path("summary").path("advisoryFindingCount").asInt());
         assertEquals(1, report.path("summary").path("rawHitCount").asInt());
         assertEquals(1, sum(report.path("summary").path("severity")));
         assertEquals(1, sum(report.path("summary").path("categories")));
@@ -94,6 +96,8 @@ class ReportGeneratorTest {
         assertTrue(html.contains("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;"));
         assertFalse(html.contains("https://cdn"));
         assertTrue(html.contains("不依赖AI"));
+        assertTrue(html.contains("待复核问题（P0–P2）"));
+        assertTrue(html.contains("建议项（P3）"));
 
         JsonNode sarif = json.readTree(bundle.sarif().toFile());
         assertEquals("2.1.0", sarif.path("version").asText());

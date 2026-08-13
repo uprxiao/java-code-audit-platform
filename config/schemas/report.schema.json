@@ -14,9 +14,11 @@
     "summary": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["uniqueFindingCount", "rawHitCount", "suppressedCount", "severity", "categories", "engines", "modules", "durationMs"],
+      "required": ["uniqueFindingCount", "actionableFindingCount", "advisoryFindingCount", "rawHitCount", "suppressedCount", "severity", "categories", "engines", "modules", "durationMs"],
       "properties": {
         "uniqueFindingCount": {"type": "integer", "minimum": 0},
+        "actionableFindingCount": {"type": "integer", "minimum": 0},
+        "advisoryFindingCount": {"type": "integer", "minimum": 0},
         "rawHitCount": {"type": "integer", "minimum": 0},
         "suppressedCount": {"type": "integer", "minimum": 0},
         "severity": {"$ref": "#/$defs/countMap"},

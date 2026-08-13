@@ -109,6 +109,9 @@ class GitleaksAdapterTest {
         Path executable = Path.of(configured).toAbsolutePath().normalize();
         Path rules = Path.of(System.getProperty("audit.gitleaks.rules")).toAbsolutePath().normalize();
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("real-project"));
+        String canary = "glpat-" + "1234567890abcdefghij";
+        Files.writeString(root.resolve("src/main/java/example/Secrets.java"),
+                "package example; final class Secrets { static final String TOKEN = \"" + canary + "\"; }\n");
         Path output = Files.createDirectories(temporaryDirectory.resolve("real-output"));
         GitleaksAdapter adapter = new GitleaksAdapter(rules);
         var context = scan(project(root, "gitleaks-fixture"), output);
@@ -119,6 +122,6 @@ class GitleaksAdapterTest {
 
         assertEquals(ExecutionResult.Status.SUCCEEDED, process.status());
         assertFalse(normalized.findings().isEmpty());
-        assertFalse(Files.readString(output.resolve("report.json")).contains("AUDIT_SECRET_0123456789ABCDEFGHIJKLMNOP"));
+        assertFalse(Files.readString(output.resolve("report.json")).contains(canary));
     }
 }

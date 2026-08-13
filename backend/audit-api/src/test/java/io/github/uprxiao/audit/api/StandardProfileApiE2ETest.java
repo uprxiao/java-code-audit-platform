@@ -423,7 +423,7 @@ class StandardProfileApiE2ETest {
                 Files.writeString(maven, "#!/bin/sh\nexit 0\n");
                 maven.toFile().setExecutable(true, false);
                 Path pack = root.resolve("packs/codeql/java-queries/1.11.7");
-                Path suite = pack.resolve("codeql-suites/java-security-and-quality.qls");
+                Path suite = pack.resolve("codeql-suites/java-code-scanning.qls");
                 Files.createDirectories(suite.getParent());
                 Files.writeString(pack.resolve("qlpack.yml"),
                         "name: codeql/java-queries\nversion: 1.11.7\n");

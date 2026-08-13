@@ -54,13 +54,13 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** CodeQL 2.26.2 adapter with a pinned Java security-and-quality query suite. */
+/** CodeQL 2.26.2 adapter with the pinned, high-precision Java code-scanning query suite. */
 public final class CodeqlAdapter implements ScannerAdapter {
 
     public static final EngineId ID = new EngineId("codeql");
     public static final String CLI_VERSION = "2.26.2";
     public static final String JAVA_QUERY_PACK_VERSION = "1.11.7";
-    public static final String QUERY_SUITE_NAME = "java-security-and-quality.qls";
+    public static final String QUERY_SUITE_NAME = "java-code-scanning.qls";
     public static final String REPORT_ARTIFACT = "raw/codeql/report.sarif";
     static final String REPORT_FILE = "report.sarif";
     static final String DATABASE_DIRECTORY = "database";

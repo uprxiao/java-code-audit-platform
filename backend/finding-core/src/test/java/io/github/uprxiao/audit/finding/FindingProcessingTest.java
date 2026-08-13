@@ -106,8 +106,9 @@ class FindingProcessingTest {
         SeverityMappingResult unknown = mappings.map(new SeverityMappingRequest("pmd", "unknown",
                 IssueCategory.MAINTAINABILITY, "vendor-new", null, false, false, Confidence.MEDIUM));
 
-        assertEquals(Severity.P0, exploited.severity());
+        assertEquals(Severity.P1, exploited.severity());
         assertEquals(SeverityMappingService.MAPPING_ID, exploited.mappingId());
+        assertTrue(exploited.reason().contains("knownExploited=true"));
         assertEquals(Severity.P3, unknown.severity());
         assertTrue(unknown.fallback());
     }

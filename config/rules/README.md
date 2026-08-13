@@ -16,6 +16,15 @@ V1 Quick 规则按引擎分目录管理：
 
 - `semgrep/`：平台自有 Java/Spring 安全规则；
 - `gitleaks/`：继承锁定版本内置规则的本地策略；
-- `pmd/`：Java 17 正确性、资源、性能和设计规则；
+- `pmd/`：Java 17 高信号正确性与资源安全规则；默认不整类导入主观的设计、复杂度和测试风格规则；
 - `checkstyle/`：确定性源码风格和卫生规则；
 - `trivy/`：仓库扫描策略与资产统计/Finding 边界。
+
+默认审计策略的治理原则：
+
+- SpotBugs 只输出 normal/high confidence（`-medium`），低置信结果留给显式严格档；
+- CPD 默认至少 100 tokens，避免短模板和样板代码淹没审计结果；
+- Gitleaks 默认使用版本锁定的内置高精度检测器，组织自定义 Token 格式必须另行评审；
+- CodeQL Deep 使用官方 `java-code-scanning.qls`，质量扩展不混入默认安全结果；
+- Checkstyle 结果属于 `CODE_STYLE/P3`，不会被解释为漏洞或运行时 Bug；
+- 自定义扩展必须附正例、反例、规则来源、适用路径和维护责任人，不能只凭一次扫描数量决定启停。

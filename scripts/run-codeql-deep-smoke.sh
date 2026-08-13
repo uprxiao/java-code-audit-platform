@@ -5,7 +5,7 @@ REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CODEQL_VERSION="2.26.2"
 QUERY_PACK_VERSION="1.11.7"
 CODEQL_EXECUTABLE="${AUDIT_CODEQL_EXECUTABLE:-$REPOSITORY_ROOT/tools/local/codeql-v$CODEQL_VERSION/codeql/codeql}"
-QUERY_SUITE="${AUDIT_CODEQL_QUERY_SUITE:-$REPOSITORY_ROOT/tools/local/codeql-packs/codeql/java-queries/$QUERY_PACK_VERSION/codeql-suites/java-security-and-quality.qls}"
+QUERY_SUITE="${AUDIT_CODEQL_QUERY_SUITE:-$REPOSITORY_ROOT/tools/local/codeql-packs/codeql/java-queries/$QUERY_PACK_VERSION/codeql-suites/java-code-scanning.qls}"
 MAVEN_EXECUTABLE="${AUDIT_MAVEN_EXECUTABLE:-$(command -v mvn || true)}"
 
 [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]] || {

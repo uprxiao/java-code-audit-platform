@@ -11,6 +11,7 @@ import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.finding.ScanJob;
 import io.github.uprxiao.audit.finding.ScanProfile;
 import io.github.uprxiao.audit.finding.ScanStatus;
+import io.github.uprxiao.audit.finding.Severity;
 import io.github.uprxiao.audit.finding.SourceType;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
 import io.github.uprxiao.audit.intake.MavenArgumentValidator;
@@ -423,6 +424,12 @@ public final class ScanService {
                     Map.of(
                             "uniqueFindingCount", runtime.report == null
                                     ? runtime.activeFindings.size() : runtime.report.summary().uniqueFindingCount(),
+                            "actionableFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.stream().filter(finding -> finding.severity() != Severity.P3).count()
+                                    : runtime.report.summary().actionableFindingCount(),
+                            "advisoryFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.stream().filter(finding -> finding.severity() == Severity.P3).count()
+                                    : runtime.report.summary().advisoryFindingCount(),
                             "suppressedCount", runtime.report == null
                                     ? runtime.suppressedFindings.size() : runtime.report.summary().suppressedCount(),
                             "rawHitCount", runtime.coverage == null ? 0 : runtime.coverage.engines().stream()

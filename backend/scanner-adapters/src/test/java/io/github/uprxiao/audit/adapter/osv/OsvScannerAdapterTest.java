@@ -34,9 +34,16 @@ class OsvScannerAdapterTest {
         assertDescriptorContract(adapter);
         assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
         assertTrue(specification.command().containsAll(
-                java.util.List.of("scan", "source", "--recursive", "--no-ignore", "json")));
+                java.util.List.of("scan", "source", "--recursive", "json")));
+        assertFalse(specification.command().contains("--no-ignore"),
+                "ignored server/build caches are not project dependencies");
+        assertTrue(specification.command().containsAll(java.util.List.of(
+                "g:**/target/**", "g:**/build/**", "g:**/.m2/**", "g:**/.gradle/**",
+                "g:**/node_modules/**", "g:**/data/cache/**")));
         assertTrue(specification.command().contains("--no-resolve"),
                 "untrusted POMs must not trigger OSV's risky transitive enricher");
+        assertTrue(specification.command().contains("--allow-no-lockfiles"),
+                "a source-only Maven reactor with no supported lockfile is a valid zero-finding scan");
     }
 
     @Test
@@ -65,6 +72,13 @@ class OsvScannerAdapterTest {
         Path clean = copyReport(getClass(), FIXTURE, "clean.json", cleanOutput.resolve("report.json"), root);
         assertTrue(adapter.normalize(scan(contextProject, cleanOutput),
                 artifacts(OsvScannerAdapter.ID, clean, cleanOutput)).findings().isEmpty());
+
+        Path noSourcesOutput = Files.createDirectory(temporaryDirectory.resolve("no-sources"));
+        Path noSources = copyReport(getClass(), FIXTURE, "no-package-sources.json",
+                noSourcesOutput.resolve("report.json"), root);
+        RawArtifactSet noSourcesArtifacts = artifacts(OsvScannerAdapter.ID, noSources, noSourcesOutput);
+        assertTrue(adapter.validate(noSourcesArtifacts).valid());
+        assertTrue(adapter.normalize(scan(contextProject, noSourcesOutput), noSourcesArtifacts).findings().isEmpty());
 
         Path partialOutput = Files.createDirectory(temporaryDirectory.resolve("partial"));
         Path partial = copyReport(getClass(), FIXTURE, "partial.json", partialOutput.resolve("report.json"), root);

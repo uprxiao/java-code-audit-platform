@@ -75,10 +75,10 @@ public final class ReportGenerator {
         ReportInput input = new ReportInputSanitizer(options.redactor()).sanitize(original);
         ArtifactRedactionService artifactRedaction = new ArtifactRedactionService(options.redactor(), writer);
 
-        List<Finding> active = deduplicator.deduplicate(
-                input.findings().stream().filter(finding -> !finding.suppressed()).toList()).findings();
-        List<Finding> suppressed = deduplicator.deduplicate(
-                input.findings().stream().filter(Finding::suppressed).toList()).findings();
+        List<Finding> active = prioritized(deduplicator.deduplicate(
+                input.findings().stream().filter(finding -> !finding.suppressed()).toList()).findings());
+        List<Finding> suppressed = prioritized(deduplicator.deduplicate(
+                input.findings().stream().filter(Finding::suppressed).toList()).findings());
         Map<String, Object> coverage = coverageDocument(input.coverage());
         List<Map<String, Object>> engines = engineDocuments(input.coverage().engines());
         ReportSummary summary = summary(input, active, suppressed);
@@ -175,8 +175,10 @@ public final class ReportGenerator {
                 engine.status().name().toLowerCase(Locale.ROOT), (ignored, count) -> count == null ? 1 : count + 1));
         long rawHitCount = input.coverage().engines().stream().mapToLong(EngineCoverage::rawHitCount).sum();
         Duration duration = Duration.between(input.createdAt(), input.completedAt());
+        int actionable = (int) active.stream().filter(finding -> finding.severity() != Severity.P3).count();
+        int advisory = active.size() - actionable;
         return new ReportSummary(
-                active.size(), rawHitCount, suppressed.size(), enumCounts(severity), enumCounts(categories),
+                active.size(), actionable, advisory, rawHitCount, suppressed.size(), enumCounts(severity), enumCounts(categories),
                 Map.copyOf(engineCounts),
                 Map.of("discovered", input.coverage().modulesDiscovered(), "built", input.coverage().modulesBuilt(),
                         "scanned", input.coverage().modulesScanned()),
@@ -201,6 +203,10 @@ public final class ReportGenerator {
                 || summary.uniqueFindingCount() != active.size() || summary.suppressedCount() != suppressed.size()) {
             throw new IllegalArgumentException("report severity/category/finding totals are inconsistent");
         }
+        if (summary.actionableFindingCount() + summary.advisoryFindingCount() != active.size()
+                || summary.advisoryFindingCount() != summary.severity().getOrDefault(Severity.P3.name(), 0)) {
+            throw new IllegalArgumentException("report actionable/advisory totals are inconsistent");
+        }
         if (summary.rawHitCount() < active.size() + suppressed.size()) {
             throw new IllegalArgumentException("raw finding count is lower than normalized finding count");
         }
@@ -211,6 +217,16 @@ public final class ReportGenerator {
         if (coverage.engines().stream().anyMatch(engine -> !engine.status().isTerminal())) {
             throw new IllegalArgumentException("final reports require a terminal status for every engine");
         }
+    }
+
+    private List<Finding> prioritized(List<Finding> findings) {
+        return findings.stream().sorted(Comparator
+                .comparingInt((Finding finding) -> finding.severity().ordinal())
+                .thenComparing(finding -> finding.category().name())
+                .thenComparing(finding -> finding.location() == null ? "" : finding.location().path())
+                .thenComparingInt(finding -> finding.location() == null ? 0 : finding.location().startLine())
+                .thenComparing(Finding::ruleFamily)
+                .thenComparing(Finding::fingerprint)).toList();
     }
 
     private void validateEvidence(Path root, List<Finding> active, List<Finding> suppressed) throws IOException {
@@ -343,10 +359,13 @@ public final class ReportGenerator {
                 .finding h3{margin-top:0}pre{overflow:auto;background:#111827;color:#e5e7eb;border-radius:10px;padding:16px}.evidence{color:#526079}.warning{border-left:5px solid #e59b24}.suppressed{opacity:.8;border-left:5px solid #64748b}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
                 </style></head><body>
                 <section class="hero"><h1>Java代码审计报告</h1><p>任务 %s · %s · %s</p></section>
-                <section class="grid"><div class="card"><div class="metric">%d</div><div class="label">唯一问题</div></div>
+                <section class="grid"><div class="card"><div class="metric">%d</div><div class="label">待复核问题（P0–P2）</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">建议项（P3）</div></div>
+                <div class="card"><div class="metric">%d</div><div class="label">全部 Finding</div></div>
                 <div class="card"><div class="metric">%d</div><div class="label">原始命中</div></div>
                 <div class="card"><div class="metric">%d</div><div class="label">抑制问题</div></div>
                 <div class="card"><div class="metric">%d ms</div><div class="label">总耗时</div></div></section>
+                <section class="card warning"><h2>阅读口径</h2><p>待复核问题是需要人工确认的静态分析候选，不等于已证实缺陷；P3 是代码规范、可维护性和重复度建议，默认不作为安全阻断依据。</p></section>
                 <section class="card warning"><h2>覆盖与失败状态</h2><p>发现模块 %d，构建 %d，完成扫描 %d。引擎失败或跳过不等于零问题。</p></section>
                 <section class="card"><h2>严重性统计</h2><p>%s</p><h2>十二类审计统计</h2><p>%s</p></section>
                 <section class="card"><h2>引擎执行</h2><table><thead><tr><th>引擎</th><th>状态</th><th>原始命中</th><th>耗时(ms)</th><th>原因</th></tr></thead><tbody>%s</tbody></table></section>
@@ -358,6 +377,7 @@ public final class ReportGenerator {
                 </body></html>
                 """.formatted(
                 escape(input.scanId()), escape(input.profile()), escape(input.status()),
+                report.summary().actionableFindingCount(), report.summary().advisoryFindingCount(),
                 report.summary().uniqueFindingCount(), report.summary().rawHitCount(), report.summary().suppressedCount(),
                 report.summary().durationMs(), input.coverage().modulesDiscovered(), input.coverage().modulesBuilt(),
                 input.coverage().modulesScanned(), escape(report.summary().severity()),

@@ -133,7 +133,7 @@ tools/local/codeql-v2.26.2/
 
 tools/local/codeql-packs/codeql/java-queries/1.11.7/
 ├── qlpack.yml
-└── codeql-suites/java-security-and-quality.qls
+└── codeql-suites/java-code-scanning.qls
 ```
 
 规则：

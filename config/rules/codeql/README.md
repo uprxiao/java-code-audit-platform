@@ -4,7 +4,7 @@ V1 does not copy or fork GitHub's CodeQL queries. Deep uses the locally installe
 suite:
 
 ```text
-codeql/java-queries@1.11.7/codeql-suites/java-security-and-quality.qls
+codeql/java-queries@1.11.7/codeql-suites/java-code-scanning.qls
 ```
 
 This suite supplies Java security path queries (including injection families) and frozen quality

@@ -81,6 +81,9 @@ class TrivyRepositoryAdapterTest {
         String configured = System.getProperty("audit.trivy.executable", ""); Assumptions.assumeTrue(!configured.isBlank());
         Path executable = Path.of(configured).toAbsolutePath().normalize();
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("real-project"));
+        String canary = "ghp_" + "abcdefghijklmnopqrstuvwxyz1234567890AB";
+        Files.writeString(root.resolve("Dockerfile"), "FROM ubuntu:22.04\nRUN apt-get update\n");
+        Files.writeString(root.resolve("secret.txt"), "github_token = \"" + canary + "\"\n");
         Path output = Files.createDirectories(temporaryDirectory.resolve("real-output"));
         TrivyRepositoryAdapter adapter = new TrivyRepositoryAdapter(temporaryDirectory.resolve("trivy-cache"));
         var context = scan(project(root, "trivy-fixture"), output);
@@ -91,6 +94,6 @@ class TrivyRepositoryAdapterTest {
         assertEquals(ExecutionResult.Status.SUCCEEDED, process.status());
         assertTrue(normalized.findings().stream().anyMatch(finding -> finding.category() == IssueCategory.CONFIG_IAC_SECURITY));
         assertTrue(normalized.findings().stream().anyMatch(finding -> finding.category() == IssueCategory.SECRET_EXPOSURE));
-        assertFalse(Files.readString(output.resolve("report.json")).contains("ghp_abcdefghijklmnopqrstuvwxyz1234567890AB"));
+        assertFalse(Files.readString(output.resolve("report.json")).contains(canary));
     }
 }

@@ -127,8 +127,9 @@ final class SpotBugsReportNormalizer {
         FindingFingerprintService.Fingerprint fingerprint = fingerprints.source(
                 ruleFamily, AdapterSupport.portable(relative), anchor, methodName, longMessage,
                 snippet == null ? "" : snippet.text());
+        String severityBasis = severityBasis(priority, rank);
         SeverityMappingResult severity = severities.map(new SeverityMappingRequest(
-                engine.value(), ruleFamily, category, Integer.toString(priority), null, false, false, confidence));
+                engine.value(), ruleFamily, category, severityBasis, null, false, false, confidence));
 
         int cwe = pattern == null ? 0 : pattern.cwe();
         List<String> cwes = cwe > 0 ? List.of("CWE-" + cwe) : List.of();
@@ -136,6 +137,7 @@ final class SpotBugsReportNormalizer {
         properties.put("bugCategory", categoryName);
         properties.put("priority", priority);
         properties.put("rank", rank);
+        properties.put("severityBasis", "bug-rank:" + rank);
         properties.put("class", className);
         properties.put("method", methodName);
         properties.put("sharedExecution", "spotbugs-findsecbugs");
@@ -189,14 +191,16 @@ final class SpotBugsReportNormalizer {
     private Element primarySource(Element instance) throws IOException {
         NodeList sources = instance.getElementsByTagName("SourceLine");
         Element fallback = null;
+        Element primary = null;
         for (int index = 0; index < sources.getLength(); index++) {
             Element source = (Element) sources.item(index);
             if (source.getAttribute("sourcepath").isBlank()) continue;
-            fallback = source;
-            if ("PRIMARY".equals(source.getAttribute("role")) || !source.getAttribute("start").isBlank()) {
-                return source;
-            }
+            if (fallback == null) fallback = source;
+            String role = source.getAttribute("role");
+            if ("SOURCE_LINE_DEREF".equals(role)) return source;
+            if ("PRIMARY".equals(role) || "true".equals(source.getAttribute("primary"))) primary = source;
         }
+        if (primary != null) return primary;
         if (fallback != null) return fallback;
         throw new IOException("SpotBugs finding has no source location");
     }
@@ -223,13 +227,27 @@ final class SpotBugsReportNormalizer {
 
     private IssueCategory issueCategory(String category, String type) {
         if (securityOnly) return IssueCategory.WEB_SECURITY;
-        String value = (category + " " + type).toUpperCase(Locale.ROOT);
-        if (value.contains("MT_CORRECTNESS") || value.matches(".*(LOCK|THREAD|SYNCHRON|VOLATILE).*")) {
+        String bugCategory = category.toUpperCase(Locale.ROOT);
+        String bugType = type.toUpperCase(Locale.ROOT);
+        if (bugType.startsWith("NP_")) return IssueCategory.CORRECTNESS;
+        if (bugCategory.equals("MT_CORRECTNESS")
+                || bugType.matches("^(AT|DL|LI|ML|NN|RU|SC|SP|STCAL|TLW|UG_SYNC|UL|VO|WA|WS)_.*")) {
             return IssueCategory.CONCURRENCY;
         }
-        if (value.matches(".*(PERFORMANCE|RESOURCE|STREAM|IO).*")) return IssueCategory.RESOURCE_PERFORMANCE;
-        if (value.matches(".*(STYLE|DESIGN|EXPERIMENTAL).*")) return IssueCategory.MAINTAINABILITY;
+        if (bugCategory.equals("PERFORMANCE")
+                || bugType.matches("^(OS|ODR|DM_GC|WMI)_.*")) return IssueCategory.RESOURCE_PERFORMANCE;
+        if (bugCategory.equals("STYLE") || bugCategory.equals("DESIGN")
+                || bugCategory.equals("EXPERIMENTAL") || bugCategory.equals("I18N")
+                || bugCategory.equals("MALICIOUS_CODE")) return IssueCategory.MAINTAINABILITY;
         return IssueCategory.CORRECTNESS;
+    }
+
+    private String severityBasis(int priority, int rank) {
+        // SpotBugs priority is detector confidence, while bug rank (1..20) represents impact/scariness.
+        // Keep high-confidence security findings in the review queue, but never manufacture P0 here.
+        if (rank <= 4 || (securityOnly && priority == 1 && rank <= 9)) return "HIGH";
+        if (rank <= 14) return "MEDIUM";
+        return "LOW";
     }
 
     private String ruleFamily(String type) {

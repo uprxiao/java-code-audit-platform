@@ -1,7 +1,7 @@
 # CodeQL Deep adapter
 
 V1 pins CodeQL CLI `2.26.2`, `codeql/java-queries@1.11.7`, and the
-`java-security-and-quality.qls` suite. The CLI and packs are local user installations governed by
+`java-code-scanning.qls` suite. The CLI and packs are local user installations governed by
 the GitHub CodeQL Terms; they are never bundled in the repository or release medium.
 
 ## Integration entry point

@@ -78,7 +78,7 @@ class AuditRuntimeConfiguration {
                     String vulnerabilityDataRoot,
             @Value("${audit.tools.codeql-executable:./tools/local/codeql-v2.26.2/codeql/codeql}")
                     String codeqlExecutable,
-            @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}")
+            @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-code-scanning.qls}")
                     String codeqlQuerySuite,
             @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules,
             @Value("${audit.rules.gitleaks:./config/rules/gitleaks/gitleaks.toml}") String gitleaksRules,

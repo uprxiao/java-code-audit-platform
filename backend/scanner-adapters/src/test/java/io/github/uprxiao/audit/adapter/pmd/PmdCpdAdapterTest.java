@@ -33,6 +33,8 @@ class PmdCpdAdapterTest {
                 tools(PmdCpdAdapter.ID, java, PmdCpdAdapter.TOOL_VERSION));
         assertDescriptorContract(adapter); assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
         assertTrue(specification.command().contains("--minimum-tokens"));
+        assertEquals(Integer.toString(PmdCpdAdapter.MINIMUM_TOKENS),
+                specification.command().get(specification.command().indexOf("--minimum-tokens") + 1));
         assertFalse(specification.command().contains("sh"));
     }
 
@@ -47,6 +49,8 @@ class PmdCpdAdapterTest {
         var finding = result.findings().get(0);
         assertEquals(IssueCategory.DUPLICATION, finding.category());
         assertEquals("DUPLICATION", finding.ruleFamily());
+        assertEquals(PmdCpdAdapter.MINIMUM_TOKENS,
+                finding.evidence().get(0).properties().get("minimumTokens"));
         assertEquals(2, ((java.util.List<?>) finding.evidence().get(0).properties().get("occurrences")).size());
     }
 
@@ -75,6 +79,9 @@ class PmdCpdAdapterTest {
         Path home = Path.of(homeProperty).toAbsolutePath().normalize();
         Path java = Path.of(System.getProperty("audit.pmd.java", System.getProperty("java.home") + "/bin/java"));
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("real-project"));
+        String duplicated = duplicatedSource("DuplicateA");
+        Files.writeString(root.resolve("src/main/java/example/DuplicateA.java"), duplicated);
+        Files.writeString(root.resolve("src/main/java/example/DuplicateB.java"), duplicatedSource("DuplicateB"));
         Path output = Files.createDirectories(temporaryDirectory.resolve("real-output"));
         PmdCpdAdapter adapter = new PmdCpdAdapter(home); var context = scan(project(root, "cpd-fixture"), output);
         ExecutionResult process = new LocalProcessExecutionBackend().execute(
@@ -83,5 +90,31 @@ class PmdCpdAdapterTest {
                 Map.of("report", output.resolve("report.xml")), process));
         assertEquals(ExecutionResult.Status.SUCCEEDED, process.status());
         assertFalse(normalized.findings().isEmpty());
+    }
+
+    private String duplicatedSource(String className) {
+        return ("""
+                package example;
+                public final class %s {
+                    int calculate(int[] values) {
+                        int total = 0;
+                        for (int value : values) {
+                            if (value > 100) { total += value * 2; }
+                            else if (value > 90) { total += value + 90; }
+                            else if (value > 80) { total += value + 80; }
+                            else if (value > 70) { total += value + 70; }
+                            else if (value > 60) { total += value + 60; }
+                            else if (value > 50) { total += value + 50; }
+                            else if (value > 40) { total += value + 40; }
+                            else if (value > 30) { total += value + 30; }
+                            else if (value > 20) { total += value + 20; }
+                            else if (value > 10) { total += value + 10; }
+                            else if (value > 0) { total += value; }
+                            else { total -= value; }
+                        }
+                        return total;
+                    }
+                }
+                """).formatted(className);
     }
 }
