@@ -48,7 +48,11 @@ APP_JAR="${REPOSITORY_ROOT}/backend/audit-api/target/audit-api-0.1.0-SNAPSHOT.ja
 require_file "${APP_JAR}"
 
 STAGING_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/java-audit-distribution.XXXXXX")"
-trap 'rm -rf "${STAGING_PARENT}"' EXIT
+cleanup() {
+  chmod -R u+w "${STAGING_PARENT}" 2>/dev/null || true
+  rm -rf "${STAGING_PARENT}"
+}
+trap cleanup EXIT
 BUNDLE_NAME="java-code-audit-platform-${VERSION}-${PLATFORM}"
 BUNDLE_ROOT="${STAGING_PARENT}/${BUNDLE_NAME}"
 mkdir -p "${BUNDLE_ROOT}/app" "${BUNDLE_ROOT}/acceptance" "${BUNDLE_ROOT}/config" \
@@ -86,6 +90,12 @@ cp "${REPOSITORY_ROOT}/README.md" "${BUNDLE_ROOT}/README.md"
 # Finder metadata is a local workstation artifact, not part of a reproducible
 # release payload.
 find "${BUNDLE_ROOT}" -type f -name '.DS_Store' -delete
+
+# Bundled scanners are immutable release inputs. Runtime state belongs under
+# data/, while tools/local remains writable for the separately licensed CodeQL
+# installation workflow.
+chmod -R a-w "${BUNDLE_ROOT}/tools/${PLATFORM}" "${BUNDLE_ROOT}/tools/common" \
+  "${BUNDLE_ROOT}/tools/manifest"
 
 chmod +x "${BUNDLE_ROOT}/bin/"*.sh
 jar --create --file "${BUNDLE_ROOT}/acceptance/java17-acceptance-fixture.zip" \

@@ -86,7 +86,7 @@ public final class TrivyRepositoryAdapter implements ScannerAdapter {
         List<String> command = List.of(
                 installation.executable().toString(), "repo",
                 "--scanners", "misconfig,secret,license", "--format", "json", "--output", report.toString(),
-                "--cache-dir", cacheDirectory.toString(), "--quiet", "--no-progress", "--parallel", "2",
+                "--cache-dir", cacheDirectory.toString(), "--offline-scan", "--quiet", "--no-progress", "--parallel", "2",
                 "--timeout", "15m", "--exit-code", "0", context.project().workspaceRoot().toString());
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(),
                 AdapterSupport.isolatedEnvironment(context.engineOutputDirectory(), installation.executable()),

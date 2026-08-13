@@ -78,7 +78,7 @@ class AuditRuntimeConfiguration {
                     String vulnerabilityDataRoot,
             @Value("${audit.tools.codeql-executable:./tools/local/codeql-v2.26.2/codeql/codeql}")
                     String codeqlExecutable,
-            @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}")
+            @Value("${audit.tools.codeql-query-suite:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-code-scanning.qls}")
                     String codeqlQuerySuite,
             @Value("${audit.rules.semgrep:./config/rules/semgrep/java-audit.yaml}") String semgrepRules,
             @Value("${audit.rules.gitleaks:./config/rules/gitleaks/gitleaks.toml}") String gitleaksRules,
@@ -226,6 +226,28 @@ class AuditRuntimeConfiguration {
     }
 
     @Bean
+    FindingGovernanceService findingGovernanceService(
+            Clock clock,
+            @Value("${audit.rules.finding-governance:./config/rules/finding-governance.json}") String policy)
+            throws IOException {
+        Path configured = Path.of(policy).toAbsolutePath().normalize();
+        if (!java.nio.file.Files.isRegularFile(configured)
+                && configured.toString().replace('\\', '/').endsWith("/config/rules/finding-governance.json")) {
+            Path ancestor = Path.of("").toAbsolutePath().normalize();
+            while (ancestor != null) {
+                Path candidate = ancestor.resolve("config/rules/finding-governance.json");
+                if (java.nio.file.Files.isRegularFile(candidate)) {
+                    configured = candidate;
+                    break;
+                }
+                ancestor = ancestor.getParent();
+            }
+        }
+        return new FindingGovernanceService(configured,
+                new ObjectMapper().findAndRegisterModules(), clock);
+    }
+
+    @Bean
     ScanIdGenerator scanIdGenerator() {
         return ScanIdGenerator.RANDOM;
     }
@@ -328,6 +350,7 @@ class AuditRuntimeConfiguration {
             Clock clock,
             DefaultScanPlanner planner,
             SemgrepAdapter semgrep,
+            MavenProcessConfiguration mavenConfiguration,
             ToolInstallationHealth semgrepHealth,
             @Value("${audit.maven.executable:mvn}") String mavenExecutable,
             @Value("${audit.tools.codeql-enabled:false}") boolean codeqlEnabled,
@@ -369,7 +392,8 @@ class AuditRuntimeConfiguration {
                 new CodeqlAdapter(
                         paths.codeqlQuerySuite(),
                         resolvedMaven == null ? Path.of("/codeql-maven-unavailable") : resolvedMaven,
-                        Path.of(System.getProperty("java.home"))));
+                        Path.of(System.getProperty("java.home")),
+                        mavenConfiguration.localRepository(), mavenConfiguration.settingsFile()));
         boolean mavenAvailable = standardHealth.stream()
                 .filter(tool -> tool.id().startsWith("maven-"))
                 .allMatch(ToolInstallationHealth::available);

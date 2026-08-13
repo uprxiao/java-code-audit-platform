@@ -17,9 +17,10 @@ platforms:
 querySuites:
   - java-code-scanning.qls
   - java-security-and-quality.qls
+  - java-code-quality.qls
 v1DeepPolicy:
-  selectedSuite: codeql-suites/java-security-and-quality.qls
-  buildMode: none
+  selectedSuite: codeql-suites/java-code-scanning.qls
+  buildMode: controlled-maven-tracing
   databasePhases:
     - database-create
     - database-analyze

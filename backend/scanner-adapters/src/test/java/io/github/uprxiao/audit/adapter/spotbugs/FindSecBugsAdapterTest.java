@@ -73,6 +73,8 @@ class FindSecBugsAdapterTest {
         assertEquals(ExecutionResult.Status.SUCCEEDED, execution.status());
         var result = adapter.normalize(context, new RawArtifactSet(FindSecBugsAdapter.ID,
                 Map.of("report", output.resolve("report.xml")), execution));
+        assertEquals(EngineStatus.SUCCEEDED, result.coverage().status(), () -> "warnings=" + result.warnings());
+        assertTrue(result.warnings().isEmpty(), () -> "warnings=" + result.warnings());
         assertTrue(result.findings().stream().anyMatch(value -> value.ruleFamily().equals("SQL_INJECTION")),
                 () -> "actual=" + result.findings());
     }

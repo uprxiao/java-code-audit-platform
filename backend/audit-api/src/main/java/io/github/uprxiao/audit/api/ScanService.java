@@ -1,6 +1,5 @@
 package io.github.uprxiao.audit.api;
 
-import io.github.uprxiao.audit.adapter.codeql.CodeqlAdapter;
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.ConservativeFindingDeduplicator;
 import io.github.uprxiao.audit.finding.EngineTaskState;
@@ -11,6 +10,7 @@ import io.github.uprxiao.audit.finding.ScanIdGenerator;
 import io.github.uprxiao.audit.finding.ScanJob;
 import io.github.uprxiao.audit.finding.ScanProfile;
 import io.github.uprxiao.audit.finding.ScanStatus;
+import io.github.uprxiao.audit.finding.Severity;
 import io.github.uprxiao.audit.finding.SourceType;
 import io.github.uprxiao.audit.intake.MavenProjectInspector;
 import io.github.uprxiao.audit.intake.MavenArgumentValidator;
@@ -110,6 +110,7 @@ public final class ScanService {
     private final Duration mavenBuildTimeout;
     private final CodeqlWorkflow codeql;
     private final ReportGenerator reports;
+    private final FindingGovernanceService governance;
     private final JobTemporaryFileCleaner cleaner;
     private final StorageCapacityGuard storageCapacity;
     private final JobWorkspaceCapacityGuard workspaceCapacity;
@@ -139,6 +140,7 @@ public final class ScanService {
             @org.springframework.beans.factory.annotation.Value("${audit.maven.build-timeout:20m}")
                     Duration mavenBuildTimeout,
             ReportGenerator reports,
+            FindingGovernanceService governance,
             JobTemporaryFileCleaner cleaner,
             StorageCapacityGuard storageCapacity,
             JobWorkspaceCapacityGuard workspaceCapacity,
@@ -162,6 +164,7 @@ public final class ScanService {
         this.codeql = codeql;
         this.mavenBuildTimeout = mavenBuildTimeout;
         this.reports = reports;
+        this.governance = governance;
         this.cleaner = cleaner;
         this.storageCapacity = storageCapacity;
         this.workspaceCapacity = workspaceCapacity;
@@ -423,6 +426,18 @@ public final class ScanService {
                     Map.of(
                             "uniqueFindingCount", runtime.report == null
                                     ? runtime.activeFindings.size() : runtime.report.summary().uniqueFindingCount(),
+                            "actionableFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.stream().filter(finding -> finding.governance().disposition()
+                                            == io.github.uprxiao.audit.finding.FindingDisposition.ACTIONABLE).count()
+                                    : runtime.report.summary().actionableFindingCount(),
+                            "conditionalFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.stream().filter(finding -> finding.governance().disposition()
+                                            == io.github.uprxiao.audit.finding.FindingDisposition.CONDITIONAL).count()
+                                    : runtime.report.summary().conditionalFindingCount(),
+                            "advisoryFindingCount", runtime.report == null
+                                    ? runtime.activeFindings.stream().filter(finding -> finding.governance().disposition()
+                                            == io.github.uprxiao.audit.finding.FindingDisposition.ADVISORY).count()
+                                    : runtime.report.summary().advisoryFindingCount(),
                             "suppressedCount", runtime.report == null
                                     ? runtime.suppressedFindings.size() : runtime.report.summary().suppressedCount(),
                             "rawHitCount", runtime.coverage == null ? 0 : runtime.coverage.engines().stream()
@@ -444,6 +459,7 @@ public final class ScanService {
 
     public List<Finding> findings(
             UUID scanId, String severity, String category, String engine, String module,
+            String disposition, String applicability,
             boolean suppressed, String text, int page, int size) {
         if (page < 0 || size < 1 || size > 200) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.INVALID_REQUEST,
@@ -455,11 +471,19 @@ public final class ScanService {
                     io.github.uprxiao.audit.finding.Severity.class, severity, "severity");
             io.github.uprxiao.audit.finding.IssueCategory categoryValue = enumValue(
                     io.github.uprxiao.audit.finding.IssueCategory.class, category, "category");
+            io.github.uprxiao.audit.finding.FindingDisposition dispositionValue = enumValue(
+                    io.github.uprxiao.audit.finding.FindingDisposition.class, disposition, "disposition");
+            io.github.uprxiao.audit.finding.FindingApplicability applicabilityValue = enumValue(
+                    io.github.uprxiao.audit.finding.FindingApplicability.class, applicability, "applicability");
             String needle = text == null ? "" : text.toLowerCase(java.util.Locale.ROOT);
             List<Finding> source = suppressed ? runtime.suppressedFindings : runtime.activeFindings;
             List<Finding> filtered = source.stream()
                     .filter(finding -> severityValue == null || finding.severity() == severityValue)
                     .filter(finding -> categoryValue == null || finding.category() == categoryValue)
+                    .filter(finding -> dispositionValue == null
+                            || finding.governance().disposition() == dispositionValue)
+                    .filter(finding -> applicabilityValue == null
+                            || finding.governance().applicability() == applicabilityValue)
                     .filter(finding -> engine == null || engine.isBlank() || finding.evidence().stream()
                             .anyMatch(evidence -> engine.equalsIgnoreCase(evidence.engine())))
                     .filter(finding -> module == null || module.isBlank()
@@ -474,7 +498,7 @@ public final class ScanService {
     }
 
     public List<Finding> findings(UUID scanId) {
-        return findings(scanId, null, null, null, null, false, null, 0, 50);
+        return findings(scanId, null, null, null, null, null, null, false, null, 0, 50);
     }
 
     public Finding finding(UUID scanId, String findingId) {
@@ -721,15 +745,19 @@ public final class ScanService {
             List<NormalizationResult> normalizedResults = runtime.normalized.values().stream().toList();
             List<Finding> normalizedFindings = normalizedResults.stream()
                     .flatMap(result -> result.findings().stream()).toList();
-            List<Finding> activeFindings = deduplicator.deduplicate(
+            List<Finding> deduplicatedActive = deduplicator.deduplicate(
                     normalizedFindings.stream().filter(finding -> !finding.suppressed()).toList()).findings();
-            List<Finding> suppressedFindings = deduplicator.deduplicate(
+            List<Finding> deduplicatedSuppressed = deduplicator.deduplicate(
                     normalizedFindings.stream().filter(Finding::suppressed).toList()).findings();
-            List<Finding> allFindings = java.util.stream.Stream.concat(
-                    activeFindings.stream(), suppressedFindings.stream()).toList();
+            FindingGovernanceResult governed = governance.assess(project, java.util.stream.Stream.concat(
+                    deduplicatedActive.stream(), deduplicatedSuppressed.stream()).toList());
+            List<Finding> activeFindings = governed.findings().stream()
+                    .filter(finding -> !finding.suppressed()).toList();
+            List<Finding> allFindings = governed.findings();
             List<io.github.uprxiao.audit.finding.EngineCoverage> engineCoverage = coverage(runtime, project);
             List<String> warnings = new ArrayList<>(normalizedResults.stream()
                     .flatMap(result -> result.warnings().stream()).toList());
+            warnings.addAll(governed.warnings());
             scanners.health().stream().filter(tool -> "DEGRADED".equals(tool.status()))
                     .forEach(tool -> warnings.add(tool.id() + ":" + tool.reasonCode() + ": " + tool.detail()));
             synchronized (runtime) {
@@ -922,23 +950,6 @@ public final class ScanService {
             runtime.mavenBuild = result;
             runtime.executions.put(ScanExecutionPlanFactory.MAVEN_BUILD, result.execution());
             copyMavenBuildLogs(runtime, result.execution());
-            if (result.status() == MavenBuildResult.Status.SUCCEEDED) {
-                ExecutionResult classpath = maven.resolveClasspath(new MavenBuildRequest(
-                                project.workspaceRoot(),
-                                runtime.layout.rawEngine(ScanExecutionPlanFactory.MAVEN_BUILD.value()),
-                                runtime.request.mavenProfiles(), runtime.request.mavenProperties(),
-                                mavenBuildTimeout), workspace);
-                if (classpath.status() != ExecutionResult.Status.SUCCEEDED) {
-                    return switch (classpath.status()) {
-                        case CANCELLED -> EngineExecutionResult.cancelled();
-                        case TIMED_OUT -> EngineExecutionResult.timedOut(
-                                "MAVEN_CLASSPATH_TIMEOUT", classpath.message());
-                        case FAILED -> EngineExecutionResult.failed(
-                                "MAVEN_CLASSPATH_FAILED", classpath.message());
-                        case SUCCEEDED -> throw new IllegalStateException("unreachable classpath status");
-                    };
-                }
-            }
             workspace.verifyNow();
             if (workspace.failure() != null) {
                 return workspaceFailure(workspace.failure());
@@ -999,7 +1010,7 @@ public final class ScanService {
                     adapter, context, scanners.tools(),
                     workspace,
                     specification -> executionPolicy.apply(planned(runtime, CodeqlAdapter.ID), specification));
-            runtime.executions.put(CodeqlAdapter.ID, result.analysis());
+            runtime.executions.put(CodeqlAdapter.ID, result.totalExecution());
             workspace.verifyNow();
             if (workspace.failure() != null) {
                 return workspaceFailure(workspace.failure());
@@ -1295,8 +1306,17 @@ public final class ScanService {
             if (runtime.report != null && runtime.report.build() != null && !runtime.report.build().isEmpty()) {
                 return runtime.report.build();
             }
+            String status = runtime.job.profile() == ScanProfile.QUICK ? "NOT_REQUIRED" : switch (runtime.job.status()) {
+                case QUEUED, ACQUIRING_SOURCE, PREFLIGHT -> "PENDING";
+                case RUNNING -> "RUNNING";
+                case FINALIZING -> "FINALIZING";
+                case CANCELLED -> "CANCELLED";
+                case INTERRUPTED -> "INTERRUPTED";
+                case FAILED, COMPLETED_WITH_ERRORS -> "UNAVAILABLE";
+                case COMPLETED -> "SUCCEEDED";
+            };
             return Map.of(
-                    "status", "NOT_REQUIRED",
+                    "status", status,
                     "mavenProfiles", runtime.request.mavenProfiles());
         }
         return Map.of(
@@ -1443,7 +1463,8 @@ public final class ScanService {
                 ruleEntry("gitleaks-java-audit", "config/rules/gitleaks/gitleaks.toml", paths.gitleaksRules()),
                 ruleEntry("pmd-java-audit", "config/rules/pmd/java-audit.xml", paths.pmdRules()),
                 ruleEntry("checkstyle-java-audit", "config/rules/checkstyle/java-audit.xml", paths.checkstyleRules()),
-                ruleEntry("spotbugs-exclude", "config/rules/spotbugs-exclude.xml", paths.spotbugsExcludeFilter()));
+                ruleEntry("spotbugs-exclude", "config/rules/spotbugs-exclude.xml", paths.spotbugsExcludeFilter()),
+                ruleEntry("finding-governance", "config/rules/finding-governance.json", governance.policyFile()));
     }
 
     private Map<String, Object> ruleEntry(String id, String portablePath, Path rule) throws IOException {
@@ -1453,7 +1474,7 @@ public final class ScanService {
     private List<Path> ruleFiles() {
         return List.of(
                 paths.semgrepRules(), paths.gitleaksRules(), paths.pmdRules(), paths.checkstyleRules(),
-                paths.spotbugsExcludeFilter());
+                paths.spotbugsExcludeFilter(), governance.policyFile());
     }
 
     private List<String> sensitiveRequestValues(ZipScanRequest request) {

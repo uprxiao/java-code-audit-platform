@@ -127,12 +127,12 @@ GET /api/v1/scans/{scanId}/engines/{engineId}
 ## 7. 查询 Finding
 
 ```http
-GET /api/v1/scans/{scanId}/findings?severity=P1&category=WEB_SECURITY&page=0&size=50
+GET /api/v1/scans/{scanId}/findings?severity=P1&disposition=ACTIONABLE&page=0&size=50
 ```
 
 - 仅终态任务保证稳定分页；
 - size 有上限；
-- 支持 severity、category、engine、module、suppressed 和 text 过滤；
+- 支持 severity、category、engine、module、disposition、applicability、suppressed 和 text 过滤；
 - 默认不返回 suppressed；
 - 详情：`GET /api/v1/scans/{scanId}/findings/{findingId}`。
 
@@ -209,6 +209,11 @@ GET /api/v1/profiles
 - 429：队列已满；
 - 507：磁盘低于阈值；
 - 500：平台内部错误。
+
+ZIP 解压和 Maven 根识别属于异步 `PREFLIGHT`。因此这两类校验在任务已返回
+`202 Accepted` 后发生时，任务会进入 `FAILED`，并在 `GET /api/v1/scans/{scanId}`
+的 `failure.code/details` 中返回同一错误码（例如 `UNSAFE_ARCHIVE_ENTRY`、
+`MULTIPLE_MAVEN_ROOTS`）；不会为已经创建的异步任务再补发一个 HTTP 422。
 
 ## 13. 上传流与服务器配置
 

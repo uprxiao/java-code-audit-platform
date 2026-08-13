@@ -71,22 +71,62 @@ final class StandardSupplyToolIntegrityChecker {
         ToolInstallationHealth version = probeVersion("dependency-check", "12.2.2", executable,
                 List.of(executable.toString(), "--version"), integrity.sha256());
         if (!version.available()) return version;
-        Path newestDatabase;
-        try (var files = Files.isDirectory(paths.dependencyCheckData())
-                ? Files.list(paths.dependencyCheckData()) : java.util.stream.Stream.<Path>empty()) {
-            newestDatabase = files.filter(file -> file.getFileName().toString().startsWith("odc")
-                            && file.getFileName().toString().contains(".mv.db") && nonEmpty(file))
-                    .max(java.util.Comparator.comparingLong(this::lastModifiedMillis)).orElse(null);
-            if (newestDatabase == null) {
-                return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_UNAVAILABLE",
-                        "Dependency-Check database is not initialized");
-            }
+        Path data = paths.dependencyCheckData();
+        boolean databasePresent;
+        try (var files = Files.isDirectory(data) ? Files.list(data) : java.util.stream.Stream.<Path>empty()) {
+            databasePresent = files.anyMatch(file -> file.getFileName().toString().startsWith("odc")
+                    && file.getFileName().toString().contains(".mv.db") && nonEmpty(file));
         }
-        Instant updatedAt = Files.getLastModifiedTime(newestDatabase).toInstant();
+        if (!databasePresent) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_UNAVAILABLE",
+                    "Dependency-Check database is not initialized");
+        }
+        if (Files.exists(data.resolve("ACCEPTANCE-ONLY.txt"))) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_NON_PRODUCTION",
+                    "Dependency-Check acceptance-only data is prohibited for production scans");
+        }
+        Path provenanceFile = data.resolve("database-metadata.json");
+        JsonNode provenance;
+        try {
+            provenance = json.readTree(provenanceFile.toFile());
+        } catch (IOException exception) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_PROVENANCE_UNAVAILABLE",
+                    "Production database metadata is missing or invalid");
+        }
+        String databaseFile = provenance.path("databaseFile").asText();
+        Path databasePath = data.resolve(databaseFile).normalize();
+        String expectedSha = provenance.path("databaseSha256").asText();
+        String source = provenance.path("source").asText();
+        if (provenance.path("schemaVersion").asInt() != 1
+                || !"dependency-check-nvd".equals(provenance.path("id").asText())
+                || !"production-full".equals(provenance.path("mode").asText())
+                || provenance.path("productionUseProhibited").asBoolean(true)
+                || !"12.2.2".equals(provenance.path("dependencyCheckVersion").asText())
+                || !("nvd-api".equals(source) || "nvd-datafeed".equals(source))
+                || !databaseFile.matches("odc[^/\\\\]*\\.mv\\.db")
+                || !databasePath.startsWith(data.normalize()) || !nonEmpty(databasePath)
+                || provenance.path("databaseSizeBytes").asLong(-1) != Files.size(databasePath)
+                || expectedSha.length() != 64) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_PROVENANCE_INVALID",
+                    "Production database metadata does not prove a complete Dependency-Check NVD update");
+        }
+        String actualSha = sha256(databasePath);
+        if (!actualSha.equalsIgnoreCase(expectedSha)) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_SHA256_MISMATCH",
+                    "Dependency-Check database does not match its production metadata");
+        }
+        Instant updatedAt;
+        try {
+            updatedAt = Instant.parse(provenance.path("updatedAt").asText());
+        } catch (DateTimeParseException exception) {
+            return unavailable("dependency-check", executable, "VULNERABILITY_DATABASE_PROVENANCE_INVALID",
+                    "Production database updatedAt is missing or invalid");
+        }
         boolean stale = updatedAt.plus(TRIVY_STALE_AFTER).isBefore(clock.instant());
         Map<String, Object> database = Map.of(
-                "id", "dependency-check-nvd", "version", "h2",
-                "updatedAt", updatedAt.toString(), "stale", stale);
+                "id", "dependency-check-nvd", "version", "h2", "source", source,
+                "updatedAt", updatedAt.toString(), "stale", stale,
+                "databaseSha256", actualSha, "productionUseProhibited", false);
         return stale
                 ? degraded("dependency-check", "12.2.2", executable, version.sha256(),
                         "Dependency-Check vulnerability database is older than 7 days", database)
@@ -250,11 +290,6 @@ final class StandardSupplyToolIntegrityChecker {
     private boolean nonEmpty(Path file) {
         try { return Files.isRegularFile(file) && Files.size(file) > 0; }
         catch (IOException ignored) { return false; }
-    }
-
-    private long lastModifiedMillis(Path file) {
-        try { return Files.getLastModifiedTime(file).toMillis(); }
-        catch (IOException ignored) { return Long.MIN_VALUE; }
     }
 
     private ToolInstallationHealth available(

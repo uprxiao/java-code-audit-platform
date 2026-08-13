@@ -24,7 +24,7 @@ record AuditRuntimePaths(
                 Path.of("./tools/downloads/tool-pack/darwin-arm64/standard-supply").toAbsolutePath().normalize(),
                 Path.of("./tools/downloads/databases").toAbsolutePath().normalize(),
                 Path.of("./tools/local/codeql-v2.26.2/codeql/codeql").toAbsolutePath().normalize(),
-                Path.of("./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls")
+                Path.of("./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-code-scanning.qls")
                         .toAbsolutePath().normalize(),
                 Path.of("./config/rules/gitleaks/gitleaks.toml").toAbsolutePath().normalize(),
                 Path.of("./config/rules/pmd/java-audit.xml").toAbsolutePath().normalize(),

@@ -91,9 +91,17 @@ class SemgrepZipApiE2ETest {
         assertTrue(findingArray.size() >= 2);
         assertTrue(java.util.stream.StreamSupport.stream(findingArray.spliterator(), false)
                 .anyMatch(finding -> finding.path("ruleFamily").asText().equals("SQL_INJECTION")));
+        assertTrue(java.util.stream.StreamSupport.stream(findingArray.spliterator(), false)
+                .allMatch(finding -> !finding.path("governance").path("disposition").asText().isBlank()));
         mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId)
                         .param("engine", "semgrep").param("text", "sql").param("page", "0").param("size", "1"))
                 .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId)
+                        .param("disposition", "ACTIONABLE").param("applicability", "UNKNOWN"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId)
+                        .param("disposition", "NOT_A_DISPOSITION"))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/scans/{scanId}/findings", scanId).param("size", "201"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/scans/{scanId}/findings/{findingId}",
@@ -116,6 +124,8 @@ class SemgrepZipApiE2ETest {
                 .andReturn();
         JsonNode reportJson = json.readTree(report.getResponse().getContentAsByteArray());
         assertTrue(reportJson.path("summary").path("uniqueFindingCount").asInt() >= 2);
+        assertEquals(reportJson.path("summary").path("uniqueFindingCount").asInt(),
+                reportJson.path("summary").path("governance").path("disposition.ACTIONABLE").asInt());
         assertEquals(terminal.path("summary").path("uniqueFindingCount").asInt(),
                 reportJson.path("summary").path("uniqueFindingCount").asInt());
         assertEquals(reportJson.path("summary").path("uniqueFindingCount").asInt(), findingArray.size());

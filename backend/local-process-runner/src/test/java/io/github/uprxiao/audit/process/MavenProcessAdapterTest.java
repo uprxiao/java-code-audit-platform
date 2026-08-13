@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,11 @@ class MavenProcessAdapterTest {
                 Duration.ofMinutes(10)));
 
         assertEquals("mvn", specification.command().get(0));
-        assertEquals("package", specification.command().get(specification.command().size() - 1));
+        assertTrue(specification.command().contains("package"));
+        assertTrue(specification.command().contains(
+                "org.apache.maven.plugins:maven-dependency-plugin:3.9.0:build-classpath"));
+        assertTrue(specification.command().contains(
+                "-Dmdep.outputFile=target/" + MavenProcessAdapter.CLASSPATH_FILE));
         assertTrue(specification.command().contains("--batch-mode"));
         assertTrue(specification.command().contains("--no-transfer-progress"));
         assertTrue(specification.command().contains("-DskipTests"));
@@ -115,34 +118,6 @@ class MavenProcessAdapterTest {
     }
 
     @Test
-    void resolvesClasspathWithOnlyThePinnedServerGoal() throws Exception {
-        AtomicReference<ExecutionSpec> captured = new AtomicReference<>();
-        ExecutionBackend backend = (specification, cancellationToken) -> {
-            captured.set(specification);
-            Path stdout = Files.writeString(specification.workingDirectory().resolve("stdout.log"), "BUILD SUCCESS\n");
-            Path stderr = Files.writeString(specification.workingDirectory().resolve("stderr.log"), "");
-            Instant now = Instant.parse("2026-08-12T00:00:00Z");
-            return new ExecutionResult(ExecutionResult.Status.SUCCEEDED, 0, now, now, Duration.ZERO,
-                    123, stdout, stderr, false, false, "");
-        };
-        MavenProcessAdapter adapter = new MavenProcessAdapter(backend, configuration);
-
-        ExecutionResult result = adapter.resolveClasspath(request(
-                List.of("opensource"), Map.of("repositoryPassword", "canary-token")), CancellationToken.NONE);
-
-        assertEquals(ExecutionResult.Status.SUCCEEDED, result.status());
-        ExecutionSpec specification = captured.get();
-        assertTrue(specification.command().contains(
-                "org.apache.maven.plugins:maven-dependency-plugin:3.9.0:build-classpath"));
-        assertTrue(specification.command().contains(
-                "-Dmdep.outputFile=target/" + MavenProcessAdapter.CLASSPATH_FILE));
-        assertFalse(specification.command().contains("package"));
-        assertFalse(specification.command().stream().anyMatch(value -> value.contains("sh -c")));
-        int secret = specification.command().indexOf("-DrepositoryPassword=canary-token");
-        assertTrue(specification.redactionPolicy().sensitiveArgumentIndexes().contains(secret));
-    }
-
-    @Test
     void runsARealSystemMavenBuildWhenExplicitlyEnabled() throws Exception {
         String executable = System.getProperty("audit.maven.executable", "");
         Assumptions.assumeTrue(!executable.isBlank(), "real Maven smoke is opt-in");
@@ -174,6 +149,56 @@ class MavenProcessAdapterTest {
         assertEquals(MavenBuildResult.Status.SUCCEEDED, result.status());
         assertEquals(0, result.execution().exitCode());
         assertTrue(Files.readString(result.execution().stdout()).contains("BUILD SUCCESS"));
+        assertTrue(Files.isRegularFile(project.resolve("target").resolve(MavenProcessAdapter.CLASSPATH_FILE)));
+    }
+
+    @Test
+    void runsRealMultiModulePackageAndClasspathInOneReactorSession() throws Exception {
+        String executable = System.getProperty("audit.maven.executable", "");
+        Assumptions.assumeTrue(!executable.isBlank(), "real Maven smoke is opt-in");
+        Files.writeString(project.resolve("pom.xml"), """
+                <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+                  <groupId>example</groupId><artifactId>root</artifactId><version>1.0</version><packaging>pom</packaging>
+                  <modules><module>a</module><module>b</module></modules>
+                  <properties><maven.compiler.release>17</maven.compiler.release></properties>
+                </project>
+                """);
+        Path a = Files.createDirectories(project.resolve("a"));
+        Path b = Files.createDirectories(project.resolve("b"));
+        Files.writeString(a.resolve("pom.xml"), """
+                <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+                  <parent><groupId>example</groupId><artifactId>root</artifactId><version>1.0</version></parent>
+                  <artifactId>a</artifactId>
+                </project>
+                """);
+        Files.writeString(b.resolve("pom.xml"), """
+                <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+                  <parent><groupId>example</groupId><artifactId>root</artifactId><version>1.0</version></parent>
+                  <artifactId>b</artifactId><dependencies>
+                    <dependency><groupId>example</groupId><artifactId>a</artifactId><version>1.0</version></dependency>
+                  </dependencies>
+                </project>
+                """);
+        MavenProcessConfiguration realConfiguration = new MavenProcessConfiguration(
+                executable, Path.of(System.getProperty("java.home")),
+                temporaryDirectory.resolve("reactor-repository"), null,
+                System.getenv().getOrDefault("PATH", "/usr/bin:/bin"), 512);
+
+        MavenBuildResult result = new MavenProcessAdapter(
+                new LocalProcessExecutionBackend(), realConfiguration)
+                .execute(request(List.of(), Map.of()), CancellationToken.NONE);
+
+        assertEquals(MavenBuildResult.Status.SUCCEEDED, result.status(),
+                () -> read(result.execution().stdout()) + read(result.execution().stderr()));
+        for (Path module : List.of(project, a, b)) {
+            assertTrue(Files.isRegularFile(
+                    module.resolve("target").resolve(MavenProcessAdapter.CLASSPATH_FILE)), module.toString());
+        }
+    }
+
+    private String read(Path path) {
+        try { return Files.readString(path); }
+        catch (Exception exception) { return exception.toString(); }
     }
 
     private MavenBuildRequest request(List<String> profiles, Map<String, String> properties) {

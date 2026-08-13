@@ -19,7 +19,7 @@ audit:
     standard-supply-root: ${AUDIT_STANDARD_SUPPLY_ROOT:}
     vulnerability-data-root: ${AUDIT_VULNERABILITY_DATA_ROOT:${AUDIT_DATA_ROOT:./data}/databases}
     codeql-executable: ${AUDIT_CODEQL_EXECUTABLE:./tools/local/codeql-v2.26.2/codeql/codeql}
-    codeql-query-suite: ${AUDIT_CODEQL_QUERY_SUITE:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-security-and-quality.qls}
+    codeql-query-suite: ${AUDIT_CODEQL_QUERY_SUITE:./tools/local/codeql-packs/codeql/java-queries/1.11.7/codeql-suites/java-code-scanning.qls}
     codeql-enabled: ${AUDIT_CODEQL_ENABLED:false}
     codeql-terms-accepted: ${AUDIT_CODEQL_TERMS_ACCEPTED:false}
   maven:

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BugCollection version="4.9.3" sequence="0" timestamp="0" analysisTimestamp="0">
+  <BugInstance type="EI_EXPOSE_REP" priority="2" rank="18" abbrev="EI" category="MALICIOUS_CODE">
+    <ShortMessage>May expose internal representation</ShortMessage>
+    <LongMessage>example.SpotBugsIssue may expose an internal representation</LongMessage>
+    <Class classname="example.SpotBugsIssue" primary="true"/>
+    <Method classname="example.SpotBugsIssue" name="dereference" signature="(Ljava/lang/Object;)Ljava/lang/String;" primary="true"/>
+    <SourceLine classname="example.SpotBugsIssue" start="4" end="6" sourcefile="SpotBugsIssue.java" sourcepath="example/SpotBugsIssue.java" role="PRIMARY"/>
+  </BugInstance>
+  <BugPattern type="EI_EXPOSE_REP" abbrev="EI" category="MALICIOUS_CODE">
+    <ShortDescription>May expose internal representation</ShortDescription>
+  </BugPattern>
+  <Errors errors="0" missingClasses="0"/>
+</BugCollection>

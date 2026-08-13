@@ -41,7 +41,35 @@ class DependencyCheckAdapterTest {
         assertTrue(specification.command().contains("--noupdate"));
         assertTrue(specification.command().contains("--data"));
         assertTrue(specification.command().contains("--disableOssIndex"));
+        assertTrue(specification.command().contains("--disableCentral"));
         assertEquals("17", System.getProperty("java.specification.version"));
+    }
+
+    @Test
+    void scansOnlyExternalMavenRuntimeArtifactsAfterTheControlledBuild() throws Exception {
+        Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("project-with-classpath"));
+        Path external = temporaryDirectory.resolve(
+                "service-cache/maven/repository/org/example/demo/1.0/demo-1.0.jar").toAbsolutePath();
+        Files.createDirectories(external.getParent());
+        Files.writeString(external, "fixture");
+        Path reactorArtifact = root.resolve("target/supply-fixture-1.0.jar").toAbsolutePath();
+        Files.createDirectories(reactorArtifact.getParent());
+        Files.writeString(reactorArtifact, "fixture");
+        Files.writeString(root.resolve("target/audit-runtime-classpath.txt"),
+                reactorArtifact + java.io.File.pathSeparator + external);
+
+        Path output = temporaryDirectory.resolve("task-with-classpath/raw/dependency-check");
+        var specification = new DependencyCheckAdapter(initializedDatabase(temporaryDirectory.resolve("database-2")))
+                .prepare(scan(project(root, "supply-fixture"), output),
+                        tools(DependencyCheckAdapter.ID, Path.of(System.getProperty("java.home"), "bin", "java"),
+                                DependencyCheckAdapter.TOOL_VERSION));
+
+        int scan = specification.command().indexOf("--scan");
+        assertTrue(scan > 0);
+        assertEquals(external.toString(), specification.command().get(scan + 1));
+        assertFalse(specification.command().contains(root.toString()));
+        assertFalse(specification.command().contains(reactorArtifact.toString()));
+        assertEquals(1, specification.command().stream().filter("--scan"::equals).count());
     }
 
     @Test

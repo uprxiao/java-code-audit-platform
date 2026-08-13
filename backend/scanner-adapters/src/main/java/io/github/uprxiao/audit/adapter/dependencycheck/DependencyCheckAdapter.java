@@ -23,16 +23,20 @@ import io.github.uprxiao.audit.scanner.ResourceRequest;
 import io.github.uprxiao.audit.scanner.ScanContext;
 import io.github.uprxiao.audit.scanner.ScannerAdapter;
 import io.github.uprxiao.audit.scanner.ToolContext;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** OWASP Dependency-Check 12.2.2 CLI adapter with an explicit local-database precondition. */
 public final class DependencyCheckAdapter implements ScannerAdapter {
@@ -82,15 +86,30 @@ public final class DependencyCheckAdapter implements ScannerAdapter {
         if (!hasUsableDatabase()) throw new IOException("VULNERABILITY_DATABASE_UNAVAILABLE");
         Files.createDirectories(context.engineOutputDirectory());
         Files.createDirectories(dataDirectory);
-        List<String> command = List.of(
+        List<String> command = new ArrayList<>(List.of(
                 installation.executable().toString(),
                 "--project", safeProjectName(context.project()),
-                "--scan", context.project().workspaceRoot().toString(),
                 "--format", "JSON", "--prettyPrint",
                 "--out", context.engineOutputDirectory().toString(),
                 "--data", dataDirectory.toString(), "--noupdate",
-                "--disableOssIndex", "--disableNodeAudit", "--disableYarnAudit", "--disablePnpmAudit",
-                "--failOnCVSS", "11");
+                "--disableOssIndex", "--disableCentral", "--disableNodeAudit", "--disableYarnAudit", "--disablePnpmAudit",
+                "--failOnCVSS", "11"));
+        RuntimeDependencies runtimeDependencies = runtimeDependencies(context.project());
+        if (runtimeDependencies.classpathMetadataPresent()) {
+            if (runtimeDependencies.artifacts().isEmpty()) {
+                command.add("--scan");
+                command.add(Files.createDirectories(context.engineOutputDirectory().resolve("empty-input")).toString());
+            } else {
+                runtimeDependencies.artifacts().forEach(artifact -> {
+                    command.add("--scan");
+                    command.add(artifact.toString());
+                });
+            }
+        } else {
+            // Standalone adapter invocations may not have run the mandatory Maven build phase.
+            command.add("--scan");
+            command.add(context.project().workspaceRoot().toString());
+        }
         Map<String, String> environment = new LinkedHashMap<>(
                 AdapterSupport.isolatedEnvironment(context.engineOutputDirectory(), installation.executable()));
         environment.put("JAVA_HOME", Path.of(System.getProperty("java.home")).toAbsolutePath().normalize().toString());
@@ -218,6 +237,58 @@ public final class DependencyCheckAdapter implements ScannerAdapter {
         String value = project.manifest().modules().isEmpty() ? "java-audit"
                 : project.manifest().modules().get(0).artifactId();
         return value.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    /**
+     * Resolve only third-party artifacts from the classpaths emitted by the controlled Maven build.
+     * Scanning the whole workspace after packaging also scans reactor outputs and nested Spring Boot
+     * archives, which creates duplicate dependencies and loses Maven coordinates for nested JARs.
+     */
+    private RuntimeDependencies runtimeDependencies(ProjectContext project) throws IOException {
+        boolean metadataPresent = false;
+        Set<Path> artifacts = new LinkedHashSet<>();
+        for (var module : project.manifest().modules()) {
+            Path moduleRoot = ".".equals(module.path())
+                    ? project.workspaceRoot()
+                    : project.workspaceRoot().resolve(module.path()).normalize();
+            if (!moduleRoot.startsWith(project.workspaceRoot())) continue;
+            Path classpath = moduleRoot.resolve("target/audit-runtime-classpath.txt");
+            if (!Files.isRegularFile(classpath)) continue;
+            metadataPresent = true;
+            String content = Files.readString(classpath);
+            for (String value : content.split(Pattern.quote(File.pathSeparator))) {
+                if (value.isBlank()) continue;
+                Path artifact;
+                try {
+                    artifact = Path.of(value.trim()).toAbsolutePath().normalize();
+                } catch (RuntimeException ignored) {
+                    continue;
+                }
+                if (isExternalMavenArtifact(project, artifact)) artifacts.add(artifact);
+            }
+        }
+        List<Path> ordered = artifacts.stream().sorted(Comparator.comparing(Path::toString)).toList();
+        return new RuntimeDependencies(metadataPresent, ordered);
+    }
+
+    private boolean isExternalMavenArtifact(ProjectContext project, Path artifact) {
+        if (artifact.startsWith(project.workspaceRoot()) || !Files.isRegularFile(artifact)
+                || !artifact.getFileName().toString().endsWith(".jar")) return false;
+        Path versionDirectory = artifact.getParent();
+        Path artifactDirectory = versionDirectory == null ? null : versionDirectory.getParent();
+        if (versionDirectory == null || artifactDirectory == null || artifactDirectory.getParent() == null) return false;
+        String version = versionDirectory.getFileName().toString();
+        String artifactId = artifactDirectory.getFileName().toString();
+        if (!artifact.getFileName().toString().startsWith(artifactId + "-" + version)) return false;
+        for (Path ancestor = artifactDirectory.getParent(); ancestor != null; ancestor = ancestor.getParent()) {
+            if ("repository".equals(ancestor.getFileName().toString())) {
+                return !artifactDirectory.getParent().equals(ancestor);
+            }
+        }
+        return false;
+    }
+
+    private record RuntimeDependencies(boolean classpathMetadataPresent, List<Path> artifacts) {
     }
 
     private String packageName(String purl, String fallback) {

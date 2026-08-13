@@ -25,6 +25,16 @@ while IFS= read -r line; do
 done < "${CHECKSUMS}"
 
 (( verified > 0 )) || { echo "Distribution SHA256SUMS has no protected entries." >&2; exit 3; }
+# Finder may create .DS_Store after extraction on macOS. It is never listed in
+# SHA256SUMS or used as a scanner input; every other added writable tool file
+# remains a hard startup failure.
+MUTABLE_TOOL="$(find "${BUNDLE_ROOT}/tools/darwin-arm64" "${BUNDLE_ROOT}/tools/linux-x86_64" \
+  "${BUNDLE_ROOT}/tools/common" "${BUNDLE_ROOT}/tools/manifest" -type f \
+  ! -name '.DS_Store' -perm -0200 -print -quit 2>/dev/null || true)"
+[[ -z "${MUTABLE_TOOL}" ]] || {
+  echo "Bundled tool file is unexpectedly owner-writable: ${MUTABLE_TOOL}" >&2
+  exit 3
+}
 # Hash all protected files in one process. The previous per-file subprocess
 # implementation took over a minute for the Semgrep runtime on macOS.
 if command -v sha256sum >/dev/null 2>&1; then

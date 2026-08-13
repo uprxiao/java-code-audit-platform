@@ -1,15 +1,10 @@
 title = "Java Code Audit Platform Gitleaks policy"
 
-# Retain Gitleaks' version-pinned built-in detector set. Project-specific
-# allowlists can be layered later without trusting a scanned repository's
-# .gitleaks.toml.
+# The default audit profile intentionally uses only Gitleaks' version-pinned,
+# vendor-maintained detector set. A previous catch-all password/token regular
+# expression also matched ordinary long identifiers and has been removed.
+# Organization-specific token formats belong in a reviewed extension file with
+# positive/negative fixtures, entropy where applicable, and narrow allowlists.
+# The scanned repository's own .gitleaks.toml is never trusted implicitly.
 [extend]
 useDefault = true
-
-[[rules]]
-id = "generic-audit-api-key"
-description = "Generic API key or token assignment"
-regex = '''(?i)(api[_-]?key|token|password)(\s*[=:]\s*["']?)([A-Za-z0-9_./+\-=]{20,})'''
-secretGroup = 3
-keywords = ["api_key", "api-key", "token", "password"]
-tags = ["generic", "credential"]

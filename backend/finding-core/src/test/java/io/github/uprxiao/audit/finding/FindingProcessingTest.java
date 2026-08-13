@@ -56,7 +56,19 @@ class FindingProcessingTest {
     }
 
     @Test
-    void mergesSameVulnerabilityAndPurlButKeepsDifferentDependencyPathsSeparate() {
+    void detectorInstanceIdentityKeepsGroupFingerprintStableWhenNearbySnippetChanges() {
+        Finding first = detectorFinding("guard(); value.toString();");
+        Finding reformatted = detectorFinding("guard();\n// unrelated line\nvalue.toString();");
+
+        Finding firstGroup = new ConservativeFindingDeduplicator().deduplicate(List.of(first)).findings().get(0);
+        Finding reformattedGroup = new ConservativeFindingDeduplicator()
+                .deduplicate(List.of(reformatted)).findings().get(0);
+
+        assertEquals(firstGroup.fingerprint(), reformattedGroup.fingerprint());
+    }
+
+    @Test
+    void mergesSameVulnerabilityAndPurlWithinAModuleButKeepsModulesSeparate() {
         Finding osv = dependencyFinding("osv", List.of("app", "library:1.0"));
         Finding trivy = dependencyFinding("trivy", List.of("app", "library:1.0"));
         Finding otherPath = dependencyFinding("dependency-check", List.of("worker", "library:1.0"));
@@ -66,6 +78,37 @@ class FindingProcessingTest {
 
         assertEquals(2, result.findings().size());
         assertEquals(1, result.mergedCandidateCount());
+        assertTrue(result.findings().stream().anyMatch(finding -> finding.evidence().size() == 2));
+    }
+
+    @Test
+    void mergesDifferentScannerDependencyPathRepresentationsWithinTheSameModule() {
+        Finding dependencyCheck = dependencyFinding(
+                "dependency-check", List.of("app", "org.example:library:1.0"));
+        Finding trivy = dependencyFinding(
+                "trivy", List.of("app", "Java", "org.example:library"));
+
+        FindingDeduplicationResult result = new ConservativeFindingDeduplicator()
+                .deduplicate(List.of(dependencyCheck, trivy));
+
+        assertEquals(1, result.findings().size());
+        assertEquals(1, result.mergedCandidateCount());
+        assertEquals(2, result.findings().get(0).evidence().size(),
+                "each engine's raw dependency path remains in its evidence properties");
+        assertEquals(2, result.findings().get(0).evidence().stream()
+                .map(evidence -> evidence.properties().get("dependencyPath")).distinct().count());
+    }
+
+    @Test
+    void mergesDefaultMavenJarQualifierButPreservesMeaningfulQualifiers() {
+        Finding plain = dependencyFinding("dependency-check", List.of("app", "library:1.0"));
+        Finding jar = dependencyFinding("trivy", List.of("app", "library:1.0"), "?type=jar");
+        Finding classifier = dependencyFinding("osv", List.of("app", "library:1.0"), "?classifier=tests");
+
+        FindingDeduplicationResult result = new ConservativeFindingDeduplicator()
+                .deduplicate(List.of(plain, jar, classifier));
+
+        assertEquals(2, result.findings().size());
         assertTrue(result.findings().stream().anyMatch(finding -> finding.evidence().size() == 2));
     }
 
@@ -106,8 +149,9 @@ class FindingProcessingTest {
         SeverityMappingResult unknown = mappings.map(new SeverityMappingRequest("pmd", "unknown",
                 IssueCategory.MAINTAINABILITY, "vendor-new", null, false, false, Confidence.MEDIUM));
 
-        assertEquals(Severity.P0, exploited.severity());
+        assertEquals(Severity.P1, exploited.severity());
         assertEquals(SeverityMappingService.MAPPING_ID, exploited.mappingId());
+        assertTrue(exploited.reason().contains("knownExploited=true"));
         assertEquals(Severity.P3, unknown.severity());
         assertTrue(unknown.fallback());
     }
@@ -133,16 +177,34 @@ class FindingProcessingTest {
     }
 
     private Finding dependencyFinding(String engine, List<String> dependencyPath) {
-        ComponentEvidence component = new ComponentEvidence("pkg:maven/org.example/library@1.0", "org.example",
+        return dependencyFinding(engine, dependencyPath, "");
+    }
+
+    private Finding dependencyFinding(String engine, List<String> dependencyPath, String qualifier) {
+        ComponentEvidence component = new ComponentEvidence("pkg:maven/org.example/library@1.0" + qualifier, "org.example",
                 "library", "1.0", "compile", false, dependencyPath, List.of("1.1"));
         var fingerprint = fingerprints.dependency("CVE-2026-1234", component.purl(), dependencyPath.get(0));
         FindingEvidence evidence = new FindingEvidence(engine, "1.0", "CVE-2026-1234", "HIGH",
-                "raw/" + engine + "/report.json", "CVE-2026-1234", Map.of());
+                "raw/" + engine + "/report.json", "CVE-2026-1234",
+                Map.of("dependencyPath", dependencyPath));
         return new Finding(fingerprint.findingId() + "-" + engine, fingerprint.value(), fingerprint.version(),
                 IssueCategory.DEPENDENCY_VULNERABILITY, Severity.P1, Confidence.HIGH,
                 "DEPENDENCY_VULNERABILITY", "依赖漏洞", "Dependency vulnerability", "", "CVE-2026-1234",
                 "", "upgrade", dependencyPath.get(0), null, null,
                 new VulnerabilityIdentifiers(List.of(), List.of("CVE-2026-1234"), List.of(), List.of()),
                 component, List.of(), List.of(evidence), null, ReviewState.UNREVIEWED);
+    }
+
+    private Finding detectorFinding(String snippetText) {
+        var location = new SourceLocation("src/main/java/App.java", 20, 0, 20, 0);
+        var initial = fingerprints.source("NULL_DEREFERENCE", location.path(), "App#run", "run",
+                "possible null dereference", snippetText);
+        var evidence = new FindingEvidence("spotbugs", "4.9.3", "NP_RULE", "2",
+                "raw/spotbugs/report.xml", "NP_RULE:0",
+                Map.of("detectorInstanceKey", "spotbugs:stable-instance:0"));
+        return new Finding(initial.findingId(), initial.value(), initial.version(), IssueCategory.CORRECTNESS,
+                Severity.P2, Confidence.MEDIUM, "NULL_DEREFERENCE", "空指针", "Null pointer", "", "null", "",
+                "review", "app", location, new CodeSnippet(19, 21, List.of(20), snippetText, false),
+                VulnerabilityIdentifiers.EMPTY, null, List.of(), List.of(evidence), null, ReviewState.UNREVIEWED);
     }
 }

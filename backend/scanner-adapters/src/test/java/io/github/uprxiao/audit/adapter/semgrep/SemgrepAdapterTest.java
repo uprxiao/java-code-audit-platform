@@ -62,6 +62,7 @@ class SemgrepAdapterTest {
         assertSafeExecutionSpec(specification, temporaryDirectory.resolve("task"));
         assertFalse(specification.command().contains("sh"));
         assertTrue(specification.command().contains("--metrics=off"));
+        assertEquals("1", specification.environment().get("PYTHONDONTWRITEBYTECODE"));
     }
 
     @Test

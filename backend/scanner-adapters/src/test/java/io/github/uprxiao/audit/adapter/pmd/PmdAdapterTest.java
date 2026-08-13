@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.IssueCategory;
+import io.github.uprxiao.audit.finding.Severity;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.scanner.CancellationToken;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
@@ -50,6 +51,7 @@ class PmdAdapterTest {
         assertEquals(1, result.findings().size());
         var finding = result.findings().get(0);
         assertEquals(IssueCategory.RESOURCE_PERFORMANCE, finding.category());
+        assertEquals(Severity.P3, finding.severity());
         assertEquals("CLOSE_RESOURCE", finding.ruleFamily());
         assertEquals(10, finding.location().startLine());
         assertEquals("CloseResource", finding.evidence().get(0).ruleId());
@@ -85,6 +87,16 @@ class PmdAdapterTest {
         Path rules = Path.of(System.getProperty("audit.pmd.rules")).toAbsolutePath().normalize();
         Path java = Path.of(System.getProperty("audit.pmd.java", System.getProperty("java.home") + "/bin/java"));
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("real-project"));
+        Files.writeString(root.resolve("src/main/java/example/PmdIssue.java"), """
+                package example;
+                import java.io.FileInputStream;
+                public final class PmdIssue {
+                    public static int read(String file) throws Exception {
+                        FileInputStream input = new FileInputStream(file);
+                        return input.read();
+                    }
+                }
+                """);
         Path output = Files.createDirectories(temporaryDirectory.resolve("real-output"));
         PmdAdapter adapter = new PmdAdapter(rules, home);
         var context = scan(project(root, "pmd-fixture"), output);

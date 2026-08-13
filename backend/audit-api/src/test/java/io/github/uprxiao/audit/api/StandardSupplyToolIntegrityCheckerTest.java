@@ -33,8 +33,22 @@ class StandardSupplyToolIntegrityCheckerTest {
         assertTrue(health(missing, "cyclonedx").available());
 
         Files.createDirectories(fixture.paths().dependencyCheckData());
-        Files.writeString(fixture.paths().dependencyCheckData().resolve("odc.mv.db"), "database");
+        Path database = fixture.paths().dependencyCheckData().resolve("odc.mv.db");
+        Files.writeString(database, "database");
         writeTrivyDatabase(fixture.paths().vulnerabilityTrivyCache());
+
+        List<ToolInstallationHealth> missingProvenance = fixture.checker().checkAll();
+        assertEquals("VULNERABILITY_DATABASE_PROVENANCE_UNAVAILABLE",
+                health(missingProvenance, "dependency-check").reasonCode());
+
+        Files.writeString(fixture.paths().dependencyCheckData().resolve("ACCEPTANCE-ONLY.txt"), "never production");
+        List<ToolInstallationHealth> acceptanceOnly = fixture.checker().checkAll();
+        assertEquals("VULNERABILITY_DATABASE_NON_PRODUCTION",
+                health(acceptanceOnly, "dependency-check").reasonCode());
+
+        Files.delete(fixture.paths().dependencyCheckData().resolve("ACCEPTANCE-ONLY.txt"));
+        writeDependencyCheckMetadata(fixture.paths().dependencyCheckData(), database,
+                Instant.parse("2026-08-11T00:00:00Z"));
 
         List<ToolInstallationHealth> available = fixture.checker().checkAll();
         assertTrue(available.stream().allMatch(ToolInstallationHealth::available), available.toString());
@@ -42,14 +56,27 @@ class StandardSupplyToolIntegrityCheckerTest {
         assertEquals(false, health(available, "dependency-check").database().get("stale"));
         assertEquals("2/2", health(available, "trivy-artifact").database().get("version"));
 
-        Files.setLastModifiedTime(fixture.paths().dependencyCheckData().resolve("odc.mv.db"),
-                java.nio.file.attribute.FileTime.from(Instant.parse("2026-08-01T00:00:00Z")));
+        writeDependencyCheckMetadata(fixture.paths().dependencyCheckData(), database,
+                Instant.parse("2026-08-01T00:00:00Z"));
         Files.writeString(fixture.paths().vulnerabilityTrivyCache().resolve("db/metadata.json"),
                 "{\"Version\":2,\"UpdatedAt\":\"2026-08-01T00:00:00Z\"}");
         List<ToolInstallationHealth> stale = fixture.checker().checkAll();
         assertEquals("DEGRADED", health(stale, "dependency-check").status());
         assertEquals("DEGRADED", health(stale, "trivy-artifact").status());
         assertTrue(health(stale, "dependency-check").available(), "stale data remains controlled but usable");
+    }
+
+    @Test
+    void rejectsAProductionDatabaseWhoseContentNoLongerMatchesItsProvenance() throws Exception {
+        Fixture fixture = fixture();
+        Path data = Files.createDirectories(fixture.paths().dependencyCheckData());
+        Path database = data.resolve("odc.mv.db");
+        Files.writeString(database, "original database");
+        writeDependencyCheckMetadata(data, database, Instant.parse("2026-08-11T00:00:00Z"));
+        Files.writeString(database, "tampered database");
+
+        assertEquals("VULNERABILITY_DATABASE_SHA256_MISMATCH",
+                health(fixture.checker().checkAll(), "dependency-check").reasonCode());
     }
 
     private Fixture fixture() throws Exception {
@@ -121,6 +148,14 @@ class StandardSupplyToolIntegrityCheckerTest {
         }
         Files.writeString(root.resolve("db/trivy.db"), "database");
         Files.writeString(root.resolve("java-db/trivy-java.db"), "java database");
+    }
+
+    private void writeDependencyCheckMetadata(Path root, Path database, Instant updatedAt) throws Exception {
+        Files.writeString(root.resolve("database-metadata.json"), """
+                {"schemaVersion":1,"id":"dependency-check-nvd","mode":"production-full",
+                 "productionUseProhibited":false,"dependencyCheckVersion":"12.2.2","source":"nvd-api",
+                 "databaseFile":"%s","databaseSha256":"%s","databaseSizeBytes":%d,"updatedAt":"%s"}
+                """.formatted(database.getFileName(), sha(database), Files.size(database), updatedAt));
     }
 
     private ToolInstallationHealth health(List<ToolInstallationHealth> health, String id) {

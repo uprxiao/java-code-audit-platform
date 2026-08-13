@@ -46,6 +46,7 @@ public final class PmdCpdAdapter implements ScannerAdapter {
 
     public static final EngineId ID = new EngineId("pmd-cpd");
     public static final String TOOL_VERSION = PmdAdapter.TOOL_VERSION;
+    public static final int MINIMUM_TOKENS = 100;
     private static final long MAX_REPORT_BYTES = 256L * 1024 * 1024;
 
     private final Path pmdHome;
@@ -84,7 +85,8 @@ public final class PmdCpdAdapter implements ScannerAdapter {
                 installation.executable().toString(), "-cp", pmdHome.resolve("lib/*").toString(),
                 "net.sourceforge.pmd.cli.PmdCli", "cpd",
                 "--dir", context.project().workspaceRoot().toString(), "--language", "java",
-                "--minimum-tokens", "30", "--format", "xml", "--report-file", report.toString(),
+                "--minimum-tokens", Integer.toString(MINIMUM_TOKENS),
+                "--format", "xml", "--report-file", report.toString(),
                 "--relativize-paths-with", context.project().workspaceRoot().toString(),
                 "--no-fail-on-violation", "--no-fail-on-error");
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(),
@@ -176,7 +178,8 @@ public final class PmdCpdAdapter implements ScannerAdapter {
                 .toList();
         FindingEvidence evidence = new FindingEvidence(ID.value(), version, "CPD", Integer.toString(tokens),
                 "raw/pmd-cpd/report.xml", "duplication:" + index,
-                Map.of("lines", lines, "tokens", tokens, "occurrences", occurrenceEvidence));
+                Map.of("lines", lines, "tokens", tokens, "minimumTokens", MINIMUM_TOKENS,
+                        "occurrences", occurrenceEvidence));
         return new Finding(AdapterSupport.findingId(fingerprint), fingerprint, 1, IssueCategory.DUPLICATION,
                 Severity.P3, Confidence.HIGH, "DUPLICATE_CODE", "检测到重复代码片段", "Duplicate code block",
                 "多个位置包含相同或高度相似的代码片段。", "Found " + lines + " duplicated lines (" + tokens + " tokens)",

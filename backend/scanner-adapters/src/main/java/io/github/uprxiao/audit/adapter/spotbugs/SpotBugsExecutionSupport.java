@@ -65,7 +65,10 @@ final class SpotBugsExecutionSupport {
         command.add("edu.umd.cs.findbugs.LaunchAppropriateUI");
         command.add("-textui");
         command.add("-effort:max");
-        command.add("-low");
+        // The default audit profile must be actionable. SpotBugs' -low option
+        // includes low-confidence heuristics and is reserved for an explicit
+        // strict/deep review, while -medium retains normal and high confidence.
+        command.add("-medium");
         command.add("-xml:withMessages");
         command.add("-output");
         command.add(report.toString());

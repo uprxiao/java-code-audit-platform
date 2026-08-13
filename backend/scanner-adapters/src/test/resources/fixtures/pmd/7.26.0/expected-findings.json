@@ -1,1 +1,1 @@
-[{"category":"RESOURCE_PERFORMANCE","severity":"P2","ruleFamily":"CLOSE_RESOURCE","path":"src/main/java/example/PmdIssue.java","line":10}]
+[{"category":"RESOURCE_PERFORMANCE","severity":"P3","ruleFamily":"CLOSE_RESOURCE","path":"src/main/java/example/PmdIssue.java","line":10}]

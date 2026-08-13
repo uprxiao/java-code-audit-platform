@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BugCollection version="4.9.3" sequence="0" timestamp="0" analysisTimestamp="0">
+  <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="CORRECTNESS">
+    <ShortMessage>Possible null pointer dereference</ShortMessage>
+    <LongMessage>Possible null pointer dereference in example.SpotBugsIssue.dereference(Object)</LongMessage>
+    <Class classname="example.SpotBugsIssue" primary="true">
+      <SourceLine classname="example.SpotBugsIssue" start="3" end="8" sourcefile="SpotBugsIssue.java" sourcepath="example/SpotBugsIssue.java"/>
+    </Class>
+    <Method classname="example.SpotBugsIssue" name="dereference" signature="(Ljava/lang/Object;)Ljava/lang/String;" primary="true">
+      <SourceLine classname="example.SpotBugsIssue" start="5" end="7" sourcefile="SpotBugsIssue.java" sourcepath="example/SpotBugsIssue.java"/>
+    </Method>
+    <SourceLine classname="example.SpotBugsIssue" primary="true" start="6" end="6" sourcefile="SpotBugsIssue.java" sourcepath="example/SpotBugsIssue.java" role="SOURCE_LINE_DEREF"/>
+  </BugInstance>
+  <BugPattern type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" abbrev="NP" category="CORRECTNESS" cweid="476">
+    <ShortDescription>Possible null pointer dereference</ShortDescription>
+  </BugPattern>
+  <Errors errors="0" missingClasses="0"/>
+</BugCollection>

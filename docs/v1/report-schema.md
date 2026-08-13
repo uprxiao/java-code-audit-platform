@@ -15,6 +15,9 @@
 ```json
 {
   "uniqueFindingCount": 86,
+  "actionableFindingCount": 14,
+  "conditionalFindingCount": 9,
+  "advisoryFindingCount": 63,
   "rawHitCount": 117,
   "suppressedCount": 9,
   "severity": {"P0": 1, "P1": 12, "P2": 31, "P3": 42},
@@ -22,6 +25,13 @@
   "engines": {"succeeded": 12, "partial": 1, "failed": 1, "skipped": 1},
   "modules": {"discovered": 8, "scanned": 7},
   "sbom": {"components": 428, "vulnerableComponents": 17},
+  "governance": {
+    "disposition.ACTIONABLE": 14,
+    "disposition.CONDITIONAL": 9,
+    "disposition.ADVISORY": 63,
+    "applicability.TRIGGER_PRESENT": 8,
+    "applicability.UNKNOWN": 78
+  },
   "durationMs": 481000
 }
 ```
@@ -34,6 +44,8 @@
 - SBOM 组件数不是问题；
 - 引擎失败/未运行不是零问题；
 - 分类和严重性之和应等于唯一有效问题数；
+- disposition 和 applicability 两组计数各自之和都应等于唯一有效问题数；
+- 严重性是检测事实，可行动性是带理由和到期时间的治理结论，二者不能互相改写；
 - 一个问题只有一个主分类，其他标签不参与分类总和。
 
 ## 3. HTML 结构

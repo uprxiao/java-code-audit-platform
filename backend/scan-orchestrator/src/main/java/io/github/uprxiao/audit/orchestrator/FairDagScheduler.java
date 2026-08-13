@@ -308,7 +308,7 @@ public final class FairDagScheduler implements AutoCloseable {
                     continue;
                 }
                 Optional<EnginePermitManager.PermitLease> lease = permits.tryAcquire(
-                        scanId, task.definition.toolPermit(), task.definition.weight(), Duration.ZERO);
+                        scanId, task.definition.toolPermits(), task.definition.weight(), Duration.ZERO);
                 if (lease.isPresent()) {
                     task.status = EngineStatus.RUNNING;
                     notifications.add(engineNotification(runtime, task));

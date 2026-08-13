@@ -201,7 +201,7 @@ public final class PmdAdapter implements ScannerAdapter {
     private Severity severity(int priority) {
         return switch (priority) {
             case 1 -> Severity.P1;
-            case 2, 3 -> Severity.P2;
+            case 2 -> Severity.P2;
             default -> Severity.P3;
         };
     }

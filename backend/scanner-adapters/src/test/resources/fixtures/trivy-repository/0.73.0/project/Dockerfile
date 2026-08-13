@@ -1,2 +1,3 @@
-FROM ubuntu:22.04
-RUN apt-get update
+FROM scratch
+USER 65532
+HEALTHCHECK NONE

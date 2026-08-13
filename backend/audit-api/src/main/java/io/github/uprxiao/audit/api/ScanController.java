@@ -67,11 +67,14 @@ class ScanController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String engine,
             @RequestParam(required = false) String module,
+            @RequestParam(required = false) String disposition,
+            @RequestParam(required = false) String applicability,
             @RequestParam(defaultValue = "false") boolean suppressed,
             @RequestParam(required = false) String text,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return scans.findings(scanId, severity, category, engine, module, suppressed, text, page, size);
+        return scans.findings(scanId, severity, category, engine, module, disposition, applicability,
+                suppressed, text, page, size);
     }
 
     @GetMapping("/{scanId}/findings/{findingId}")

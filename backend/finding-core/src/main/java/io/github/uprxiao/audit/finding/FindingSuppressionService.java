@@ -10,6 +10,8 @@ import java.util.Set;
 
 public final class FindingSuppressionService {
 
+    private final PackageUrlNormalizer purls = new PackageUrlNormalizer();
+
     public SuppressionResult apply(List<Finding> findings, List<SuppressionRule> rules, Instant now) {
         Objects.requireNonNull(findings, "findings");
         Objects.requireNonNull(rules, "rules");
@@ -55,7 +57,7 @@ public final class FindingSuppressionService {
             return false;
         }
         if (!rule.componentPurl().isBlank() && (finding.component() == null
-                || !rule.componentPurl().equals(finding.component().purl()))) {
+                || !purls.identity(rule.componentPurl()).equals(purls.identity(finding.component().purl())))) {
             return false;
         }
         return rule.vulnerabilityId().isBlank()

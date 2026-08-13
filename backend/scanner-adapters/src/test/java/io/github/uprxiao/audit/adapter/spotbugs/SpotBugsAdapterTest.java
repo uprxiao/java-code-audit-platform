@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.uprxiao.audit.finding.EngineStatus;
 import io.github.uprxiao.audit.finding.IssueCategory;
+import io.github.uprxiao.audit.finding.Severity;
 import io.github.uprxiao.audit.process.LocalProcessExecutionBackend;
 import io.github.uprxiao.audit.scanner.CancellationToken;
 import io.github.uprxiao.audit.scanner.ExecutionResult;
@@ -41,6 +42,8 @@ class SpotBugsAdapterTest {
         assertTrue(spec.command().contains("edu.umd.cs.findbugs.LaunchAppropriateUI"));
         assertTrue(spec.command().contains("-pluginList"));
         assertTrue(spec.command().contains("-xml:withMessages"));
+        assertTrue(spec.command().contains("-medium"));
+        assertFalse(spec.command().contains("-low"));
         assertTrue(spec.command().get(spec.command().indexOf("-auxclasspath") + 1)
                 .contains(dependency.toString()));
         assertFalse(spec.command().contains("sh"));
@@ -57,10 +60,14 @@ class SpotBugsAdapterTest {
         assertEquals(1, normalized.findings().size());
         var finding = normalized.findings().get(0);
         assertEquals(IssueCategory.CORRECTNESS, finding.category());
+        assertEquals(Severity.P1, finding.severity());
         assertEquals("NULL_DEREFERENCE", finding.ruleFamily());
         assertEquals("src/main/java/example/SpotBugsIssue.java", finding.location().path());
+        assertEquals(6, finding.location().startLine());
         assertTrue(finding.fingerprint().matches("sha256:[0-9a-f]{64}"));
-        assertEquals("java-audit-severity-v1", finding.evidence().get(0).properties().get("severityMappingId"));
+        assertEquals("spotbugs:fixture-instance-hash:2",
+                finding.evidence().get(0).properties().get("detectorInstanceKey"));
+        assertEquals("java-audit-severity-v2", finding.evidence().get(0).properties().get("severityMappingId"));
 
         Path cleanOut = Files.createDirectories(temporaryDirectory.resolve("clean"));
         Path clean = copyReport(getClass(), FIXTURE, "clean.xml", cleanOut.resolve("report.xml"), root);
@@ -84,6 +91,35 @@ class SpotBugsAdapterTest {
     }
 
     @Test
+    void prefersConcreteDereferenceLineOverClassRange() throws Exception {
+        Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("location-project"));
+        Path output = Files.createDirectories(temporaryDirectory.resolve("location-output"));
+        Path report = copyReport(getClass(), FIXTURE, "dereference-location.xml", output.resolve("report.xml"), root);
+
+        var finding = new SpotBugsAdapter(Path.of("home"), Path.of("plugin"), null)
+                .normalize(scan(project(root, "spotbugs-fixture"), output),
+                        artifacts(SpotBugsAdapter.ID, report, output)).findings().get(0);
+
+        assertEquals("src/main/java/example/SpotBugsIssue.java", finding.location().path());
+        assertEquals(6, finding.location().startLine());
+        assertEquals(6, finding.location().endLine());
+    }
+
+    @Test
+    void usesBugRankForSeverityAndDoesNotMisclassifyRepresentationAsIo() throws Exception {
+        Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("rank-project"));
+        Path output = Files.createDirectories(temporaryDirectory.resolve("rank-output"));
+        Path report = copyReport(getClass(), FIXTURE, "advisory.xml", output.resolve("report.xml"), root);
+        var finding = new SpotBugsAdapter(Path.of("home"), Path.of("plugin"), null)
+                .normalize(scan(project(root, "spotbugs-fixture"), output),
+                        artifacts(SpotBugsAdapter.ID, report, output)).findings().get(0);
+
+        assertEquals(Severity.P3, finding.severity());
+        assertEquals(IssueCategory.MAINTAINABILITY, finding.category());
+        assertEquals("bug-rank:18", finding.evidence().get(0).properties().get("severityBasis"));
+    }
+
+    @Test
     void realMacJdk17SmokeWhenPackIsProvided() throws Exception {
         String homeProperty = System.getProperty("audit.spotbugs.home", "");
         Assumptions.assumeTrue(!homeProperty.isBlank());
@@ -91,6 +127,15 @@ class SpotBugsAdapterTest {
         Path plugin = Path.of(System.getProperty("audit.findsecbugs.plugin")).toAbsolutePath().normalize();
         Path filter = Path.of(System.getProperty("audit.spotbugs.exclude")).toAbsolutePath().normalize();
         Path root = copyProject(getClass(), FIXTURE, temporaryDirectory.resolve("real-project"));
+        Files.writeString(root.resolve("src/main/java/example/SpotBugsIssue.java"), """
+                package example;
+                public final class SpotBugsIssue {
+                    public String dereference(Object value) {
+                        value = null;
+                        return value.toString();
+                    }
+                }
+                """);
         compile(root);
         Path output = Files.createDirectories(temporaryDirectory.resolve("real-output"));
         Path java = Path.of(System.getProperty("java.home"), "bin", "java");
@@ -101,6 +146,8 @@ class SpotBugsAdapterTest {
         assertEquals(ExecutionResult.Status.SUCCEEDED, execution.status(), () -> read(execution.stderr()));
         var result = adapter.normalize(context, new RawArtifactSet(SpotBugsAdapter.ID,
                 Map.of("report", output.resolve("report.xml")), execution));
+        assertEquals(EngineStatus.SUCCEEDED, result.coverage().status(), () -> "warnings=" + result.warnings());
+        assertTrue(result.warnings().isEmpty(), () -> "warnings=" + result.warnings());
         assertTrue(result.findings().stream().anyMatch(value -> value.ruleFamily().equals("NULL_DEREFERENCE")),
                 () -> "actual=" + result.findings());
     }

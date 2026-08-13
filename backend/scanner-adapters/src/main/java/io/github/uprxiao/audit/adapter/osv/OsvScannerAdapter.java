@@ -75,7 +75,13 @@ public final class OsvScannerAdapter implements ScannerAdapter {
         Path report = context.engineOutputDirectory().resolve("report.json");
         List<String> command = List.of(
                 installation.executable().toString(), "scan", "source", "--recursive",
-                "--no-ignore", "--no-resolve",
+                "--no-resolve", "--allow-no-lockfiles",
+                "--experimental-exclude", "g:**/target/**",
+                "--experimental-exclude", "g:**/build/**",
+                "--experimental-exclude", "g:**/.m2/**",
+                "--experimental-exclude", "g:**/.gradle/**",
+                "--experimental-exclude", "g:**/node_modules/**",
+                "--experimental-exclude", "g:**/data/cache/**",
                 "--format", "json", "--output-file", report.toString(),
                 "--verbosity", "warn", context.project().workspaceRoot().toString());
         return new ExecutionSpec(ID, command, context.engineOutputDirectory(),
@@ -100,7 +106,10 @@ public final class OsvScannerAdapter implements ScannerAdapter {
         else {
             try {
                 JsonNode root = json.readTree(report.toFile());
-                if (root == null || !root.path("results").isArray()) errors.add("REPORT_SCHEMA_INVALID");
+                JsonNode results = root == null ? null : root.get("results");
+                if (results == null || (!results.isArray() && !results.isNull())) {
+                    errors.add("REPORT_SCHEMA_INVALID");
+                }
             } catch (IOException exception) {
                 errors.add("REPORT_JSON_INVALID");
             }
@@ -116,7 +125,8 @@ public final class OsvScannerAdapter implements ScannerAdapter {
         List<Finding> normalized = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         int rawCount = 0;
-        for (JsonNode result : root.path("results")) {
+        JsonNode results = root.get("results");
+        for (JsonNode result : results.isNull() ? List.<JsonNode>of() : results) {
             String source = result.path("source").path("path").asText("");
             for (JsonNode pkg : result.path("packages")) {
                 JsonNode coordinates = pkg.path("package");

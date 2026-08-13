@@ -14,15 +14,19 @@
     "summary": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["uniqueFindingCount", "rawHitCount", "suppressedCount", "severity", "categories", "engines", "modules", "durationMs"],
+      "required": ["uniqueFindingCount", "actionableFindingCount", "conditionalFindingCount", "advisoryFindingCount", "rawHitCount", "suppressedCount", "severity", "categories", "engines", "modules", "governance", "durationMs"],
       "properties": {
         "uniqueFindingCount": {"type": "integer", "minimum": 0},
+        "actionableFindingCount": {"type": "integer", "minimum": 0},
+        "conditionalFindingCount": {"type": "integer", "minimum": 0},
+        "advisoryFindingCount": {"type": "integer", "minimum": 0},
         "rawHitCount": {"type": "integer", "minimum": 0},
         "suppressedCount": {"type": "integer", "minimum": 0},
         "severity": {"$ref": "#/$defs/countMap"},
         "categories": {"$ref": "#/$defs/countMap"},
         "engines": {"type": "object"},
         "modules": {"type": "object"},
+        "governance": {"$ref": "#/$defs/countMap"},
         "durationMs": {"type": "integer", "minimum": 0}
       }
     },
@@ -41,7 +45,7 @@
     "countMap": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
     "finding": {
       "type": "object",
-      "required": ["id", "fingerprint", "fingerprintVersion", "category", "severity", "confidence", "ruleFamily", "evidence", "reviewState"],
+      "required": ["id", "fingerprint", "fingerprintVersion", "category", "severity", "confidence", "ruleFamily", "evidence", "reviewState", "governance"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "fingerprint": {"type": "string", "minLength": 1},
@@ -51,7 +55,16 @@
         "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
         "ruleFamily": {"type": "string", "minLength": 1},
         "evidence": {"type": "array", "minItems": 1},
-        "reviewState": {"enum": ["UNREVIEWED", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED_RISK"]}
+        "reviewState": {"enum": ["UNREVIEWED", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED_RISK"]},
+        "governance": {
+          "type": "object",
+          "required": ["disposition", "applicability", "policyId", "rationale", "evidence", "upstreamSeverity"],
+          "properties": {
+            "disposition": {"enum": ["ACTIONABLE", "CONDITIONAL", "ADVISORY"]},
+            "applicability": {"enum": ["UNKNOWN", "AFFECTED_VERSION", "TRIGGER_PRESENT", "TRIGGER_NOT_FOUND", "NOT_AFFECTED", "CONFIRMED_DEFECT", "FALSE_POSITIVE"]}
+          },
+          "additionalProperties": true
+        }
       },
       "additionalProperties": true
     }

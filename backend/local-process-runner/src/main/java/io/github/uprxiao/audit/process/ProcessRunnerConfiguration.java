@@ -18,7 +18,7 @@ public record ProcessRunnerConfiguration(
                 Duration.ofSeconds(2),
                 Set.of("java", "mvn", "svn"),
                 Set.of("PATH", "LANG", "LC_ALL", "HOME", "TMPDIR", "JAVA_HOME", "MAVEN_OPTS",
-                        "SVN_USERNAME", "SVN_PASSWORD"));
+                        "SVN_USERNAME", "SVN_PASSWORD", "PYTHONDONTWRITEBYTECODE"));
     }
 
     public ProcessRunnerConfiguration {

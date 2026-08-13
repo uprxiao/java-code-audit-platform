@@ -95,7 +95,8 @@ final class SemgrepIntegrityChecker {
                 Map.of(
                         "PATH", path,
                         "HOME", workingDirectory.toString(),
-                        "TMPDIR", workingDirectory.toString()),
+                        "TMPDIR", workingDirectory.toString(),
+                        "PYTHONDONTWRITEBYTECODE", "1"),
                 Duration.ofSeconds(30),
                 new ResourceRequest(ResourceClass.LIGHT, 1, 128),
                 Set.of(),

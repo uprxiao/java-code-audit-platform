@@ -85,7 +85,7 @@ class ReportSecurityAndDeduplicationTest {
                 "sha256:" + "0".repeat(64));
 
         ReportBundle bundle = new ReportGenerator().generate(input, root,
-                ReportGenerationOptions.withSensitiveValues(List.of(EXACT_SECRET)));
+                ReportGenerationOptions.withSensitiveValues(List.of(EXACT_SECRET, CANARY)));
 
         JsonNode report = json.readTree(bundle.json().toFile());
         assertEquals(1, report.path("summary").path("uniqueFindingCount").asInt());
@@ -130,6 +130,15 @@ class ReportSecurityAndDeduplicationTest {
     }
 
     @Test
+    void publicDetectorPrefixLiteralInAuditedSourceIsNotMistakenForASecret() throws Exception {
+        Path artifact = temporaryDirectory.resolve("detector-source.txt");
+        Files.writeString(artifact, "text.contains(\"AUDIT_CANARY_SECRET_\")");
+
+        new ArtifactRedactionService(new io.github.uprxiao.audit.finding.SensitiveDataRedactor())
+                .assertSensitiveValuesAbsent(List.of(artifact));
+    }
+
+    @Test
     void refusesMissingRawEvidenceAndImmutableReportRevision() throws Exception {
         Path root = Files.createDirectories(temporaryDirectory.resolve("missing"));
         ReportInput missing = input(List.of(sqlFinding("semgrep", 20, 70, null)),
@@ -171,7 +180,8 @@ class ReportSecurityAndDeduplicationTest {
                 IssueCategory.WEB_SECURITY, Severity.P1, Confidence.HIGH, "SQL_INJECTION", "SQL注入",
                 "SQL injection", "用户输入进入SQL", "message " + EXACT_SECRET, "数据泄露",
                 "使用参数化查询", "app", sink,
-                new CodeSnippet(sinkLine, sinkLine, List.of(sinkLine), "query=" + CANARY, false),
+                new CodeSnippet(sinkLine, sinkLine, List.of(sinkLine),
+                        "password = \"hunter2\"; query=" + CANARY, false),
                 new VulnerabilityIdentifiers(List.of("CWE-89"), List.of(), List.of(), List.of()), null,
                 List.of(flow), List.of(evidence), suppression, ReviewState.UNREVIEWED);
     }

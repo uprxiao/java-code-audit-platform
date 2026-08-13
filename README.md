@@ -90,6 +90,9 @@ export AUDIT_VULNERABILITY_DATA_ROOT="$PWD/data/databases"
 Standard 还要求先通过 `bin/update-vulnerability-data.sh`（发布包）或
 `scripts/update-standard-vulnerability-data.sh`（源码树）初始化 Dependency-Check、Trivy 和
 Trivy Java 数据库；缺库时 Standard 会明确显示不可用，不会把缺库解释成零漏洞。
+首次初始化在未提供 `NVD_API_KEY` 时使用 NVD 官方 JSON 2.0 data feed；也可以通过
+`NVD_DATAFEED_URL` 指向受控镜像。更新成功后会生成生产来源元数据和数据库 SHA256，
+验收专用数据库会被启动健康检查明确拒绝。
 
 Deep 使用本机 CodeQL，且必须显式记录授权和条款确认：
 
@@ -111,6 +114,7 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 - [测试策略](docs/v1/testing-strategy.md)
 - [验收标准](docs/v1/acceptance-criteria.md)
 - [验收证据索引](docs/v1/acceptance-evidence.md)
+- [本机生产就绪验证报告（完整 NVD、全接口、并发与恢复）](docs/v1/production-readiness-2026-08-12.md)
 - [早期代码审计组件调研](docs/code-audit-capabilities.md)（背景资料，非V1规范）
 
 ## 许可证

@@ -1,7 +1,8 @@
 # V1 验收证据索引
 
-> 对应 `main` 实现提交 `8be9d46` 及其前置提交；验收日期 2026-08-12。  
-> 本文只索引可重复或可下载证据，不用“代码已写”代替验收。
+> 验收日期 2026-08-12。本文只索引可重复或可下载证据，不用“代码已写”代替验收。
+> 本机生产数据、最终 V4 发布介质、全接口/并发/恢复测试和问题修复详见
+> [本机生产就绪验证报告](production-readiness-2026-08-12.md)。
 
 ## 1. 发布对象
 
@@ -10,34 +11,36 @@
 | 应用形态 | 同一 Spring Boot JAR，Java class major 61 |
 | macOS | ARM64，JDK 17.0.18，Maven 3.9.12 |
 | Linux | GitHub-hosted Ubuntu 22.04 x86_64，Temurin JDK 17，Maven 3.9.12 |
-| Mac 最终包 | `dist/v1-release-final/java-code-audit-platform-0.1.0-v1-darwin-arm64.zip` |
-| Mac 包 SHA256 | `15f3473eff87d8dfd78d5970d24aef2486005aae6d3f9cfc3740802fe82f9dc4` |
-| Mac 包大小 | 321 MB（不含动态漏洞库和 CodeQL） |
-| 动态数据 | Trivy 通用+Java 库约 2.6 GB；Dependency-Check 验收库 13 MB |
+| Mac 最终包 | `dist/production-readiness/java-code-audit-platform-production-ready-final-v4-darwin-arm64.zip` |
+| Mac 包 SHA256 | `7d5d7f93de3790cfd2d4e0dd26a8db1dc652a9dfe7d01d98f7cffdce37bf9af9` |
+| Mac 包大小 | 315 MB（不含动态漏洞库和 CodeQL） |
+| 动态数据 | Trivy 通用+Java 库约 2.5 GB；Dependency-Check 完整生产 NVD 库 239 MB |
 | CodeQL | CLI 2.26.2 + `codeql/java-queries` 1.11.7，本机安装，不再分发 |
 
-13 MB Dependency-Check 数据库是故意只含 2021 NVD feed 的验收数据，只用于证明
-Log4Shell PURL/CVE 解析契约。它带 `productionUseProhibited=true` 和 `ACCEPTANCE-ONLY.txt`，
-不能用于真实审计；生产必须使用完整 NVD 数据。
+最终本机活动 Dependency-Check 库为完整 NVD 2002—2026 年度数据和 modified feed，
+`odc.mv.db` 为 247,476,224 bytes，SHA256 为
+`68849405b08106d0548b396ec65b9ee95c08a4a29898840c15779179843df256`。
+13 MB 的 2021 smoke 库仍只用于验收，启动门禁会明确拒绝它用于生产扫描。
 
 ## 2. 真实介质 E2E
 
 ### macOS ARM64
 
-三档均从发布 ZIP 解压后用 `bin/run.sh` 启动，再用介质内
+三档均从最终 V4 发布 ZIP 解压后用 `bin/run.sh` 启动，再用介质内
 `bin/acceptance-test.sh` 上传 Java 17 Maven Fixture、轮询、查询引擎/Finding、下载报告并校验归档。
 
 | Profile | Scan ID | 引擎 | 终态 | 耗时 | unique/raw | 附加断言 |
 | --- | --- | ---: | --- | ---: | --- | --- |
-| Quick | `e29eae85-7e33-4661-81e5-93d22389adaf` | 6 | COMPLETED | 9.536 s | 0/0 | ZIP可解、canary无泄漏、源码已清理 |
-| Standard | `e48f8c14-5b5b-4591-a7de-66ee78bc5fd2` | 14 | COMPLETED | 96.730 s | 17/17 | Maven、SBOM、依赖漏洞、字节码引擎全成功 |
-| Deep | `79647d6a-390d-463d-b063-8b6b0ae2bb3e` | 15 | COMPLETED | 42.182 s | 18/18 | CodeQL真实命中，显式 Source→Propagation→Sink |
+| Quick | `129d188d-608e-4ee9-9f94-909a8f550661` | 6 | COMPLETED | 6.448 s | 0/0 | ZIP可解、canary无泄漏、源码已清理 |
+| Standard | `b073b200-0564-4f9a-b4d0-ae679c041f51` | 14 | COMPLETED | 39.621 s | 29/29 | 完整 NVD、SBOM、Log4Shell、字节码引擎全成功 |
+| Deep | `165b5c13-aae0-47f3-8116-1622d470cea8` | 15 | COMPLETED | 42.768 s | 30/30 | CodeQL 真实 Maven trace 并命中命令注入 |
 
-证据在 gitignored 的 `v1-acceptance-evidence/macos-release-final/`，每个任务包含
+证据在 gitignored 的 `dist/production-readiness/evidence/final-v4-release-acceptance/`，每个任务包含
 health/tools/profiles/create/scan/engines/findings/report.zip 和 `SHA256SUMS`。
 
 成功后任务目录另外递归检查：不存在 `source`、`workspace`、`repository`、`target`、
-`codeql-db` 或 `.m2`；除已脱敏 ZIP 外的任务文件也不含 canary。
+`codeql-db` 或 `.m2`；除已脱敏 ZIP 外的任务文件也不含 canary。另以平台自身源码
+完成 6/14/15 引擎 Web 扫描，分别得到 1,672、1,788、1,814 个去重 Finding。
 
 ### Ubuntu 22.04 x86_64
 
@@ -63,7 +66,7 @@ health/tools/profiles/create/scan/engines/findings/report.zip 和 `SHA256SUMS`�
 | B 输入/构建 | `SafeZipExtractorTest`、`MavenProjectInspectorTest`、`MavenArgumentValidatorTest`、`MavenProcessAdapterTest`、`SvnApiCredentialE2ETest`、`SvnKitRealSmokeTest` |
 | C 扫描能力 | 15 个版本化 Fixture 目录、全部 Adapter 契约测试、Mac/Linux 真实 smoke 和三档 Web E2E |
 | D Finding/报告 | `FindingProcessingTest`、`FindingValidationTest`、`RedactionAndSnippetTest`、`ReportGeneratorTest`、`ReportSecurityAndDeduplicationTest` |
-| E 并发/稳定 | `FairDagSchedulerTest`、`EnginePermitManagerTest`、`ScanExecutionPlanFactoryTest`、`LocalProcessExecutionBackendTest`、`HighCapacityConfigurationTest` |
+| E 并发/稳定 | `FairDagSchedulerTest`、`EnginePermitManagerTest`、`ScanExecutionPlanFactoryTest`、真实 20 Quick + 2 Deep 并发、429/取消 |
 | F 恢复/清理 | `FileJobStoreTest`、`ScanRecoveryInitializerTest`、`JobRetentionServiceTest`、`RetentionMaintenanceServiceTest`、`JobTemporaryFileCleanerTest` |
 | G 安全 | ZIP 攻击 Fixture、Maven 注入、进程无 shell 契约、HTML/ZIP 路径、exact/canary 全归档扫描 |
 | H 跨平台 | Mac 最终三档 + CI Run 31582732490 + Deep Release Run 31584209956 |
@@ -76,10 +79,11 @@ health/tools/profiles/create/scan/engines/findings/report.zip 和 `SHA256SUMS`�
 
 数字是固定验收 Fixture 的热缓存基线，不是对任意业务仓库的 SLA。
 
-- Mac：Quick 9.536 s，Standard 96.730 s，Deep 42.182 s；
+- Mac 最终小型 Fixture：Quick 6.448 s，Standard 39.621 s，Deep 42.768 s；
+- Mac 平台自身：Quick 11.108 s，Standard 30.798 s，Deep 101.424 s；
 - Linux：Quick 7.102 s，Standard 29.337 s，Deep 76.263 s；
-- Mac 介质 321 MB，Trivy 双库约 2.6 GB；
-- 并发稳定性用 20 任务 Fake DAG 做确定性断言，不用脆弱的真工具时序证明资源不超卖；
+- Mac 介质 315 MB，Trivy 双库约 2.5 GB，Dependency-Check 生产库约 239 MB；
+- 20 个真实 Quick 全完成且运行峰值等于配置 2；两个真实 Deep 并发完成且无复合许可死锁；
 - `config/application-high-capacity.yaml` 面向 112 CPU/1 TiB，`HighCapacityConfigurationTest` 验证绑定和约束。
 
 ## 5. 已知边界
