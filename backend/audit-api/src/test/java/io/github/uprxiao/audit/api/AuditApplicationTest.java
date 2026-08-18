@@ -4,6 +4,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,30 @@ class AuditApplicationTest {
 
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void servesTheEmbeddedUploadAndReportWebInterface() throws Exception {
+        mvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("index.html"));
+
+        mvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"scan-form\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"submit-button\"")));
+
+        mvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("text/javascript")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/api/v1")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("FormData")));
+
+        mvc.perform(get("/app.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("text/css")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(".workspace-grid")));
     }
 
     @Test

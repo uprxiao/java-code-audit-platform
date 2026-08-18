@@ -19,6 +19,7 @@ Java 17 Spring Boot JAR
 - macOS ARM64 是本机开发和最高优先级验收环境；
 - Ubuntu 22.04 x86_64 是 Linux 发布和自动验收环境；
 - V1 不使用 AI。
+- 内置轻量 Web 页面，与 REST API 由同一个 JAR 提供。
 
 ## 九组审计能力
 
@@ -86,6 +87,11 @@ export AUDIT_STANDARD_SUPPLY_ROOT="$PWD/tools/downloads/tool-pack/darwin-arm64/s
 export AUDIT_VULNERABILITY_DATA_ROOT="$PWD/data/databases"
 ./mvnw -pl backend/audit-api -am spring-boot:run
 ```
+
+服务启动后打开 `http://localhost:8080/`，即可上传单一 Java/Maven
+根项目 ZIP，选择 Quick、Standard 或 Deep，查看扫描进度并下载
+HTML、JSON、SARIF 或完整 ZIP 报告。页面无独立前端运行时，不依赖
+Node.js，也不需要单独部署。
 
 Standard 还要求先通过 `bin/update-vulnerability-data.sh`（发布包）或
 `scripts/update-standard-vulnerability-data.sh`（源码树）初始化 Dependency-Check、Trivy 和
