@@ -61,6 +61,7 @@ config/
   profiles/           Quick/Standard/Deep目标配置
   rules/              规则与抑制配置
 docs/v1/              冻结产品、架构、开发和验收规范
+docs/research-results/研究成果、组件原理与领导汇报材料
 tools/                工具分发与本地安装约定
 ```
 
@@ -111,6 +112,8 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 
 ## 核心文档
 
+- [研究成果汇报摘要（领导版）](docs/research-results/executive-summary.md)
+- [Java 代码审计平台研究与能力说明（详细版）](docs/research-results/java-code-audit-platform-research-report.md)
 - [V1 文档入口](docs/v1/README.md)
 - [产品范围](docs/v1/product-scope.md)
 - [决策登记册](docs/v1/decision-register.md)
