@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="上传 Java Maven 项目 ZIP，运行多引擎代码审计并下载统一报告。">
+  <title>Java 代码审计台</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Java 代码审计台首页">
+      <span class="brand-mark" aria-hidden="true">JA</span>
+      <span>
+        <strong>Java 代码审计台</strong>
+        <small>LOCAL AUDIT WORKBENCH</small>
+      </span>
+    </a>
+    <div id="service-health" class="health-chip" role="status" aria-live="polite">
+      <span class="health-dot"></span>
+      <span id="health-text">正在检查服务…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">JAVA 17 · MAVEN · MULTI-ENGINE</p>
+        <h1 id="page-title">把代码放进来，<br><span>把风险带出去。</span></h1>
+        <p class="hero-copy">上传一个 Java/Maven 项目 ZIP，后台会完成代码缺陷、安全漏洞、依赖风险、秘密泄露和代码规范检查，最后生成可下载的统一报告。</p>
+      </div>
+      <dl class="capability-strip" aria-label="审计能力摘要">
+        <div><dt>15</dt><dd>扫描引擎</dd></div>
+        <div><dt>3</dt><dd>审计档位</dd></div>
+        <div><dt>4</dt><dd>报告格式</dd></div>
+      </dl>
+    </section>
+
+    <section class="workspace-grid">
+      <form id="scan-form" class="panel upload-panel" novalidate>
+        <div class="panel-heading">
+          <div>
+            <span class="step-number">01</span>
+            <h2>新建扫描</h2>
+          </div>
+          <span class="panel-note">单一 Maven 根项目</span>
+        </div>
+
+        <label id="drop-zone" class="drop-zone" for="source-file" tabindex="0">
+          <input id="source-file" name="source" type="file" accept=".zip,application/zip" required>
+          <span class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img"><path d="M24 32V9m0 0-8 8m8-8 8 8M9 29v8a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3v-8"/></svg>
+          </span>
+          <strong id="file-title">选择或拖入项目 ZIP</strong>
+          <span id="file-detail">上传包内应只有一个 Maven 根项目，最大 1 GB</span>
+          <span class="file-action">选择文件</span>
+        </label>
+
+        <div class="field">
+          <label for="display-name">项目名称 <span>可选</span></label>
+          <input id="display-name" type="text" maxlength="120" placeholder="例如：order-service" autocomplete="off">
+        </div>
+
+        <fieldset class="profile-fieldset">
+          <legend>扫描深度</legend>
+          <div class="profile-options">
+            <label class="profile-card">
+              <input type="radio" name="profile" value="QUICK">
+              <span class="profile-check" aria-hidden="true"></span>
+              <span class="profile-title">Quick <small>快速</small></span>
+              <span class="profile-description">源码、秘密、规范和基础漏洞，适合日常检查。</span>
+              <span class="profile-availability" data-profile-health="QUICK">检查中</span>
+            </label>
+            <label class="profile-card recommended">
+              <input type="radio" name="profile" value="STANDARD" checked>
+              <span class="profile-check" aria-hidden="true"></span>
+              <span class="recommend-badge">推荐</span>
+              <span class="profile-title">Standard <small>标准</small></span>
+              <span class="profile-description">快速档 + Maven 构建、SpotBugs 和依赖漏洞全面审计。</span>
+              <span class="profile-availability" data-profile-health="STANDARD">检查中</span>
+            </label>
+            <label class="profile-card">
+              <input type="radio" name="profile" value="DEEP">
+              <span class="profile-check" aria-hidden="true"></span>
+              <span class="profile-title">Deep <small>深度</small></span>
+              <span class="profile-description">标准档 + CodeQL 数据流分析，执行时间和资源消耗更高。</span>
+              <span class="profile-availability" data-profile-health="DEEP">检查中</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <details class="advanced-options">
+          <summary>高级 Maven 选项 <span>一般不需要填写</span></summary>
+          <div class="advanced-content">
+            <div class="field">
+              <label for="maven-profiles">Maven Profiles</label>
+              <input id="maven-profiles" type="text" placeholder="opensource,production">
+              <small>多个 profile 用逗号分隔。</small>
+            </div>
+            <div class="field">
+              <label for="maven-properties">Maven Properties</label>
+              <textarea id="maven-properties" rows="3" placeholder="revision=1.0.0&#10;skip.integration=true"></textarea>
+              <small>每行一个 key=value；不接受 Maven goal 或 settings 路径。</small>
+            </div>
+          </div>
+        </details>
+
+        <div id="form-error" class="form-error" role="alert" hidden></div>
+        <button id="submit-button" class="primary-button" type="submit">
+          <span>开始代码审计</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+        </button>
+        <p class="privacy-note">源码只会发送到当前部署的审计服务，报告内的敏感数据会在归档前脱敏。</p>
+      </form>
+
+      <section id="job-panel" class="panel job-panel idle" aria-labelledby="job-heading">
+        <div class="panel-heading">
+          <div>
+            <span class="step-number">02</span>
+            <h2 id="job-heading">扫描进度</h2>
+          </div>
+          <button id="clear-job" class="text-button" type="button" hidden>清除记录</button>
+        </div>
+
+        <div id="empty-job" class="empty-job">
+          <div class="radar" aria-hidden="true"><span></span><i></i></div>
+          <h3>等待一个扫描任务</h3>
+          <p>选择项目和扫描深度后，执行进度会在这里实时更新。</p>
+        </div>
+
+        <div id="active-job" hidden>
+          <div class="job-summary-row">
+            <div>
+              <span id="job-profile" class="profile-pill">STANDARD</span>
+              <h3 id="job-title">代码审计任务</h3>
+              <code id="job-id"></code>
+            </div>
+            <span id="job-status" class="status-badge">排队中</span>
+          </div>
+
+          <div class="progress-section">
+            <div class="progress-copy">
+              <div>
+                <strong id="phase-text">正在准备</strong>
+                <span id="progress-detail">等待后台接收任务</span>
+              </div>
+              <strong id="progress-percent">0%</strong>
+            </div>
+            <div class="progress-track" role="progressbar" aria-label="扫描进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <span id="progress-bar"></span>
+            </div>
+          </div>
+
+          <dl class="metric-grid">
+            <div class="metric-actionable"><dt id="metric-actionable">0</dt><dd>需处理</dd></div>
+            <div><dt id="metric-conditional">0</dt><dd>待确认</dd></div>
+            <div><dt id="metric-advisory">0</dt><dd>建议项</dd></div>
+            <div><dt id="metric-total">0</dt><dd>去重问题</dd></div>
+          </dl>
+
+          <div id="failure-box" class="failure-box" hidden>
+            <strong id="failure-title">扫描未完成</strong>
+            <p id="failure-message"></p>
+          </div>
+
+          <div class="engine-heading">
+            <h3>扫描引擎</h3>
+            <span id="engine-counter">0 / 0 完成</span>
+          </div>
+          <div id="engine-list" class="engine-list" aria-live="polite"></div>
+
+          <div class="job-actions">
+            <button id="cancel-button" class="secondary-button danger" type="button">取消扫描</button>
+            <button id="refresh-button" class="secondary-button" type="button">立即刷新</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="result-section" class="result-section" hidden aria-labelledby="result-heading">
+      <div class="result-callout">
+        <div class="result-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M7 17.5 13 23l12-14"/></svg>
+        </div>
+        <div>
+          <p class="eyebrow">AUDIT COMPLETE</p>
+          <h2 id="result-heading">审计报告已生成</h2>
+          <p id="result-copy">建议先下载 HTML 报告阅读，需要留档时再下载完整 ZIP。</p>
+        </div>
+        <a id="download-archive" class="primary-button download-main" href="#" download>
+          <span>下载完整报告</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 20h16"/></svg>
+        </a>
+      </div>
+
+      <div class="report-grid">
+        <a id="download-html" class="report-card" href="#" download>
+          <span class="report-type html">HTML</span>
+          <span><strong>可视化报告</strong><small>适合直接阅读和分析</small></span>
+          <span class="report-arrow">↓</span>
+        </a>
+        <a id="download-json" class="report-card" href="#" download>
+          <span class="report-type json">JSON</span>
+          <span><strong>结构化数据</strong><small>适合二次分析或系统集成</small></span>
+          <span class="report-arrow">↓</span>
+        </a>
+        <a id="download-sarif" class="report-card" href="#" download>
+          <span class="report-type sarif">SARIF</span>
+          <span><strong>安全交换格式</strong><small>适合 IDE 和 CI 工具链</small></span>
+          <span class="report-arrow">↓</span>
+        </a>
+      </div>
+
+      <div class="finding-preview">
+        <div class="finding-preview-heading">
+          <div>
+            <p class="eyebrow">FINDING PREVIEW</p>
+            <h3>主要问题预览</h3>
+          </div>
+          <span id="finding-preview-note">最多显示 12 项</span>
+        </div>
+        <div id="finding-list" class="finding-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <footer>
+    <span>Java Code Audit Platform</span>
+    <span>仅建议部署在个人或可信网络</span>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
