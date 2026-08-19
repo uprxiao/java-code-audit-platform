@@ -30,5 +30,12 @@ node_modules/
 dist/
 coverage/
 
+# Local SonarQube service state, credentials and scan evidence
+deploy/sonarqube/.state/
+deploy/sonarqube/evidence/
+deploy/sonarqube/.env
+.scannerwork/
+**/target/sonar/
+
 # macOS metadata may appear while assembling local release directories.
 **/.DS_Store

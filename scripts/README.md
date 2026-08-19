@@ -13,6 +13,9 @@
 - `run-standard-supply-smoke.sh`：在 JDK 17 上真实运行 CycloneDX、OSV 和 Trivy Artifact 扫描，并验证 Dependency-Check CLI 运行时。
 - `build-dependency-check-smoke-data.sh`：为 Mac/Linux acceptance 构建仅含 NVD 2021 数据的 Dependency-Check Log4Shell smoke 库。该库故意不完整，脚本会写入禁止生产使用标记；依赖 JDK 17、Dependency-Check 12.2.2、`curl`、`python3`、`gzip` 和标准 POSIX 文本工具。
 - `update-standard-vulnerability-data.sh`：使用独占锁在临时目录更新 Dependency-Check/Trivy 数据，完整性检查通过后再原子切换；OSV V1 默认使用在线 API。
+- `sonarqube-local-up.sh`：使用固定版本 Community Build + 独立 PostgreSQL 在 `127.0.0.1:19000` 启动本机 SonarQube，首次启动自动修改默认口令并生成本地分析令牌；
+- `sonarqube-scan-current.sh`：先用 JDK 17 完整构建当前 Maven reactor，再通过固定版 SonarScanner for Maven 提交分析，等待 Compute Engine 终态并保存质量门、度量与问题 API 证据；
+- `sonarqube-local-down.sh [--volumes]`：停止独立服务；默认保留数据库与索引，显式 `--volumes` 才删除运行数据。
 
 平台工具包布局为 `tools/downloads/tool-pack/{platform}/{quick|standard-supply}/{tool}`，
 公共 Java 分析工具位于 `tools/downloads/tool-pack/common/standard-analysis/{tool}`。每个工具根目录都有

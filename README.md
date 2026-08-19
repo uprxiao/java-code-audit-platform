@@ -21,6 +21,11 @@ Java 17 Spring Boot JAR
 - V1 不使用 AI。
 - 内置轻量 Web 页面，与 REST API 由同一个 JAR 提供。
 
+核心 V1 仍然不依赖数据库或 Docker。需要长期问题治理、质量门和趋势看板时，
+可以额外启用独立的 SonarQube Community Build；它是可选外部平台，不进入单 JAR
+介质，也不替代现有 15 个扫描引擎。部署和当前项目真实扫描结果见
+[SonarQube 本机自托管与真实项目扫描报告](docs/research-results/sonarqube-local-deployment-and-scan-2026-08-19.md)。
+
 ## 九组审计能力
 
 | 能力 | 主要工具 |
@@ -124,6 +129,7 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 - [验收标准](docs/v1/acceptance-criteria.md)
 - [验收证据索引](docs/v1/acceptance-evidence.md)
 - [本机生产就绪验证报告（完整 NVD、全接口、并发与恢复）](docs/v1/production-readiness-2026-08-12.md)
+- [SonarQube 本机自托管与真实项目扫描报告](docs/research-results/sonarqube-local-deployment-and-scan-2026-08-19.md)
 - [早期代码审计组件调研](docs/code-audit-capabilities.md)（背景资料，非V1规范）
 
 ## 许可证
