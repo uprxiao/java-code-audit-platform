@@ -130,6 +130,7 @@ export AUDIT_CODEQL_TERMS_ACCEPTED=true
 - [验收证据索引](docs/v1/acceptance-evidence.md)
 - [本机生产就绪验证报告（完整 NVD、全接口、并发与恢复）](docs/v1/production-readiness-2026-08-12.md)
 - [SonarQube 本机自托管与真实项目扫描报告](docs/research-results/sonarqube-local-deployment-and-scan-2026-08-19.md)
+- [自研 15 引擎与 SonarQube 同源对比及 Codex 独立复核](docs/research-results/scanner-vs-sonarqube-comparison-2026-08-19.md)
 - [早期代码审计组件调研](docs/code-audit-capabilities.md)（背景资料，非V1规范）
 
 ## 许可证
