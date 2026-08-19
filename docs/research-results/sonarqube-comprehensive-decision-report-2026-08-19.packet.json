@@ -1,0 +1,207 @@
+{
+  "schema_version": "2.1",
+  "topic": "SonarQube 与 Java 15 引擎代码审计平台的能力边界和混合选型",
+  "as_of": "2026-08-19",
+  "mode": "deep",
+  "delivery_mode": "report",
+  "question_types": ["mechanism"],
+  "research_contract": {
+    "goal": "让第一次了解 SonarQube 的决策者理解 ZIP、Git、SVN、增量、规则、报告、MCP、AI、部署与许可边界，并决定是否替代当前 15 引擎平台。",
+    "audience": "技术基础有限的领导与项目负责人",
+    "prior_knowledge": "知道代码仓库、Maven 和扫描报告的基本含义",
+    "success_criteria": [
+      "能解释 SonarScanner 与 SonarQube Server 的分工",
+      "能区分 New Code、PR 跳过未变化文件和分析缓存",
+      "能说明 Community Build 为什么不能整体替代 15 引擎",
+      "能据此选择 Community PoC、付费评估或混合方案"
+    ]
+  },
+  "one_sentence_answer": "SonarQube 应作为长期 Git 新代码和团队质量治理平台，当前 15 引擎继续负责 ZIP/SVN、供应链、Maven、字节码和深层安全审计，两者以独立真值 Benchmark 决定后续瘦身。",
+  "scope": {
+    "includes": [
+      "SonarQube Community Build 26.8 与当前官方产品文档",
+      "Java 17 Maven 项目",
+      "ZIP、Git、SVN、增量、规则、报告、MCP、AI、部署、并发、许可和成本",
+      "与当前 15 引擎平台逐项替代对比"
+    ],
+    "excludes": [
+      "未取得许可证的 Enterprise/Advanced Security 本机实测",
+      "正式法律意见",
+      "具体商业报价",
+      "动态渗透测试"
+    ]
+  },
+  "learning_path": [
+    {"id": "panorama", "status": "delivered", "goal": "知道 SonarQube 和 15 引擎各自解决什么问题"},
+    {"id": "anchor", "status": "delivered", "goal": "通过同一份代码的双系统扫描观察真实差异"},
+    {"id": "mechanism", "status": "delivered", "goal": "理解取代码、构建、Scanner、Compute Engine、数据库和治理的完整链路"},
+    {"id": "rationale", "status": "delivered", "goal": "从机制推出 ZIP、Git、SVN、增量和混合选型建议"},
+    {"id": "boundaries", "status": "delivered", "goal": "识别 Community、付费能力、误报、数据出站和许可边界"},
+    {"id": "validation", "status": "delivered", "goal": "用 PoC 与独立真值 Benchmark 验证选型而非相信报告总数"}
+  ],
+  "panorama": {
+    "identity": "一个由构建端 Scanner 与长期状态 Server 组成的代码质量治理系统",
+    "purpose": "持续记录项目质量并阻止新代码新增不符合团队政策的问题",
+    "capabilities": [
+      "Java 源码语义与质量分析",
+      "长期历史、新代码口径、Quality Profile 和 Quality Gate",
+      "Web UI、API、Webhook、IDE 与官方 MCP"
+    ],
+    "non_capabilities": [
+      "Community 原生 ZIP 上传",
+      "Community Pull Request 分析",
+      "Community 完整 SCA/SBOM",
+      "Maven 依赖收敛和未声明依赖治理"
+    ],
+    "for_whom": ["需要长期管理 Git 项目质量的研发团队", "需要规则和门禁治理的技术负责人"],
+    "nearest_neighbor": "当前 15 引擎平台是一次性多引擎审计和证据交付工具，不是同一种长期状态产品"
+  },
+  "concrete_anchor": {
+    "kind": "worked-case",
+    "participation": "observe",
+    "goal": "观察同一个 Java Maven commit 被两个系统扫描后为什么问题总数、类型和交集不同",
+    "prerequisites": ["固定同一 commit", "固定同一 ZIP SHA-256", "两边构建边界一致"],
+    "steps": [
+      "当前平台运行 15 个引擎并归一化 595 条唯一问题",
+      "SonarQube Community 运行固定 Sonar way 并得到 275 条问题",
+      "按同文件、同行、同语义保守匹配出 17 条交集",
+      "Codex 对高优先级和冲突结果做上下文复核"
+    ],
+    "observable_result": "大多数差异来自扫描层次和规则范围，不是简单的谁漏报；两个系统都存在需要治理的误报和条件性问题。",
+    "limitations": "这是一份真实项目交叉验证，不等同于独立真值集上的 precision/recall。",
+    "reversible": false,
+    "recovery": ""
+  },
+  "nodes": [
+    {"id": "n1", "label": "源码接入与构建", "role": "把 Git/SVN/ZIP 转成可构建的完整工作区和 Java classpath"},
+    {"id": "n2", "label": "SonarScanner/分析器", "role": "在构建环境中提取语法、类型、控制流、测试和指标，生成分析报告"},
+    {"id": "n3", "label": "SonarQube Server", "role": "异步处理报告、保存历史、索引问题并提供 UI/API"},
+    {"id": "n4", "label": "规则与门禁治理", "role": "用 Profile 决定扫描规则，用 Gate 决定新代码是否通过，用 issue 状态治理误报"},
+    {"id": "n5", "label": "15 引擎审计平台", "role": "补充 ZIP/SVN、供应链、Maven、字节码、CodeQL 和统一审计包"}
+  ],
+  "edges": [
+    {"from": "n1", "to": "n2", "relation": "提供源码、class 和依赖信息给"},
+    {"from": "n2", "to": "n3", "relation": "上传分析报告给"},
+    {"from": "n3", "to": "n4", "relation": "提供问题、指标和历史供其执行"},
+    {"from": "n4", "to": "n2", "relation": "把激活规则和参数反馈给"},
+    {"from": "n5", "to": "n4", "relation": "通过 SARIF/API 或统一报告补充外部证据给"}
+  ],
+  "mechanism_trace": [
+    {"step": 1, "state": "用户提供 Git/SVN 或 ZIP", "action": "检出/解压并用 JDK17 Maven 构建", "result": "形成完整工作区、class 和依赖图"},
+    {"step": 2, "state": "工作区可分析", "action": "SonarScanner 按 Quality Profile 执行分析", "result": "生成并上传分析报告"},
+    {"step": 3, "state": "报告已上传", "action": "Compute Engine 异步处理并写入数据库/索引", "result": "UI、API、Webhook 和 MCP 可查询结果"},
+    {"step": 4, "state": "新旧问题和指标已建立", "action": "Quality Gate 按 New Code 政策判定", "result": "CI/PR 获得通过或失败状态"},
+    {"step": 5, "state": "Sonar 未覆盖的审计范围仍存在", "action": "15 引擎在发布/夜间/ZIP/SVN任务中补充扫描", "result": "供应链、Maven、字节码和深层安全证据进入统一报告"}
+  ],
+  "worked_example": {
+    "setup": "同一 Java 17 Maven 项目 commit 同时交给 Community Build 和当前 15 引擎平台",
+    "steps": [
+      "固定 commit、ZIP SHA、Maven 根和 fixture 排除边界",
+      "Sonar 得到 275 条源码质量问题，当前平台得到 595 条多引擎问题",
+      "确认严格语义交集只有 17 条",
+      "将依赖漏洞、格式规范、字节码和复杂度分开解释"
+    ],
+    "result": "得到混合方案，而不是用问题总数宣布某一方更准"
+  },
+  "anchor_mechanism_links": [
+    {"anchor_step": 1, "mechanism_node_ids": ["n1", "n5"], "explanation": "15 引擎依赖完整且受控的源码接入"},
+    {"anchor_step": 2, "mechanism_node_ids": ["n1", "n2", "n3", "n4"], "explanation": "Sonar 的结果由构建、分析器、Profile 和 Server 共同形成"},
+    {"anchor_step": 3, "mechanism_node_ids": ["n2", "n5"], "explanation": "不同分析层次导致低交集，交集不能直接等于 recall"},
+    {"anchor_step": 4, "mechanism_node_ids": ["n4", "n5"], "explanation": "最终准确性还需要上下文治理和独立真值"}
+  ],
+  "usage_rationale_links": [
+    {"usage_step": "ZIP 继续由当前平台接收和隔离", "mechanism_node_ids": ["n1", "n5"], "rationale": "Sonar 标准输入是已检出/解压的工作区，不是任意 ZIP intake", "if_ignored": "会把安全接入、项目身份和生命周期误当成 Sonar 原生能力"},
+    {"usage_step": "长期 Git 项目使用 Sonar 新代码门禁", "mechanism_node_ids": ["n2", "n3", "n4"], "rationale": "Sonar Server 保存历史并将本次问题与基线关联", "if_ignored": "无数据库的一次性扫描器要重复建设历史、用户和门禁系统"},
+    {"usage_step": "用独立 Benchmark 决定规则退休", "mechanism_node_ids": ["n2", "n4", "n5"], "rationale": "两个扫描器都不是准确率真值，只能对同一外部真值计算 TP/FP/FN", "if_ignored": "会把工具之间的交集或问题总数误当准确率"}
+  ],
+  "design_tradeoffs": [
+    {"choice": "采用 Sonar 与 15 引擎混合方案", "benefit": "同时获得长期新代码治理和广覆盖一次性审计", "cost": "需要维护两套结果映射、身份和治理流程", "alternative": "仅使用 Community Build", "when_alternative_wins": "所有项目都是长期 Git 主分支，且供应链、Maven、ZIP/SVN和深层安全都不重要"},
+    {"choice": "先使用 Community PoC，再决定付费", "benefit": "低成本验证规则、API、MCP和团队流程", "cost": "无法验证 PR、SCA和 Advanced SAST", "alternative": "直接采购 Enterprise/Advanced Security", "when_alternative_wins": "PR门禁和付费安全能力已是明确的硬性采购需求"}
+  ],
+  "lenses": {
+    "mechanism": {
+      "problem": "在保持 Java 代码审计覆盖面的同时建立长期 Git 新代码治理，并减少误报噪音",
+      "inputs": ["Git/SVN/ZIP 源码", "JDK17 Maven 构建", "Quality Profile", "15 引擎规则与漏洞库"],
+      "components": ["源码接入", "Scanner", "SonarQube Server", "Profile/Gate", "15 引擎平台", "Benchmark"],
+      "state": ["commit/revision", "analysis id", "issue status", "new code baseline", "规则版本", "漏洞库时间"],
+      "control": "Profile 控制启用规则，Gate 控制通过政策，Benchmark 控制规则和引擎是否可退休",
+      "loop": ["扫描", "复核", "治理", "更新规则", "重跑 Benchmark"],
+      "stop_conditions": ["PoC 指标达到验收标准", "规则/引擎替代有独立真值证据", "许可与数据出站获批准"],
+      "failure_modes": ["把 New Code 当只扫 diff", "把 Community 当支持 PR", "把问题总数当准确率", "把外部工具导入当成规则已迁移", "将 SSAL 组件打进竞争性发行包"]
+    }
+  },
+  "claims": [
+    {"id": "c1", "claim": "Community Build 官方只支持主分支，不支持 Pull Request 分析。", "status": "verified", "source_ids": ["s1"], "directness": "direct", "confidence": "high", "scope": "2026-08-19 当前 Community Build 能力矩阵"},
+    {"id": "c2", "claim": "Java 的跳过未变化文件机制用于 PR，分析缓存主要用于缩短 Java PR 分析，不能承诺主分支只扫 diff。", "status": "verified", "source_ids": ["s2"], "directness": "direct", "confidence": "high", "scope": "当前官方 incremental analysis 文档"},
+    {"id": "c3", "claim": "官方 MCP Server 可通过 stdio 或 Streamable HTTPS 连接 Sonar，并可限制 toolsets 和 read-only。", "status": "verified", "source_ids": ["s3", "s4"], "directness": "direct", "confidence": "high", "scope": "MCP 1.23.0.3101 与本机 Community 26.8"},
+    {"id": "c4", "claim": "Community Build 没有正式 SCA、Advanced SAST、项目 PDF 和监管报告能力。", "status": "verified", "source_ids": ["s1"], "directness": "direct", "confidence": "high", "scope": "当前官方版本能力矩阵"},
+    {"id": "c5", "claim": "混合方案比 Community 全量替代更适合当前 ZIP/SVN、无数据库工具和 15 引擎覆盖面。", "status": "strong-inference", "source_ids": ["s1", "s2", "s5"], "directness": "mixed", "confidence": "high", "scope": "当前项目已确认的 Java17/Maven/Web/ZIP/SVN场景"}
+  ],
+  "sources": [
+    {"id": "s1", "title": "SonarQube Community Build feature comparison", "url": "https://docs.sonarsource.com/sonarqube-community-build/feature-comparison-table.md", "type": "official-documentation", "primary": true, "accessed_at": "2026-08-19"},
+    {"id": "s2", "title": "SonarQube incremental analysis", "url": "https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/incremental-analysis/introduction", "type": "official-documentation", "primary": true, "accessed_at": "2026-08-19"},
+    {"id": "s3", "title": "Official SonarQube MCP Server", "url": "https://github.com/SonarSource/sonarqube-mcp-server", "type": "official-source-repository", "primary": true, "accessed_at": "2026-08-19"},
+    {"id": "s4", "title": "Local MCP validation evidence", "url": "docs/research-results/sonarqube-mcp-local-validation-2026-08-19.json", "type": "local-test-evidence", "primary": true, "accessed_at": "2026-08-19"},
+    {"id": "s5", "title": "Same-source scanner versus SonarQube comparison", "url": "docs/research-results/scanner-vs-sonarqube-comparison-2026-08-19.md", "type": "local-test-evidence", "primary": true, "accessed_at": "2026-08-19"}
+  ],
+  "contrasts": [
+    "New Code 是展示和门禁基线；跳过未变化文件与缓存才是性能优化。",
+    "Community Build 支持主分支；付费 SonarQube Server 才提供完整分支/PR分析。",
+    "Sonar MCP 查询和治理已有结果；SonarScanner 才执行完整项目分析。",
+    "外部 issue 导入统一展示；它不会把外部规则自动变成 Sonar Profile 规则。"
+  ],
+  "boundaries": [
+    "付费 Advanced Security 未在本机取得许可证实测，相关结论来自官方文档。",
+    "同源扫描交集不能替代独立真值集的 precision/recall。",
+    "规则数量和 MCP 工具数量随版本与 entitlement 变化。",
+    "SSAL 与竞争性产品分发边界需要法律审查。"
+  ],
+  "counterfactuals": [
+    "如果所有输入都是长期 Git PR 且允许采购 Enterprise/Advanced Security，Sonar 可以成为主平台，15 引擎缩成发布补充。",
+    "如果继续以一次性 ZIP/SVN、离线报告和无数据库为主，当前平台应是主入口，Sonar 只作为可选长期质量平台。",
+    "如果独立 Benchmark 证明 Sonar duplication 与 PMD CPD 在目标项目上等价且治理更好，可退休 PMD CPD。"
+  ],
+  "misconceptions": [
+    "SonarQube Server 可以原生接收任意 ZIP 并完成安全构建。",
+    "第一次全量以后 Java 主分支永远只扫描 Git diff。",
+    "Community Build 支持完整 Pull Request 门禁。",
+    "Sonar 标为 BUG 就一定是生产 Bug。",
+    "Sonar 中有 738 条 Java 规则就能替代 15 个专用引擎。",
+    "MCP 是一个新的代码扫描引擎。"
+  ],
+  "diagnostic_questions": [
+    {"type": "mechanism", "question": "为什么 Sonar 分析 Java Maven 项目仍需要构建和 class？", "target_nodes": ["n1", "n2"], "answer": "多文件 Java 语义和类型解析依赖编译产物与 classpath，Scanner 不是纯文本搜索。", "failure_diagnosis": "把 Sonar 当成上传源码即可工作的文本扫描器"},
+    {"type": "discrimination", "question": "New Code 和增量扫描有什么区别？", "target_nodes": ["n3", "n4"], "answer": "New Code 决定展示/门禁范围；跳过未变化文件和缓存才决定分析优化。", "failure_diagnosis": "把政策口径和性能机制混为一谈"},
+    {"type": "counterfactual", "question": "如果不需要 ZIP/SVN、SCA、Maven治理，只管理付费 Git PR，会怎样选？", "target_nodes": ["n3", "n4", "n5"], "answer": "Sonar 可以成为主平台，15 引擎只保留被 Benchmark 证明必要的发布补充。", "failure_diagnosis": "不能根据场景变化调整架构"},
+    {"type": "transfer", "question": "哪类现有引擎最先适合评估退休？", "target_nodes": ["n2", "n4", "n5"], "answer": "PMD CPD，因为 Sonar 有强重复代码能力；仍需同一真值和报告口径验证。", "failure_diagnosis": "没有把能力重合、治理价值和验证证据联系起来"}
+  ],
+  "validation_plan": {
+    "method": "practical-task",
+    "task": "用独立正例、负例、CVE修复前后commit和双人复核样本，分别运行 Sonar 与 15 引擎，计算规则族 TP/FP/FN，并在 4～8 周真实项目 PoC 中验证 Git/PR/报告/MCP/并发。",
+    "success_criteria": [
+      "每个计划退休的引擎都有规则族级 precision/recall 证据",
+      "Community 与付费能力不混写",
+      "Git、SVN、ZIP 各有真实端到端证据",
+      "报告、MCP、token、Webhook和数据出站满足安全要求"
+    ],
+    "why_fit": "Benchmark 以外部真值约束两套扫描器，真实 PoC 再验证产品工作流，能同时检验准确性和可用性。",
+    "visibility": "show"
+  },
+  "learning_state": {
+    "current_stage": "validation",
+    "focus": "把功能调研转成可验证的混合选型和 PoC 验收指标",
+    "next": "在代表性 Git 项目上执行 Community PoC，并建立独立真值 Benchmark",
+    "visited_stages": ["panorama", "anchor", "mechanism", "rationale", "boundaries", "validation"],
+    "parked_questions": ["实际 LOC 商业报价", "Enterprise/Advanced Security 真实同源扫描表现"],
+    "learner_evidence": [
+      {"type": "observed-attempt", "stage": "anchor", "node_ids": ["n2", "n5"], "result": "同一 commit 得到 275 与 595 个不同口径问题，严格交集 17 条", "claim_level": "assisted"},
+      {"type": "independent-production", "stage": "validation", "node_ids": ["n3", "n4"], "result": "官方 MCP 真实查询本机 Community 项目成功", "claim_level": "independent"}
+    ]
+  },
+  "next_paths": [
+    "在独立仓库建立 15 引擎准确性 Benchmark",
+    "实现只读 Sonar API/MCP 集成 PoC",
+    "按实际 LOC 和 PR/SCA/报告需求取得 SonarQube Server 报价",
+    "对 PMD CPD、PMD 和 Checkstyle 做逐规则重合与退出评估"
+  ]
+}

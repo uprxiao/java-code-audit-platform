@@ -1,0 +1,47 @@
+{
+  "testedAt": "2026-08-19T16:57:19+08:00",
+  "mcpServer": {
+    "repository": "https://github.com/SonarSource/sonarqube-mcp-server",
+    "release": "1.23.0.3101",
+    "releaseTagCommit": "182277d1d006bc29346a2cb306240ed9d2f428fa",
+    "releaseJarSha256": "d11484c0f37ee2416235d280e05f6dc74b06f7686cc58b6e3acb9a2f5d84a8c7",
+    "researchMasterCommit": "b9c734cc9949b0d17c49c88db6eb8a195070d218",
+    "transport": "stdio",
+    "protocolVersion": "2024-11-05",
+    "readOnly": true,
+    "selectedToolsets": [
+      "issues",
+      "projects",
+      "quality-gates",
+      "rules",
+      "measures"
+    ],
+    "toolsVisibleToClient": 10,
+    "documentedToolsAtRelease": 48,
+    "note": "官方 README 的总工具数包含按版次、授权、IDE bridge、Vortex 和配置条件启用的工具，不能理解为 Community Build 默认可用 48 个。"
+  },
+  "sonarQube": {
+    "url": "http://127.0.0.1:19000",
+    "version": "26.8.0.126808",
+    "edition": "Community Build",
+    "projectKey": "java-code-audit-platform"
+  },
+  "checks": [
+    {
+      "name": "initialize",
+      "status": "PASS",
+      "evidence": "MCP initialize 返回成功并完成 tools/list。"
+    },
+    {
+      "name": "search_my_sonarqube_projects",
+      "status": "PASS",
+      "evidence": "真实调用返回 java-code-audit-platform，isError=false。"
+    },
+    {
+      "name": "credentials",
+      "status": "PASS",
+      "evidence": "使用 USER token；文档与证据文件未保存 token。"
+    }
+  ],
+  "conclusion": "官方 MCP 可真实连接本机 Community Build 并查询项目，但它是 AI/API 桥梁，不执行完整仓库 CI 扫描，也不提供 ZIP 上传。"
+}

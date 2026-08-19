@@ -1,0 +1,739 @@
+key,name,activeInSonarWay,triggeredInCurrentProject,currentIssueCount,status,legacyType,legacySeverity,scope,qualityImpacts,systemTags,hasParameters,isTemplate
+java:NoSonar,"Track uses of ""NOSONAR"" comments",False,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,bad-practice,False,False
+java:S100,Method names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S101,Class names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S103,Lines should not be too long,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,convention,True,False
+java:S104,Files should not have too many lines of code,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S105,Tabulation characters should not be used,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S106,Standard outputs should not be used directly to log anything,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,bad-practice;cert,False,False
+java:S1065,Unused labels should be removed,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cert;unused,False,False
+java:S1066,"Mergeable ""if"" statements should be combined",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,clumsy,False,False
+java:S1067,Expressions should not be too complex,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,brain-overload,True,False
+java:S1068,"Unused ""private"" fields should be removed",True,True,1,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,unused,True,False
+java:S107,Methods should not have too many parameters,True,True,6,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1075,URIs should not be hardcoded,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,android;cert,False,False
+java:S108,Nested blocks of code should not be left empty,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,suspicious,False,False
+java:S109,Magic numbers should not be used,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S110,Inheritance tree of classes should not be too deep,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,False
+java:S1104,Class variable fields should not have public accessibility,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,cwe,False,False
+java:S1105,An open curly brace should be located at the end of a line,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1106,An open curly brace should be located at the beginning of a line,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1107,"Close curly brace and the next ""else"", ""catch"" and ""finally"" keywords should be located on the same line",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1108,"Close curly brace and the next ""else"", ""catch"" and ""finally"" keywords should be on two different lines",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1109,A close curly brace should be located at the beginning of a line,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1110,Redundant pairs of parentheses should be removed,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S1111,"The ""Object.finalize()"" method should not be called",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;cert,False,False
+java:S1113,"The ""Object.finalize()"" method should not be overridden",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,unpredictable;cert,False,False
+java:S1114,"""super.finalize()"" should be called at the end of ""Object.finalize()"" implementations",False,False,0,DEPRECATED,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,,False,False
+java:S1116,Empty statements should be removed,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,unused;cert,False,False
+java:S1117,Local variables should not shadow class fields,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,cert;suspicious;pitfall,False,False
+java:S1118,Utility classes should not have public constructors,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,design,False,False
+java:S1119,Labels should not be used,True,True,1,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S112,Generic exceptions should never be thrown,True,True,1,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;error-handling;cert,False,False
+java:S1120,Source code should be indented consistently,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S1121,Assignments should not be made from within sub-expressions,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;cert;suspicious,False,False
+java:S1123,Deprecated elements should have both the annotation and the Javadoc tag,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,obsolete;bad-practice,False,False
+java:S1124,Modifiers should be declared in the correct order,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,False,False
+java:S1125,Boolean literals should not be redundant,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1126,"Return of boolean expressions should not be wrapped into an ""if-then-else"" statement",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1128,Unnecessary imports should be removed,True,True,12,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,unused,False,False
+java:S113,Files should end with a newline,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1130,"Exceptions in ""throws"" clauses should not be superfluous",True,True,2,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,error-handling;unused;redundant;clumsy,False,False
+java:S1132,Strings literals should be placed on the left side when checking for equality,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S1133,Deprecated code should be removed,True,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,obsolete,False,False
+java:S1134,"Track uses of ""FIXME"" tags",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,cwe,False,False
+java:S1135,"Track uses of ""TODO"" tags",True,False,0,READY,CODE_SMELL,INFO,ALL,MAINTAINABILITY:INFO,cwe,False,False
+java:S114,Interface names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,True,False
+java:S1141,Try-catch blocks should not be nested,True,True,1,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;confusing,False,False
+java:S1142,Methods should not have too many return statements,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1143,"Jump statements should not occur in ""finally"" blocks",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,cwe;error-handling;cert,False,False
+java:S1144,"Unused ""private"" methods should be removed",True,True,3,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,unused,False,False
+java:S1147,Exit methods should not be called,False,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,cwe;cert;suspicious,False,False
+java:S1149,"Synchronized classes ""Vector"", ""Hashtable"", ""Stack"" and ""StringBuffer"" should not be used",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S115,Constant names should comply with a naming convention,True,False,0,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,convention,True,False
+java:S1150,"""Enumeration"" should not be implemented",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,obsolete,False,False
+java:S1151,"""switch case"" clauses should not have too many lines of code",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1153,"""String.valueOf()"" should not be appended to a ""String""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1155,"""Collection.isEmpty()"" should be used to test for emptiness",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1157,Case insensitive string comparisons should be made without intermediate upper or lower casing,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance;clumsy,False,False
+java:S1158,"Primitive wrappers should not be instantiated only for ""toString"" or ""compareTo"" calls",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance;clumsy,False,False
+java:S116,Field names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,True,False
+java:S1160,Public methods should throw at most one checked exception,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling,False,False
+java:S1161,"""@Override"" should be used on overriding and implementing methods",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,bad-practice,False,False
+java:S1162,Checked exceptions should not be thrown,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling,False,False
+java:S1163,Exceptions should not be thrown in finally blocks,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,error-handling;cert;suspicious,False,False
+java:S1165,Exception classes should have final fields,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,error-handling,False,False
+java:S1166,Exception handlers should preserve the original exceptions,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;error-handling;cert;suspicious,True,False
+java:S1168,Empty arrays and collections should be returned instead of null,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cert,False,False
+java:S117,Local variable and method parameter names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,True,False
+java:S1170,"Public constants and fields initialized at declaration should be ""static final"" rather than merely ""final""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1171,Only static class initializers should be used,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S1172,Unused method parameters should be removed,True,True,2,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,unused;cert,False,False
+java:S1174,"""Object.finalize()"" should remain protected (versus public) when overriding",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cwe;cert,False,False
+java:S1175,"The signature of ""finalize()"" should match that of ""Object.finalize()""",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,pitfall,False,False
+java:S1176,"Public types, methods and fields (API) should be documented with Javadoc",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,convention,True,False
+java:S118,Abstract class names should comply with a naming convention,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S1181,Throwable and Error should not be caught,True,True,2,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;error-handling;bad-practice;cert,False,False
+java:S1182,"Classes that override ""clone"" should be ""Cloneable"" and call ""super.clone()""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;cwe;cert,False,False
+java:S1185,Overriding methods should do more than simply call the same method in the super class,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant;clumsy,False,False
+java:S1186,Methods should not be empty,True,False,0,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,suspicious,False,False
+java:S1188,Anonymous classes should not have too many lines,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,False
+java:S119,Type parameter names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,True,False
+java:S1190,Future keywords should not be used as names,True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,obsolete;pitfall,False,False
+java:S1191,"Classes from ""sun.*"" packages should not be used",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,lock-in;pitfall,True,False
+java:S1192,String literals should not be duplicated,True,True,83,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,design,True,False
+java:S1193,"Exception types should not be tested using ""instanceof"" in catch blocks",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;cert;clumsy,False,False
+java:S1194,"""java.lang.Error"" should not be extended",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling,False,False
+java:S1195,"Array designators ""[]"" should be located after the type in method signatures",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1197,"Array designators ""[]"" should be on the type, not the variable",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,False,False
+java:S1199,Nested code blocks should not be used,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S120,Package names should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S1200,Classes should not be coupled to too many other classes,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1201,"""equals"" method overrides should accept ""Object"" parameters",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,suspicious,False,False
+java:S1206,"""equals(Object obj)"" and ""hashCode()"" should be overridden in pairs",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cwe;cert,False,False
+java:S121,Control structures should use curly braces,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cert;pitfall,False,False
+java:S1210,"""equals(Object obj)"" should be overridden along with the ""compareTo(T obj)"" method",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S1213,The members of an interface or class declaration should appear in a pre-defined order,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1214,Interfaces should not solely consist of constants,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,bad-practice,False,False
+java:S1215,Execution of the Garbage Collector should be triggered only by the JVM,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,unpredictable;bad-practice,False,False
+java:S1217,"""Thread.run()"" should not be called directly",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;multi-threading;cert,False,False
+java:S1219,"""switch"" statements should not contain non-case labels",True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,suspicious,False,False
+java:S122,Statements should be on separate lines,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,convention,False,False
+java:S1220,The default unnamed package should not be used,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,False,False
+java:S1221,"Methods should not be named ""tostring"", ""hashcode"" or ""equal""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,pitfall,False,False
+java:S1223,Non-constructor methods should not have the same name as the enclosing class,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S1226,"Method parameters, caught exceptions and foreach variables' initial values should not be ignored",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,,False,False
+java:S1228,Packages should have a javadoc file 'package-info.java',False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S124,Track comments matching a regular expression,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,True
+java:S1244,Floating point numbers should not be tested for equality,False,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S125,Sections of code should not be commented out,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,unused,False,False
+java:S1258,Classes and enums with private members should have a constructor,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S126,"""if ... else if"" constructs should end with ""else"" clauses",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cert,False,False
+java:S1264,"A ""while"" loop should be used instead of a ""for"" loop",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S127,"""for"" loop stop conditions should be invariant",True,True,2,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S128,"Switch cases should end with an unconditional ""break"" statement",True,False,0,READY,CODE_SMELL,BLOCKER,ALL,MAINTAINABILITY:BLOCKER,cwe;cert;suspicious,False,False
+java:S1301,"""switch"" statements should have at least 3 ""case"" clauses",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S1309,"Track uses of ""@SuppressWarnings"" annotations",False,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,,True,False
+java:S131,"""switch"" statements should have ""default"" clauses",True,False,0,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,cwe;cert,False,False
+java:S1310,"Track uses of ""NOPMD"" suppression comments",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S1312,"Loggers should be ""private static final"" and should share a naming convention",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;logging,True,False
+java:S1313,IP addresses should not be hardcoded,True,False,0,READY,CODE_SMELL,MINOR,MAIN,SECURITY:LOW,cert;former-hotspot,False,False
+java:S1314,Octal values should not be used,False,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,cert;pitfall,False,False
+java:S1315,"Track uses of ""CHECKSTYLE:OFF"" suppression comments",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S1317,"""StringBuilder"" and ""StringBuffer"" should not be instantiated with a character",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,pitfall,False,False
+java:S1319,"Declarations should use Java collection interfaces such as ""List"" rather than specific implementation classes such as ""LinkedList""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S134,"Control flow statements ""if"", ""for"", ""while"", ""switch"" and ""try"" should not be nested too deeply",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,brain-overload,True,False
+java:S135,"Loops should not contain more than a single ""break"" or ""continue"" statement",True,True,8,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,brain-overload,False,False
+java:S138,Methods should not have too many lines,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S139,Comments should not be located at the end of lines of code,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S1444,"""public static"" fields should be constant",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,cwe;cert,False,False
+java:S1448,Classes should not have too many methods,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1449,String operations should not rely on the default system locale,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,unpredictable;cert,False,False
+java:S1450,Private fields only used as local variables in methods should become local variables,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,pitfall,False,False
+java:S1451,Track lack of copyright and license headers,False,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,convention,True,False
+java:S1452,Generic wildcard types should not be used in return types,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S1479,"""switch"" statements should not have too many ""case"" clauses",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1481,Unused local variables should be removed,True,True,1,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,unused;java22,False,False
+java:S1488,Local variables should not be declared and then immediately returned or thrown,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1541,Methods should not be too complex,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,brain-overload,True,False
+java:S1596,"""Collections.EMPTY_LIST"", ""EMPTY_MAP"", and ""EMPTY_SET"" should not be used",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,obsolete;pitfall,False,False
+java:S1598,Package declaration should match source file directory,True,False,0,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S1602,Lambdas containing only one statement should not nest this statement in a block,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java8,False,False
+java:S1604,Anonymous inner classes containing only one method should become lambdas,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java8,False,False
+java:S1607,JUnit4 @Ignored and JUnit5 @Disabled annotations should be used to disable tests and should provide a rationale,True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests;bad-practice;suspicious;confusing,False,False
+java:S1610,Abstract classes without fields should be converted to interfaces,False,False,0,DEPRECATED,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S1611,Parentheses should be removed from a single lambda parameter when its type is inferred,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java8,False,False
+java:S1612,Lambdas should be replaced with method references,True,True,11,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java8,False,False
+java:S1640,Maps with keys that are enum values should use the EnumMap implementation,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,performance,False,False
+java:S1641,Sets with elements that are enum values should be replaced with EnumSet,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S1643,Strings should not be concatenated using '+' in a loop,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,performance,False,False
+java:S1656,Variables should not be self-assigned,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,cert,False,False
+java:S1659,Multiple variables should not be declared on the same line,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;cert,False,False
+java:S1694,An abstract class should have both abstract and concrete methods,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S1695,"""NullPointerException"" should not be explicitly thrown",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;pitfall,False,False
+java:S1696,"""NullPointerException"" should not be caught",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;cwe;cert,False,False
+java:S1698,"""=="" and ""!="" should not be used when ""equals"" is overridden",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,cwe;cert;suspicious,False,False
+java:S1699,Constructors should only call non-overridable methods,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cert;pitfall,False,False
+java:S1700,A field should not duplicate the name of its containing class,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,False,False
+java:S1710,Annotation repetitions should not be wrapped,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java8,False,False
+java:S1711,Standard functional interfaces should not be redefined,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java8,False,False
+java:S1751,Loops with at most one iteration should be refactored,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,bad-practice;confusing,False,False
+java:S1764,Identical expressions should not be used on both sides of a binary operator,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S1774,The ternary operator should not be used,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,False,False
+java:S1820,Classes should not have too many fields,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S1821,"""switch"" statements and expressions should not be nested",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S1844,"""Object.wait"" should not be called on objects that implement ""java.util.concurrent.locks.Condition""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,suspicious,False,False
+java:S1845,Methods and field names should not be the same or differ only by capitalization,True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,confusing,False,False
+java:S1849,"""Iterator.hasNext()"" should not call ""Iterator.next()""",True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,,False,False
+java:S1854,Unused assignments should be removed,True,True,1,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,cwe;cert;unused,False,False
+java:S1858,"""toString()"" should never be called on a String object",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,finding;clumsy,False,False
+java:S1860,Synchronization should not be done on instances of value-based classes,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S1862,"Related ""if/else if"" statements should not have the same condition",True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,unused;cert;pitfall,False,False
+java:S1871,Two branches in a conditional structure should not have exactly the same implementation,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,design;suspicious,False,False
+java:S1872,Classes should not be compared by name,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,cwe;cert,False,False
+java:S1874,"""@Deprecated"" code should not be used",False,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,cwe;obsolete;cert,False,False
+java:S1905,Redundant casts should not be used,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant;clumsy,False,False
+java:S1939,Extensions and implementations should not be redundant,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S1940,Boolean checks should not be inverted,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,pitfall,False,False
+java:S1941,Variables should not be declared before they are relevant,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,brain-overload,False,False
+java:S1942,Simple class names should be used,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,confusing;redundant,False,False
+java:S1943,Classes and methods that rely on the default system encoding should not be used,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,unpredictable;cert;i18n,False,False
+java:S1948,"Fields in a ""Serializable"" class should either be transient or serializable",True,True,4,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cwe;serialization,False,False
+java:S1989,Exceptions should not be thrown from servlet methods,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,error-handling;cwe;cert,False,False
+java:S1994,"""for"" loop increment clauses should modify the loops' counters",True,False,0,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,confusing,False,False
+java:S1996,Files should contain only one top-level class or interface each,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,False,False
+java:S2039,Member variable visibility should be specified,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S2047,"The names of methods with boolean return values should start with ""is"" or ""has""",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,convention,False,False
+java:S2053,Password hashing functions should use an unpredictable salt,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S2055,"The non-serializable super class of a ""Serializable"" class should have a no-argument constructor",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,serialization,False,False
+java:S2057,"""Serializable"" classes should have a ""serialVersionUID""",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,serialization;cert;pitfall,False,False
+java:S2059,"""Serializable"" inner classes of ""Serializable"" classes should be static",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,serialization;cert;pitfall,False,False
+java:S2060,"""Externalizable"" classes should have no-arguments constructors",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2061,Custom serialization methods should have required signatures,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S2062,"""readResolve"" methods should be inheritable",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S2063,"Comparators should be ""Serializable""",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,serialization;pitfall,False,False
+java:S2065,"Fields in non-serializable classes should not be ""transient""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,serialization;unused,False,False
+java:S2066,"""Serializable"" inner classes of non-serializable outer classes should be ""static""",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,serialization;cert,False,False
+java:S2068,Credentials should not be hard-coded,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;cert;secret;former-hotspot,True,False
+java:S2077,SQL queries should not be dynamically formatted,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM;MAINTAINABILITY:LOW,spring;cwe;bad-practice;cert;hibernate;sql;former-hotspot,False,False
+java:S2092,"Cookies should have the ""secure"" flag",True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,spring;cwe;privacy;former-hotspot,False,False
+java:S2093,Try-with-resources should be used,True,True,1,READY,CODE_SMELL,CRITICAL,ALL,MAINTAINABILITY:HIGH,java8;cert;pitfall,False,False
+java:S2094,Classes should not be empty,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S2095,Resources should be closed,True,False,0,READY,BUG,BLOCKER,ALL,RELIABILITY:BLOCKER,symbolic-execution;cwe;leak;denial-of-service;cert,True,False
+java:S2096,"""main"" should not ""throw"" anything",False,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,error-handling,False,False
+java:S2097,"""equals(Object obj)"" should test the argument's type",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,,False,False
+java:S2109,Reflection should not be used to check non-runtime annotations,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2110,"Invalid ""Date"" values should not be used",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2111,"""BigDecimal(double)"" should not be used",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S2112,"""URL.hashCode"" and ""URL.equals"" should be avoided",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2114,Collections should not be passed as arguments to their own methods,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2115,A secure password should be used when connecting to a database,True,False,0,READY,VULNERABILITY,BLOCKER,MAIN,SECURITY:BLOCKER,cwe;secret,False,False
+java:S2116,"""hashCode"" and ""toString"" should not be called on array instances",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2118,"""writeObject"" argument must implement ""Serializable""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,serialization,False,False
+java:S2119,"""Random"" objects should be reused",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,,False,False
+java:S2121,String operations with predictable outcomes should be avoided,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,clumsy,False,False
+java:S2122,"""ScheduledThreadPoolExecutor"" should not have 0 core threads",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,,False,False
+java:S2123,Values should not be uselessly incremented,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,unused,False,False
+java:S2127,"""Double.longBitsToDouble"" should take ""long"" as argument",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2129,"Constructors should not be used to instantiate ""String"", ""BigInteger"", ""BigDecimal"" and primitive-wrapper classes",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2130,"Parsing should be used to convert ""Strings"" to primitives",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,performance,False,False
+java:S2131,"Primitives should not be boxed just for ""String"" conversion",False,False,0,DEPRECATED,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S2133,"Objects should not be created only to invoke ""getClass""",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2134,"Classes extending java.lang.Thread should provide a specific ""run"" behavior",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;pitfall,False,False
+java:S2139,Exceptions should be either logged or rethrown but not both,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;logging,False,False
+java:S2140,"Methods of ""Random"" that return floating point values should not be used in random integer generation",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,performance;clumsy,False,False
+java:S2141,"Classes that don't define ""hashCode()"" should not be used in hashes",False,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2142,"""InterruptedException"" and ""ThreadDeath"" should not be ignored",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,error-handling;cwe;multi-threading,False,False
+java:S2143,"""java.time"" classes should be used for dates and times",True,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,java8;pitfall,False,False
+java:S2147,Catches should be combined,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,clumsy,False,False
+java:S2148,Underscores should be used to make large numbers readable,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S2151,"""runFinalizersOnExit"" should not be called",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,cert,False,False
+java:S2153,Unnecessary boxing and unboxing should be avoided,True,False,0,READY,BUG,MINOR,ALL,RELIABILITY:LOW,clumsy,False,False
+java:S2154,Dissimilar primitive wrappers should not be used with the ternary operator without explicit casting,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,,False,False
+java:S2156,"""final"" classes should not have ""protected"" members",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,confusing,False,False
+java:S2157,"""Cloneables"" should implement ""clone""",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,convention;api-design,False,False
+java:S2159,Unnecessary equality checks should not be made,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,unused;cert,False,False
+java:S2160,"Subclasses that add fields to classes that override ""equals"" should also override ""equals""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,suspicious,False,False
+java:S2162,"""equals"" methods should be symmetric and work for subclasses",False,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cert,False,False
+java:S2164,Math should not be performed on floats,False,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cert,False,False
+java:S2165,"""finalize"" should not set fields to ""null""",False,False,0,DEPRECATED,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S2166,"Classes named like ""Exception"" should extend ""Exception"" or a subclass",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;convention;pitfall,False,False
+java:S2167,"""compareTo"" should not return ""Integer.MIN_VALUE""",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,,False,False
+java:S2168,Double-checked locking should not be used,True,False,0,READY,BUG,BLOCKER,ALL,RELIABILITY:BLOCKER,singleton;cwe;multi-threading;design;cert,False,False
+java:S2175,"Inappropriate ""Collection"" calls should not be made",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S2176,Class names should not shadow interfaces or superclasses,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S2177,Child class methods named for parent class methods should be overrides,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,pitfall,False,False
+java:S2178,Short-circuit logic should be used in boolean contexts,True,False,0,READY,CODE_SMELL,BLOCKER,ALL,MAINTAINABILITY:BLOCKER,cert,False,False
+java:S2183,Ints and longs should not be shifted by zero or more than their number of bits-1,True,False,0,READY,BUG,MINOR,ALL,RELIABILITY:LOW,,False,False
+java:S2184,Math operands should be cast before assignment,True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cwe;overflow;cert,False,False
+java:S2185,Do not perform unnecessary mathematical operations,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,clumsy,False,False
+java:S2186,"JUnit assertions should not be used in ""run"" methods",True,False,0,READY,CODE_SMELL,CRITICAL,TEST,MAINTAINABILITY:HIGH,junit;tests,False,False
+java:S2187,TestCases should contain tests,True,False,0,READY,CODE_SMELL,BLOCKER,TEST,MAINTAINABILITY:BLOCKER,junit;tests;unused;confusing,True,False
+java:S2188,JUnit test cases should call super methods,True,False,0,READY,CODE_SMELL,BLOCKER,TEST,MAINTAINABILITY:BLOCKER,junit;tests,False,False
+java:S2189,Loops should not be infinite,True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,symbolic-execution;cert,False,False
+java:S2196,"Switches should be used for sequences of simple ""String"" tests",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S2197,Modulus results should not be checked for direct equality,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cert;suspicious,False,False
+java:S2200,"""compareTo"" results should not be checked for specific values",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,unpredictable,False,False
+java:S2201,Return values from functions without side effects should not be ignored,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S2203,"""collect"" should be used with ""Streams"" instead of ""list::add""",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java8,False,False
+java:S2204,""".equals()"" should not be used to test the values of ""Atomic"" classes",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading,False,False
+java:S2206,Do not mix field and getter persistence annotations,True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,jakarta,False,False
+java:S2208,Wildcard imports should not be used,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S2209,"""static"" members should be accessed statically",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S2211,Types should be used in lambdas,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,convention;java8,False,False
+java:S2221,"""Exception"" should not be caught when not required by called methods",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,error-handling;cwe,False,False
+java:S2222,Locks should be released on all paths,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH,cwe;symbolic-execution;multi-threading,False,False
+java:S2225,"""toString()"" and ""clone()"" methods should not return null",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;cert,False,False
+java:S2226,Servlets should not have mutable instance fields,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;struts;cert,False,False
+java:S2229,"Methods should not call same-class methods with incompatible ""@Transactional"" values",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,spring,False,False
+java:S2230,Methods with Spring proxying annotations should be public,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S2232,"""ResultSet.isLast()"" should not be used",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance;pitfall;sql,False,False
+java:S2234,Parameters should be passed in the correct order,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S2235,"""IllegalMonitorStateException"" should not be caught",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,error-handling;multi-threading,False,False
+java:S2236,"Methods ""wait(...)"", ""notify()"" and ""notifyAll()"" should not be called on Thread instances",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,multi-threading,False,False
+java:S2245,Pseudorandom number generators (PRNGs) should not be used in security contexts,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;former-hotspot,False,False
+java:S2250,Collection methods with O(n) performance should be used carefully,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S2251,"A ""for"" loop update clause should move the counter in the right direction",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S2252,Loop conditions should be true at least once,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2253,Track uses of disallowed methods,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,True
+java:S2254,"""HttpServletRequest.getRequestedSessionId()"" should not be used",True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S2257,Custom cryptographic algorithms should not be used,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;former-hotspot,False,False
+java:S2259,Null pointers should not be dereferenced,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;symbolic-execution;cert,False,False
+java:S2260,Java parser failure,False,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,suspicious,False,False
+java:S2272,"""Iterator.next()"" methods should throw ""NoSuchElementException""",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,error-handling;unpredictable,False,False
+java:S2273,"""Object.wait()"", ""Object.notify()"" and ""Object.notifyAll()"" should only be called from synchronized code",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading,False,False
+java:S2274,"""Object.wait(...)"" and ""Condition.await(...)"" should be called inside a ""while"" loop",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,multi-threading;cert,False,False
+java:S2275,Printf-style format strings should not lead to unexpected behavior at runtime,True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,cert,False,False
+java:S2276,"""wait(...)"" should be used instead of ""Thread.sleep(...)"" when a lock is held",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,multi-threading;performance;cert,False,False
+java:S2293,"The diamond operator (""<>"") should be used",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S2301,Public methods should not contain selector arguments,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,design,False,False
+java:S2308,"""deleteOnExit"" should not be used",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2309,Files should not be empty,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,unused,False,False
+java:S2325,"""private"" and ""final"" methods that don't access instance data should be ""static""",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,pitfall,False,False
+java:S2326,Unused type parameters should be removed,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,unused,False,False
+java:S2333,Redundant modifiers should not be used,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,finding;clumsy,False,False
+java:S2384,Private mutable members should not be stored or returned directly,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,cwe;unpredictable;cert,False,False
+java:S2386,"Mutable fields should not be ""public static""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,cwe;unpredictable;cert,False,False
+java:S2387,Child class fields should not shadow parent class fields,True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,confusing,False,False
+java:S2388,Inner class calls to super class methods should be unambiguous,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S2390,Classes should not access their own subclasses during class initialization,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,cert,False,False
+java:S2437,Unnecessary bit operations should not be performed,True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,suspicious,False,False
+java:S2438,"""Thread"" should not be used where a ""Runnable"" argument is expected",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,multi-threading;pitfall,False,False
+java:S2440,"Classes with only ""static"" methods should not be instantiated",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,clumsy,False,False
+java:S2441,"Non-serializable objects should not be stored in ""javax.servlet.http.HttpSession"" instances",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe,False,False
+java:S2442,"Synchronizing on a ""Lock"" object should be avoided",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,multi-threading;cert;clumsy,False,False
+java:S2444,"Lazy initialization of ""static"" fields should be ""synchronized""",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,multi-threading,False,False
+java:S2445,"Blocks should be synchronized on ""private final"" fields",True,True,8,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;multi-threading;cert,False,False
+java:S2446,"""notifyAll()"" should be preferred over ""notify()""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S2447,"""null"" should not be returned from a ""Boolean"" method",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cwe;cert;pitfall,False,False
+java:S2479,Whitespace and control characters in literals should be explicit,True,True,1,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,True,False
+java:S2583,Conditionally executed code should be reachable,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,symbolic-execution;cwe;unused;cert;suspicious;pitfall,False,False
+java:S2589,Boolean expressions should not be gratuitous,True,True,1,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,symbolic-execution;cwe;suspicious;redundant,False,False
+java:S2612,File permissions should not be set to world-accessible values,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;cert;former-hotspot,False,False
+java:S2629,"""Preconditions"" and logging arguments should not require evaluation",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2637,"""@NonNull"" values should not be set to null",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,symbolic-execution;cwe;cert,False,False
+java:S2638,Method overrides should not change contracts,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,suspicious,False,False
+java:S2639,Inappropriate regular expressions should not be used,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2647,Basic authentication should not be used,False,False,0,DEPRECATED,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,,False,False
+java:S2654,JEE applications should not use threads or synchronization,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,cwe;multi-threading;jee;jakarta,False,False
+java:S2658,Classes should not be loaded dynamically,False,False,0,DEPRECATED,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,,False,False
+java:S2674,The value returned from a stream read should be checked,True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cert,False,False
+java:S2675,"""readObject"" should not be ""synchronized""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S2676,"""Math.abs"" and negation should not be used on numbers that could be ""MIN_VALUE""",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,suspicious,False,False
+java:S2677,"""read"" and ""readLine"" return values should be used",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2681,Multiline blocks should be enclosed in curly braces,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;cert,False,False
+java:S2689,"Files opened in append mode should not be used with ""ObjectOutputStream""",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,serialization;symbolic-execution,False,False
+java:S2692,"""indexOf"" checks should not be for positive numbers",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,suspicious,False,False
+java:S2693,Threads should not be started in constructors,False,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,multi-threading;cert;pitfall,False,False
+java:S2694,"Inner classes which do not reference their owning classes should be ""static""",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2695,"""PreparedStatement"" and ""ResultSet"" methods should be called with valid indices",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,sql,False,False
+java:S2696,"Instance methods should not write to ""static"" fields",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,multi-threading,False,False
+java:S2698,Test assertions should include messages,False,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,junit;tests,False,False
+java:S2699,Tests should include assertions,True,False,0,READY,CODE_SMELL,BLOCKER,TEST,MAINTAINABILITY:BLOCKER,junit;tests,True,False
+java:S2701,Literal boolean values and nulls should not be used in assertions,False,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,junit;tests,False,False
+java:S2718,"""DateUtils.truncate"" from Apache Commons Lang library should not be used",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance;java8,False,False
+java:S2737,"""catch"" clauses should do more than rethrow",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,error-handling;unused;finding;clumsy,False,False
+java:S2755,XML parsers should not be vulnerable to XXE attacks,True,False,0,READY,VULNERABILITY,BLOCKER,MAIN,SECURITY:BLOCKER,symbolic-execution;cwe,False,False
+java:S2757,"Non-existent operators like ""=+"" should not be used",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2761,Unary prefix operators should not be repeated,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S2786,"Nested ""enum""s should not be declared static",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant,False,False
+java:S2789,"""null"" should not be used with ""Optional""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java8,False,False
+java:S2864,"""entrySet()"" should be iterated when both the key and value are needed",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S2885,Non-thread-safe fields should not be static,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading,False,False
+java:S2886,Getters and setters should be synchronized in pairs,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S2924,JUnit rules should be used,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,junit;tests;unused,False,False
+java:S2925,"""Thread.sleep"" should not be used in tests",True,True,7,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests;bad-practice,False,False
+java:S2959,Unnecessary semicolons should be omitted,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,False,False
+java:S2970,Assertions should be complete,True,False,0,READY,CODE_SMELL,BLOCKER,TEST,MAINTAINABILITY:BLOCKER,tests;assertj;mockito,False,False
+java:S2972,Inner classes should not have too many lines of code,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S2973,Escaped Unicode characters should not be used,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S2974,"Classes without ""public"" constructors should be ""final""",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,design,False,False
+java:S2975,"""clone"" should not be overridden",True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,suspicious,False,False
+java:S3008,Static non-final field names should comply with a naming convention,False,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention,True,False
+java:S3010,Static fields should not be updated in constructors,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S3011,"Reflection should not be used to increase accessibility of classes, methods, or fields",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cert,False,False
+java:S3012,Arrays and lists should not be copied using loops,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S3014,"""ThreadGroup"" should not be used",True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,design;cert;suspicious,False,False
+java:S3020,"""Collection.toArray()"" should be passed an array of the proper type",True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,,False,False
+java:S3024,"Arguments to ""append"" should not be concatenated",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance;clumsy,False,False
+java:S3030,"Classes should not have too many ""static"" imports",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,brain-overload,True,False
+java:S3032,"JEE applications should not ""getClassLoader""",False,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,jee,False,False
+java:S3033,""".isEmpty"" should be used to test for the emptiness of StringBuffers/Builders",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance;clumsy,False,False
+java:S3034,Raw byte values should not be used in bitwise operations in combination with shifts,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S3038,Abstract methods should not be redundant,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,confusing,False,False
+java:S3039,"Indexes to passed to ""String"" operations should be within the string's bounds",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S3042,"""writeObject"" should not be the only ""synchronized"" code in a class",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S3046,"""wait"" should not be called when multiple locks are held",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,multi-threading;deadlock,False,False
+java:S3047,Multiple loops over the same set should be combined,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S3051,"""main"" should have the right signature",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;confusing,False,False
+java:S3052,Fields should not be initialized to default values,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;finding,False,False
+java:S3063,"""StringBuilder"" data should be used",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S3064,Assignment of lazy-initialized members should be the last step with double-checked locking,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S3065,Min and max used in combination should not always return the same value,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,symbolic-execution,False,False
+java:S3066,"""enum"" fields should not be publicly mutable",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice,False,False
+java:S3067,"""getClass"" should not be used for synchronization",False,False,0,DEPRECATED,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S3077,"Non-primitive fields should not be ""volatile""",True,True,6,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,multi-threading;cert,False,False
+java:S3078,"""volatile"" variables should not be used with compound operators",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S3242,Method parameters should be declared with base types,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,api-design,False,False
+java:S3252,"""static"" base class members should not be accessed via derived types",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,confusing,False,False
+java:S3254,Default annotation parameter values should not be passed as arguments,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,finding;clumsy,False,False
+java:S3305,"Factory method injection should be used in ""@Configuration"" classes",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,spring;performance,False,False
+java:S3306,Constructor injection should be used instead of field injection,False,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring;design;jee;pitfall,False,False
+java:S3329,Cipher Block Chaining IVs should be unpredictable,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S3330,"Cookies should have the ""HttpOnly"" flag",True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;privacy;former-hotspot,False,False
+java:S3346,"Expressions used in ""assert"" should not produce side effects",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cert,False,False
+java:S3358,Ternary operators should not be nested,True,True,12,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S3366,"""this"" should not be exposed from constructors",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,multi-threading;cert;suspicious,False,False
+java:S3398,"""private"" methods called only by inner classes should be moved to those classes",True,True,4,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,confusing,False,False
+java:S3400,Methods should not return constants,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,confusing,False,False
+java:S3414,Tests should be kept in a dedicated source directory,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,tests;suspicious,False,False
+java:S3415,Assertion arguments should be passed in the correct order,True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests;suspicious,False,False
+java:S3416,Loggers should be named for their enclosing classes,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,logging;confusing,False,False
+java:S3436,Value-based classes should not be used for locking,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;java8;lock-in,False,False
+java:S3437,Value-based objects should not be serialized,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,serialization;java8;lock-in,False,False
+java:S3457,Format strings should be used correctly,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,cert;confusing,False,False
+java:S3516,Methods returns should not be invariant,True,False,0,READY,CODE_SMELL,BLOCKER,MAIN,MAINTAINABILITY:BLOCKER,symbolic-execution,False,False
+java:S3518,Zero should not be a possible denominator,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH,symbolic-execution;cwe;denial-of-service;cert,False,False
+java:S3546,Custom resources should be closed,False,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,symbolic-execution;denial-of-service,True,True
+java:S3551,Overrides should match their parent class methods in synchronization,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;cert,False,False
+java:S3553,"""Optional"" should not be used for parameters",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,clumsy,False,False
+java:S3577,Test classes should comply with a naming convention,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,convention;tests,True,False
+java:S3578,Test methods should comply with a naming convention,False,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,convention;tests,True,False
+java:S3599,Double Brace Initialization should not be used,True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,leak,False,False
+java:S3626,Jump statements should not be redundant,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant;clumsy,False,False
+java:S3631,"""Arrays.stream"" should be used for primitive arrays",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S3655,Optional value should only be accessed after calling isPresent(),True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,symbolic-execution;cwe,False,False
+java:S3658,Unit tests should throw exceptions,False,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,error-handling;junit;tests;clumsy,False,False
+java:S3688,Track uses of disallowed classes,False,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,,True,True
+java:S3706,"""stream"" should not be used for Collection ""forEach"" calls",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,,False,False
+java:S3725,"Java 8's ""Files.exists"" should not be used",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance;java8,False,False
+java:S3740,Raw types should not be used,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S3749,Members of Spring components should be injected,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,spring,True,False
+java:S3750,"Spring ""@Controller"" classes should not use ""@Scope""",False,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S3751,"""@RequestMapping"" methods should not be ""private""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,spring,False,False
+java:S3752,HTTP routes should restrict allowed HTTP methods,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;spring;former-hotspot,False,False
+java:S3753,"""@Controller"" classes that use ""@SessionAttributes"" must call ""setComplete"" on their ""SessionStatus"" objects",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,spring,False,False
+java:S3776,Cognitive Complexity of methods should not be too high,True,True,19,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,brain-overload,True,False
+java:S3824,"""Map.get"" and value test should be replaced with single method call",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,symbolic-execution;java8,False,False
+java:S3864,"""Stream.peek"" should be used with caution",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java8;pitfall,False,False
+java:S3878,Arrays should not be created for varargs parameters,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S3923,All branches in a conditional structure should not have exactly the same implementation,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S3937,Number patterns should be regular,False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,suspicious,False,False
+java:S3958,Intermediate Stream methods should not be left unused,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,symbolic-execution;java8,False,False
+java:S3959,Consumed Stream pipelines should not be reused,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,symbolic-execution;java8,False,False
+java:S3972,Conditionals should start on new lines,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,suspicious,False,False
+java:S3973,A conditionally executed single line should be denoted by indentation,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,suspicious;confusing,False,False
+java:S3981,Collection sizes and array length comparisons should make sense,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,confusing,False,False
+java:S3984,Exceptions should not be created without being thrown,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,error-handling,False,False
+java:S3985,"Unused ""private"" classes should be removed",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,unused,False,False
+java:S3986,"Week Year (""YYYY"") should not be used for date formatting",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,suspicious,False,False
+java:S4011,Track uses of disallowed constructors,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,True
+java:S4030,Collection contents should be used,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:MEDIUM,performance;unused;suspicious,False,False
+java:S4032,"Packages containing only ""package-info.java"" should be removed",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,unused,False,False
+java:S4034,"""Stream"" call chains should be simplified when possible",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S4036,OS commands should not rely on PATH resolution,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;former-hotspot,False,False
+java:S4042,"""java.nio.Files#delete"" should be preferred",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,error-handling;api-design,False,False
+java:S4065,"""ThreadLocal.withInitial"" should be preferred",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java8,False,False
+java:S4087,"""close()"" calls should not be redundant",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant,False,False
+java:S4143,Map values should not be replaced unconditionally,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,suspicious,False,False
+java:S4144,Methods should not have identical implementations,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,suspicious;confusing;duplicate,False,False
+java:S4165,Assignments should not be redundant,True,True,15,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,symbolic-execution;redundant,False,False
+java:S4174,Local constants should follow naming conventions for constants,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention,True,False
+java:S4201,"Null checks should not be used with ""instanceof""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,redundant,False,False
+java:S4248,Regex patterns should not be created needlessly,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex;performance,False,False
+java:S4266,"""Stream.collect()"" calls should not be redundant",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,clumsy,False,False
+java:S4274,Asserts should not be used to check the parameters of a public method,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,pitfall,False,False
+java:S4275,Getters and setters should access the expected fields,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,pitfall,False,False
+java:S4276,Functional Interfaces should be as specialised as possible,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S4288,Spring components should use constructor injection,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,spring;design,False,False
+java:S4347,Secure random number generators should not output predictable values,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;cert;pitfall,False,False
+java:S4348,"""iterator"" should not return ""this""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,pitfall,False,False
+java:S4349,"""write(byte[],int,int)"" should be overridden",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S4351,"""compareTo"" should not be overloaded",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,pitfall,False,False
+java:S4423,Weak SSL/TLS protocols should not be used,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy,False,False
+java:S4425,"""Integer.toHexString"" should not be used to build hexadecimal strings",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe,False,False
+java:S4426,Cryptographic keys should be robust,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy;rules,False,False
+java:S4433,LDAP connections should be authenticated,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S4434,Deserialization of Java objects from LDAP should be disabled,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;former-hotspot,False,False
+java:S4449,Nullness of parameters should be guaranteed,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,symbolic-execution,False,False
+java:S4454,"""equals"" method parameters should not be marked ""@Nonnull""",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,,False,False
+java:S4488,"Composed ""@RequestMapping"" variants should be preferred",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,spring,False,False
+java:S4502,CSRF protections should not be disabled,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,spring;cwe;former-hotspot,False,False
+java:S4507,Debugging features should not be enabled in production,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,error-handling;cwe;spring;debug;user-experience;former-hotspot,False,False
+java:S4512,JavaBean properties should not be populated from untrusted input,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;cert;former-hotspot,False,False
+java:S4517,InputSteam.read() implementation should not return a signed byte,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S4524,"""default"" clauses should be last",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,,False,False
+java:S4544,Jackson deserialization should not use unsafe configuration,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;former-hotspot,False,False
+java:S4551,"Enum values should be compared with ""==""",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S4601,"""HttpSecurity"" URL patterns should be correctly ordered",True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,spring,False,False
+java:S4602,"""@SpringBootApplication"" and ""@ComponentScan"" should not be used in the default package",True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER,spring,False,False
+java:S4604,"""@EnableAutoConfiguration"" should be fine-tuned",False,False,0,DEPRECATED,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S4605,"Spring beans should be considered by ""@ComponentScan""",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,spring;pitfall,False,False
+java:S4635,String offset-based methods should be preferred for finding substrings from offsets,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,performance,False,False
+java:S4682,"""@CheckForNull"" or ""@Nullable"" should not be used on primitive types",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S4684,Database Operations should not be vulnerable to mass assignment,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;spring,False,False
+java:S4719,"""StandardCharsets"" constants should be preferred",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java7;clumsy,False,False
+java:S4738,Java features should be preferred to Guava,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java9;java8,False,False
+java:S4790,Weak hashing algorithms should not be used,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;former-hotspot,False,False
+java:S4830,Server certificates should be verified during SSL/TLS connections,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy;cert;ssl,False,False
+java:S4838,An iteration on a Collection should be performed on the type handled by the Collection,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,bad-practice;clumsy,False,False
+java:S4925,"""Class.forName()"" should not load JDBC 4.0+ drivers",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,obsolete,False,False
+java:S4926,"""serialVersionUID"" should not be declared blindly",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,serialization;pitfall,False,False
+java:S4929,"""read(byte[],int,int)"" should be overridden",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,performance,False,False
+java:S4968,"The upper bound of type variables and wildcards should not be ""final""",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S4970,Derived exceptions should not hide their parents' catch blocks,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,,False,False
+java:S4973,"Strings and Boxed types should be compared using ""equals()""",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;cert,False,False
+java:S4977,Type parameters should not shadow other type parameters,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,False,False
+java:S5042,Expanding archive files should not be done without controlling resource consumption,False,False,0,DEPRECATED,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM,cwe;cert;former-hotspot,False,False
+java:S5122,Cross-Origin Resource Sharing (CORS) policy should be restricted to trusted origins,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,spring;cwe;former-hotspot,False,False
+java:S5128,"""Bean Validation"" (JSR 380) should be properly configured",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,,False,False
+java:S5164,"""ThreadLocal"" variables should be cleaned up when no longer used",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,leak;performance,False,False
+java:S5194,"Use Java 14 ""switch"" expression",False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java14,False,False
+java:S5247,Auto-escaping in HTML template engines should not be disabled,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;former-hotspot,False,False
+java:S5261,"""else"" statements should be clearly matched with an ""if""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,confusing,False,False
+java:S5301,"""ActiveMQConnectionFactory"" should not be vulnerable to malicious code deserialization",True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe,False,False
+java:S5320,Intents should not be broadcast without receiver permissions,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;android;former-hotspot,False,False
+java:S5322,Android broadcast receivers should not be registered without a permission,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;android;former-hotspot,False,False
+java:S5324,Sensitive data should not be stored in Android external storage,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;android;former-hotspot,False,False
+java:S5329,Collection constructors should not be used as java.util.function.Function,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S5332,Clear-text protocols should not be used,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;android;former-hotspot,False,False
+java:S5344,Passwords should not be stored in plaintext or with a fast hashing algorithm,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,spring;cwe,False,False
+java:S5361,"""String#replace"" should be preferred to ""String#replaceAll""",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,regex;performance,False,False
+java:S5411,"Avoid using boxed ""Boolean"" types directly in boolean expressions",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,pitfall,False,False
+java:S5413,'List.remove()' should not be used in ascending 'for' loops,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S5443,Temporary files should not be created in publicly writable directories,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;former-hotspot,False,False
+java:S5445,Insecure temporary file creation methods should not be used,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S5527,Server hostnames should be verified during SSL/TLS connections,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy;ssl,False,False
+java:S5542,Encryption algorithms should be used with secure mode and padding scheme,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy,False,False
+java:S5547,Cipher algorithms should be robust,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy,False,False
+java:S5612,Lambdas should not have too many lines,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,True,False
+java:S5659,JWT should be signed and verified with strong cipher algorithms,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;privacy,False,False
+java:S5663,Simple string literal should be used for single line strings,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java14,False,False
+java:S5664,Whitespace for text block indent should be consistent,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java14,False,False
+java:S5665,Escape sequences should not be used in text blocks,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java14,False,False
+java:S5669,Vararg method arguments should not be confusing,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S5673,Spring components should use specialized annotations,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,spring,False,False
+java:S5679,OpenSAML2 should be configured to prevent authentication bypass,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,spring,False,False
+java:S5689,Web application technologies should not disclose version information,True,False,0,READY,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;former-hotspot,False,False
+java:S5693,HTTP request content length should be limited,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;former-hotspot,True,False
+java:S5738,"""@Deprecated"" code marked for removal should never be used",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,cwe;obsolete;cert,False,False
+java:S5776,Exception testing via JUnit ExpectedException rule should not be mixed with other assertions,True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests,False,False
+java:S5777,Exception testing via JUnit @Test annotation should be avoided,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,junit;tests,False,False
+java:S5778,Only one method invocation is expected when testing runtime exceptions,True,True,25,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests,False,False
+java:S5779,Assertion methods should not be used within the try block of a try-catch catching an Error,True,False,0,READY,BUG,CRITICAL,TEST,RELIABILITY:HIGH,junit;tests,False,False
+java:S5783,Only one method invocation is expected when testing checked exceptions,True,True,1,READY,BUG,CRITICAL,TEST,RELIABILITY:HIGH,junit;tests,False,False
+java:S5785,JUnit assertTrue/assertFalse should be simplified to the corresponding dedicated assertion,True,True,7,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests,False,False
+java:S5786,JUnit5 test classes and methods should have default package visibility,True,False,0,READY,CODE_SMELL,INFO,TEST,MAINTAINABILITY:INFO,junit;tests,False,False
+java:S5790,JUnit5 inner test classes should be annotated with @Nested,True,False,0,READY,BUG,CRITICAL,TEST,RELIABILITY:HIGH,junit;tests,False,False
+java:S5793,Migrate your tests from JUnit4 to the new JUnit5 annotations,False,False,0,READY,CODE_SMELL,INFO,TEST,MAINTAINABILITY:INFO,junit;tests,False,False
+java:S5803,"Class members annotated with ""@VisibleForTesting"" should not be accessed from production code",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,pitfall,False,False
+java:S5804,Authentication mechanisms should not permit user enumeration.,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,spring;cwe;former-hotspot,False,False
+java:S5808,Authorizations should be based on strong decisions,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe,False,False
+java:S5810,JUnit5 test classes and methods should not be silently ignored,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,junit;tests,False,False
+java:S5826,Methods setUp() and tearDown() should be correctly annotated starting with JUnit4,True,False,0,READY,CODE_SMELL,CRITICAL,TEST,MAINTAINABILITY:HIGH,junit;tests,False,False
+java:S5831,AssertJ configuration should be applied,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests;assertj,False,False
+java:S5833,AssertJ methods setting the assertion context should come before an assertion,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests;assertj,False,False
+java:S5838,AssertJ assertions should be simplified to the corresponding dedicated assertion,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,tests;assertj,False,False
+java:S5841,"AssertJ assertions ""allMatch"" and ""doesNotContain"" should also test for emptiness",True,False,0,READY,BUG,MINOR,TEST,RELIABILITY:LOW,tests;assertj,False,False
+java:S5842,Repeated patterns in regular expressions should not match the empty string,True,False,0,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,regex,False,False
+java:S5843,Regular expressions should not be too complicated,True,True,1,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,True,False
+java:S5845,Assertions comparing incompatible types should not be made,True,False,0,READY,BUG,CRITICAL,TEST,RELIABILITY:HIGH,tests,False,False
+java:S5846,Empty lines should not be tested with regex MULTILINE flag,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,regex,False,False
+java:S5850,Alternatives in regular expressions should be grouped when used with anchors,True,True,1,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,False,False
+java:S5852,Regular expressions should not cause catastrophic backtracking,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;regex;former-hotspot,False,False
+java:S5853,"Consecutive AssertJ ""assertThat"" statements should be chained",True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,tests;assertj,False,False
+java:S5854,Regexes containing characters subject to normalization should use the CANON_EQ flag,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S5855,Regex alternatives should not be redundant,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,False,False
+java:S5856,Regular expressions should be syntactically valid,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,regex,False,False
+java:S5857,Character classes should be preferred over reluctant quantifiers in regular expressions,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,regex,False,False
+java:S5860,Names of regular expressions named groups should be used,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S5863,Assertions should not compare an object to itself,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests,False,False
+java:S5866,"Case insensitive Unicode regular expressions should enable the ""UNICODE_CASE"" flag",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,False,False
+java:S5867,Unicode-aware versions of character classes should be preferred,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,regex,False,False
+java:S5868,Unicode Grapheme Clusters should be avoided inside regex character classes,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,False,False
+java:S5869,Character classes in regular expressions should not contain the same character twice,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S5876,A new session should be created during user authentication,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe;spring,False,False
+java:S5917,DateTimeFormatters should not use mismatched year and week numbers,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S5958,"AssertJ ""assertThatThrownBy"" should not be used alone",True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests;assertj,False,False
+java:S5960,Assertions should not be used in production code,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S5961,Test methods should not contain too many assertions,True,True,2,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests,True,False
+java:S5967,Tests method should not be annotated with competing annotations,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests,False,False
+java:S5969,Mocking all non-private methods of a class should be avoided,True,False,0,READY,CODE_SMELL,CRITICAL,TEST,MAINTAINABILITY:HIGH,tests;mockito,False,False
+java:S5970,Spring's ModelAndViewAssert assertions should be used instead of other assertions,False,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,spring;tests,False,False
+java:S5973,Tests should be stable,True,False,0,READY,CODE_SMELL,MAJOR,TEST,RELIABILITY:MEDIUM;MAINTAINABILITY:MEDIUM,tests;design;unpredictable,False,False
+java:S5976,Similar tests should be grouped in a single Parameterized test,True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests;bad-practice;clumsy,False,False
+java:S5977,Tests should use fixed data instead of randomized data,False,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests;design;confusing,False,False
+java:S5979,Annotated Mockito objects should be initialized,False,False,0,READY,BUG,BLOCKER,TEST,RELIABILITY:BLOCKER,tests;mockito,False,False
+java:S5993,"Constructors of an ""abstract"" class should not be declared ""public""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,design,False,False
+java:S5994,Regex patterns following a possessive quantifier should not always fail,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,regex,False,False
+java:S5996,Regex boundaries should not be used in a way that can never be matched,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,regex,False,False
+java:S5998,Regular expressions should not overflow the stack,True,True,1,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,True,False
+java:S6001,Back references in regular expressions should only refer to capturing groups that are matched before the reference,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,regex,False,False
+java:S6002,Regex lookahead assertions should not be contradictory,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,regex,False,False
+java:S6019,Reluctant quantifiers in regular expressions should be followed by an expression that can't match the empty string,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6035,Single-character alternations in regular expressions should be replaced with character classes,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6068,"Call to Mockito method ""verify"", ""when"" or ""given"" should be simplified",True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,tests;mockito;clumsy,False,False
+java:S6070,The regex escape sequence \cX should only be used with characters in the @-_ range,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,regex,False,False
+java:S6073,Mockito argument matchers should be used on all parameters,False,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests;mockito,False,False
+java:S6103,"AssertJ assertions with ""Consumer"" arguments should contain assertion inside consumers",True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM,tests,False,False
+java:S6104,"Map ""computeIfAbsent()"" and ""computeIfPresent()"" should not be used to add ""null"" values.",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,,False,False
+java:S6126,String multiline concatenation should be replaced with Text Blocks,True,True,1,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java15,False,False
+java:S6201,"Pattern Matching for ""instanceof"" operator should be used instead of simple ""instanceof"" + cast",True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java16,False,False
+java:S6202,"Operator ""instanceof"" should be used instead of ""A.class.isInstance()""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S6203,Text blocks should not be used in complex expressions,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,,True,False
+java:S6204,"""Stream.toList()"" method should be used instead of ""collectors"" when unmodifiable list needed",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java16,False,False
+java:S6205,Switch arrow labels should not use redundant keywords,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java14,False,False
+java:S6206,Records should be used instead of ordinary classes when representing immutable data structure,True,True,2,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java16,False,False
+java:S6207,Redundant constructors/methods should be avoided in records,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java16,False,False
+java:S6208,Comma-separated labels should be used in Switch with colon case,True,False,0,READY,CODE_SMELL,INFO,ALL,MAINTAINABILITY:INFO,java14,False,False
+java:S6209,Members ignored during record serialization should not be used,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,java16,False,False
+java:S6211,Custom getter method should not be used to override record's getter behavior,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java16,False,False
+java:S6212,Local-Variable Type Inference should be used,False,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,java10,False,False
+java:S6213,Restricted Identifiers should not be used as Identifiers,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,,False,False
+java:S6216,Reflection should not be used to increase accessibility of records' fields,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java16,False,False
+java:S6217,Permitted types of a sealed class should be omitted if they are declared in the same file,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java17,False,False
+java:S6218,Equals method should be overridden in records containing array fields,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java16,False,False
+java:S6219,'serialVersionUID' field should not be set to '0L' in records,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,java16,False,False
+java:S6241,"Region should be set explicitly when creating a new ""AwsClient""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,startup-time;aws,False,False
+java:S6242,"Credentials Provider should be set explicitly when creating a new ""AwsClient""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,startup-time;aws,False,False
+java:S6243,Reusable resources should be initialized at construction time of Lambda functions,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,aws,False,False
+java:S6244,Consumer Builders should be used,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,aws,False,False
+java:S6246,Lambdas should not invoke other lambdas synchronously,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,aws,False,False
+java:S6262,AWS region should not be set with a hardcoded String,True,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,aws,False,False
+java:S6263,Long-term AWS access keys should not be used,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,aws;former-hotspot,False,False
+java:S6288,Android KeyStore keys should require user authentication,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;android;former-hotspot,False,False
+java:S6293,Biometric authentication should be cryptographically bound,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;android;former-hotspot,False,False
+java:S6301,Mobile database encryption keys should not be disclosed,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;android,False,False
+java:S6326,Regular expressions should not contain multiple spaces,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6331,Regular expressions should not contain empty groups,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6353,Regular expression quantifiers and character classes should be used concisely,True,True,3,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,regex,False,False
+java:S6355,Deprecated annotations should include explanations,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java9,False,False
+java:S6362,JavaScript support should not be enabled in WebViews unless strictly necessary,True,False,0,DEPRECATED,VULNERABILITY,MINOR,MAIN,SECURITY:LOW,cwe;android;former-hotspot,False,False
+java:S6363,WebViews should not allow unrestricted file access,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,cwe;android;former-hotspot,False,False
+java:S6373,XML parsers should not allow inclusion of arbitrary files,True,False,0,READY,VULNERABILITY,BLOCKER,MAIN,SECURITY:BLOCKER,symbolic-execution,False,False
+java:S6374,XML parsers should not load external schemas,False,False,0,DEPRECATED,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,symbolic-execution,False,False
+java:S6376,XML parsers should not be vulnerable to Denial of Service attacks,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,symbolic-execution,False,False
+java:S6377,XML signatures should be validated securely,True,False,0,READY,VULNERABILITY,MAJOR,MAIN,SECURITY:MEDIUM,symbolic-execution,False,False
+java:S6395,Non-capturing groups without quantifier should not be used,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6396,Superfluous curly brace quantifiers should be avoided,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6397,Character classes in regular expressions should not contain only one character,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,regex,False,False
+java:S6411,Types used as keys in Maps should implement Comparable,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,,False,False
+java:S6418,Secrets should not be hard-coded,True,False,0,READY,VULNERABILITY,BLOCKER,MAIN,SECURITY:BLOCKER,cwe;cert;secret;former-hotspot,True,False
+java:S6432,Counter Mode initialization vectors should not be reused,True,False,0,READY,VULNERABILITY,CRITICAL,MAIN,SECURITY:HIGH,cwe,False,False
+java:S6437,Credentials should not be hard-coded,True,False,0,READY,VULNERABILITY,BLOCKER,MAIN,SECURITY:BLOCKER,cwe;secret,False,False
+java:S6485,Hash-based collections with known capacity should be initialized with the proper related static method.,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,performance,False,False
+java:S6539,Classes should not depend on an excessive number of classes (aka Monster Class),True,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,design,True,False
+java:S6541,Methods should not perform too many tasks (aka Brain method),False,False,0,DEPRECATED,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,design,True,False
+java:S6548,The Singleton design pattern should be used with care,False,False,0,DEPRECATED,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,design,False,False
+java:S6665,Redundant nullability annotations should be removed,False,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,jspecify;nullability,False,False
+java:S6804,"""@Value"" annotation should inject property or SpEL expression",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM;MAINTAINABILITY:LOW,spring,False,False
+java:S6806,Model attributes should follow the Java identifier naming convention,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM;MAINTAINABILITY:MEDIUM,,False,False
+java:S6809,"Methods with Spring proxy should not be called via ""this""",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,,False,False
+java:S6810,Async methods should return void or Future,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,,False,False
+java:S6813,Field dependency injection should be avoided,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM;MAINTAINABILITY:MEDIUM,,False,False
+java:S6814,Optional REST parameters should have an object type,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,RELIABILITY:HIGH,,False,False
+java:S6816,Nullable injected fields and parameters should provide a default value,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,spring,False,False
+java:S6817,"Use of the ""@Async"" annotation on methods declared within a ""@Configuration"" class in Spring Boot",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,spring,False,False
+java:S6818,"""@Autowired"" should only be used on a single constructor",True,False,0,READY,BUG,CRITICAL,MAIN,MAINTAINABILITY:MEDIUM;RELIABILITY:HIGH,spring,False,False
+java:S6829,"""@Autowired"" should be used when multiple constructors are provided",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM;MAINTAINABILITY:MEDIUM,spring,False,False
+java:S6830,Bean names should adhere to the naming conventions,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,spring,False,False
+java:S6831,"""@Qualifier"" should not be used on ""@Bean"" methods",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM;MAINTAINABILITY:MEDIUM,spring,False,False
+java:S6832,Non-singleton Spring beans should not be injected into singleton beans,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S6833,"""@Controller"" should be replaced with ""@RestController""",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,spring,False,False
+java:S6837,"Superfluous ""@ResponseBody"" annotations should be removed",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,spring,False,False
+java:S6838,"""@Bean"" methods for Singleton should not be invoked in ""@Configuration"" when proxyBeanMethods is false",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S6856,Path template variables should be properly bound to method parameters,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S6857,SpEL expression should have a valid syntax,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,spring,False,False
+java:S6862,"Beans in ""@Configuration"" class should have different names",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S6863,Set appropriate Status Codes on HTTP responses,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,spring;best-practice,False,False
+java:S6876,Reverse iteration should utilize reversed view,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,java21,False,False
+java:S6877,Reverse view should be used instead of reverse copy in read-only cases,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,java21,False,False
+java:S6878,Use record pattern instead of explicit field access,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java21,False,False
+java:S6880,Use switch instead of if-else chain to compare a variable against multiple cases,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java21,False,False
+java:S6881,Virtual threads should be used for tasks that include heavy blocking operations,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,multi-threading;java21,False,False
+java:S6885,"Use built-in ""Math.clamp"" methods",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java21,False,False
+java:S6889,Proper Sensor Resource Management,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,leak;android;sustainability,False,False
+java:S6891,Exact alarms should not be abused,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java;android;sustainability,False,False
+java:S6898,High frame rates should not be used,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,android;sustainability,False,False
+java:S6901,"""setDaemon"", ""setPriority"" and ""getThreadGroup"" should not be invoked on virtual threads",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java21,False,False
+java:S6904,"Avoid using ""FetchType.EAGER""",False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,jpa;sustainability;sql,False,False
+java:S6905,SQL queries should retrieve only necessary fields,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,sustainability;sql,False,False
+java:S6906,Virtual threads should not run tasks that include synchronized code,True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,multi-threading;java21,False,False
+java:S6909,"Constant parameters in a ""PreparedStatement"" should not be set more than once",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,sustainability;sql,False,False
+java:S6912,Use batch Processing in JDBC,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,sustainability;sql,False,False
+java:S6913,"""Math.clamp"" should be used with correct ranges",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java21,False,False
+java:S6914,Use Fused Location to optimize battery power,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,android;sustainability,False,False
+java:S6915,"""String.indexOf"" should be used with correct ranges",True,False,0,READY,BUG,MAJOR,MAIN,RELIABILITY:MEDIUM,java21,False,False
+java:S6916,Use when instead of a single if inside a pattern match body,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,java21,False,False
+java:S6923,Motion Sensor should not use gyroscope,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,android;sustainability,False,False
+java:S6926,Bluetooth should be configured to use low power,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,android;sustainability,False,False
+java:S7158,"""String.isEmpty()"" should be used to test for emptiness",True,True,1,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,,False,False
+java:S7177,Use appropriate @DirtiesContext modes,True,False,0,READY,CODE_SMELL,MAJOR,TEST,RELIABILITY:MEDIUM,spring;tests,False,False
+java:S7178,Injecting data into static fields is not supported by Spring,True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,SECURITY:LOW;RELIABILITY:HIGH;MAINTAINABILITY:LOW,spring,False,False
+java:S7179,@Cacheable and @CachePut should not be combined,True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM,spring,False,False
+java:S7180,"""@Cache*"" annotations should only be applied on concrete classes",True,False,0,READY,CODE_SMELL,MAJOR,MAIN,RELIABILITY:MEDIUM;SECURITY:LOW;MAINTAINABILITY:LOW,spring,False,False
+java:S7183,@InitBinder methods should have void return type,True,False,0,READY,CODE_SMELL,MAJOR,ALL,RELIABILITY:MEDIUM;SECURITY:LOW,spring,False,False
+java:S7184,"""@Scheduled"" annotation should only be applied to no-arg methods",True,False,0,READY,BUG,CRITICAL,ALL,SECURITY:LOW;RELIABILITY:HIGH;MAINTAINABILITY:LOW,spring,False,False
+java:S7185,@EventListener methods should have one parameter at most,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH,spring,False,False
+java:S7186,"Methods returning ""Page"" or ""Slice"" must take ""Pageable"" as an input parameter",True,False,0,READY,CODE_SMELL,CRITICAL,ALL,SECURITY:LOW;RELIABILITY:HIGH;MAINTAINABILITY:LOW,spring,False,False
+java:S7190,"Methods annotated with ""@BeforeTransaction"" or ""@AfterTransaction"" must respect the contract",True,False,0,READY,CODE_SMELL,CRITICAL,TEST,SECURITY:LOW;RELIABILITY:HIGH;MAINTAINABILITY:LOW,spring;tests,False,False
+java:S7409,Native methods should not be exposed to untrusted WebView content,True,False,0,READY,VULNERABILITY,MAJOR,ALL,SECURITY:MEDIUM,cwe;android;former-hotspot,False,False
+java:S7435,Avoid using persistent unique identifiers,True,False,0,READY,VULNERABILITY,MINOR,ALL,SECURITY:LOW,cwe;android;ios;former-hotspot,False,False
+java:S7466,"Unnamed variable declarations should use the ""var"" identifier",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java22,False,False
+java:S7467,Unused exception parameter should use the unnamed variable pattern,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java22,False,False
+java:S7474,"Markdown, HTML and Javadoc tags should be consistent",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,javadoc;java23,False,False
+java:S7475,Types of unused record components should be removed from pattern matching,True,False,0,READY,CODE_SMELL,INFO,ALL,MAINTAINABILITY:INFO,unused;java22,False,False
+java:S7476,Comments should start with the appropriate number of slashes,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,javadoc;java23,False,False
+java:S7477,Class name should be omitted when unchanged by class transform,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java24,False,False
+java:S7478,"""transformClass"" method should be used instead of ""build"" when transforming a class",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java24,False,False
+java:S7479,"""ClassBuilder.withMethodBody"" should be preferred to ""ClassBuilder.withMethod""",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java24,False,False
+java:S7481,Gatherer.ofSequential() should be used to build sequential gathers,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java24,False,False
+java:S7482,Don't provide an initializer for a stateless stream gatherer,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java24,False,False
+java:S7629,"When a defaultFinisher is passed to a Gatherer factory, use the overload that does not take a finisher",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java24,False,False
+java:S818,Literal suffixes should be upper case,False,False,0,READY,CODE_SMELL,MINOR,MAIN,MAINTAINABILITY:LOW,convention;cert;pitfall,True,False
+java:S8220,Conversions between local and timezone-aware types should use explicit timezone handling,True,False,0,READY,BUG,BLOCKER,MAIN,RELIABILITY:BLOCKER;MAINTAINABILITY:BLOCKER,datetime;java8,False,False
+java:S8346,Increment and decrement operators (++/--) should not be used with floating point variables,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:HIGH;RELIABILITY:MEDIUM,,False,False
+java:S8432,"""ScopedValue.where"" results should not be ignored",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java25,False,False
+java:S8433,Validation logic should be placed in constructor prologue when possible,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java25;suspicious,False,False
+java:S8444,Excessive logic before super() should not bloat constructor,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java25,True,False
+java:S8445,Module imports should come first and imports should be grouped by kind,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,convention;java25,False,False
+java:S8446,"Only one ""main"" method should be defined in a class",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,java25,False,False
+java:S8447,"Subclass fields should be initialized before calls to ""super()"" or ""this()""",True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH;MAINTAINABILITY:LOW,java25,False,False
+java:S8450,"Prefer ""IO.readln()"" over ""BufferedReader"" boilerplate",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java25,False,False
+java:S8465,ScopedValue instances should be assigned to a stable reference,True,False,0,READY,BUG,MAJOR,ALL,MAINTAINABILITY:HIGH;RELIABILITY:MEDIUM,java25,False,False
+java:S8469,"Prefer ""IO.readln(String prompt)"" rather than ""IO.print(Object obj)"" or ""IO.println(Object obj)"" followed by ""IO.readln()""",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,java25,False,False
+java:S8491,Dangling Javadoc comments should be removed,True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,javadoc;confusing,False,False
+java:S864,Limited dependence should be placed on operator precedence,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cwe;cert,False,False
+java:S8688,"Time-based "".now()"" methods should specify a ZoneId or a Clock",True,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO;RELIABILITY:INFO,datetime;java8;timezone;pitfall,False,False
+java:S8692,The system clock should not be used in unit tests,False,False,0,READY,CODE_SMELL,INFO,TEST,MAINTAINABILITY:INFO;RELIABILITY:INFO,datetime;tests;java8,False,False
+java:S8694,"""Month"" and ""DayOfWeek"" enums should be used instead of numeric literals",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,datetime;java8;confusing,False,False
+java:S8695,Redundant time instantiation patterns should be simplified,True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,datetime;pitfall,False,False
+java:S8696,Value-based classes should be compared using their value,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH;MAINTAINABILITY:MEDIUM,datetime;java8;suspicious,False,False
+java:S8700,Time zone-aware types should be used to compute durations,True,False,0,READY,BUG,MAJOR,ALL,RELIABILITY:MEDIUM,datetime;java8;timezone;suspicious,False,False
+java:S8714,"Dedicated exception assertions should be used instead of ""try-catch"" with ""fail()""",True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,tests,False,False
+java:S8715,JUnit Jupiter tests should not use JUnit 4 assertions,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,junit;tests,False,False
+java:S8745,Test classes should not contain multiple lifecycle methods of the same type,True,False,0,READY,BUG,MAJOR,TEST,RELIABILITY:MEDIUM;MAINTAINABILITY:LOW,junit;tests,False,False
+java:S8786,Regular expressions should not cause non-linear backtracking,True,True,14,READY,CODE_SMELL,MAJOR,ALL,RELIABILITY:MEDIUM,regex;performance,False,False
+java:S881,Increment (++) and decrement (--) operators should not be used in a method call or mixed with other operators in an expression,False,False,0,READY,CODE_SMELL,MAJOR,MAIN,MAINTAINABILITY:MEDIUM,cert,False,False
+java:S888,"Equality operators should not be used in ""for"" loop termination conditions",False,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH,cwe;cert;suspicious,False,False
+java:S8908,"Methods annotated with ""@CacheResult"" should not return void",True,False,0,READY,CODE_SMELL,MINOR,ALL,MAINTAINABILITY:LOW,api-design;confusing,False,False
+java:S8909,"""CacheKeyGenerator"" implementations should be instantiable by the framework",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,quarkus;injection;pitfall,False,False
+java:S8910,"Interfaces annotated with ""@Mapper"" should contain at least one ""@DaoFactory"" method",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,quarkus;api;orm,False,False
+java:S8911,"Methods annotated with ""@Startup"" should be non-static, non-producer, and parameter-free",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,lifecycle;quarkus;injection,False,False
+java:S8912,Custom CredentialsProvider implementations should be annotated with @Unremovable,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH,credentials;quarkus;cdi,False,False
+java:S8913,REST Data with Panache resource interfaces should not have implementation classes,True,False,0,READY,CODE_SMELL,MAJOR,ALL,RELIABILITY:MEDIUM;MAINTAINABILITY:LOW,rest;quarkus;confusing,False,False
+java:S8924,Mockito core methods should be statically imported,True,False,0,READY,CODE_SMELL,MINOR,TEST,MAINTAINABILITY:LOW,convention;tests;mockito,False,False
+java:S8947,JPA entity classes and methods should not be final,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH;MAINTAINABILITY:MEDIUM,jpa;hibernate;pitfall,False,False
+java:S8948,"""@OneToMany"" relationships should use ""mappedBy"" or ""@JoinColumn""",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,performance;jpa;hibernate;jakarta,False,False
+java:S8954,Bean Validation constraints should not be placed on static fields,True,False,0,READY,BUG,CRITICAL,ALL,RELIABILITY:HIGH;MAINTAINABILITY:MEDIUM,validation;jakarta;pitfall,False,False
+java:S8975,"The return value of ""EntityManager.merge()"" should be used",True,False,0,READY,BUG,CRITICAL,ALL,MAINTAINABILITY:MEDIUM;RELIABILITY:HIGH,jpa;hibernate;jakarta;pitfall,False,False
+java:S8983,Stateless session beans should not store mutable state in instance variables,True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH;MAINTAINABILITY:MEDIUM,ejb;jakarta;concurrency,False,False
+java:S8989,"Methods with ""@Transactional"" should specify rollback behavior for checked exceptions",True,False,0,READY,CODE_SMELL,CRITICAL,MAIN,MAINTAINABILITY:HIGH;RELIABILITY:MEDIUM,spring;transaction;pitfall,False,False
+java:S899,Return values should not be ignored when they contain the operation status code,True,True,1,READY,BUG,MINOR,MAIN,RELIABILITY:LOW,cwe;error-handling;cert,False,False
+java:S9015,"Mock fields should use ""@Mock"" annotation when ""MockitoExtension"" or ""MockitoJUnitRunner"" is active",True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests;mockito,False,False
+java:S9016,"Mock objects should not be created inline within ""thenReturn()""",True,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,tests;mockito,False,False
+java:S9017,Mockito stubbing chains should be complete,True,False,0,READY,BUG,CRITICAL,TEST,MAINTAINABILITY:MEDIUM;RELIABILITY:HIGH,junit;tests;mockito,False,False
+java:S9021,"""@Configuration"" classes should not be final",True,False,0,READY,BUG,CRITICAL,MAIN,RELIABILITY:HIGH,spring;pitfall,False,False
+java:S9024,"""@InjectMocks"" should be used instead of manually constructing test objects",False,False,0,READY,CODE_SMELL,MAJOR,TEST,MAINTAINABILITY:MEDIUM,junit;tests;mockito,False,False
+java:S9068,"""@ApplicationScoped"" should be preferred over ""@Singleton"" in Quarkus applications",True,False,0,READY,CODE_SMELL,MAJOR,ALL,MAINTAINABILITY:MEDIUM,testing;jee;injection,False,False
+java:S923,Functions should not be defined with a variable number of arguments,False,False,0,READY,CODE_SMELL,INFO,MAIN,MAINTAINABILITY:INFO,cert;pitfall,False,False

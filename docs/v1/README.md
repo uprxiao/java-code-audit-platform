@@ -41,6 +41,7 @@ flowchart LR
 - [产品范围](product-scope.md)：V1 做什么、明确不做什么。
 - [决策登记册](decision-register.md)：用户已经确认的全部关键决策。
 - [能力矩阵](capability-matrix.md)：9组审计能力、12类问题和扫描器覆盖。
+- [SonarQube 全面功能调研与 15 引擎选型报告](../research-results/sonarqube-comprehensive-decision-report-2026-08-19.md)：ZIP/Git/SVN、增量、规则、报告、MCP、AI、版次和替代矩阵。
 
 ### 架构与契约
 
