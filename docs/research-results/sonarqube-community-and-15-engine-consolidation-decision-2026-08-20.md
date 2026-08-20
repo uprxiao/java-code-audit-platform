@@ -50,25 +50,27 @@ SonarQube Community 可以导入 SpotBugs、FindSecBugs、PMD、Checkstyle 等�
 
 ## 3. 结论摘要
 
-现有 15 个引擎不应因为接入 SonarQube 而整体替换。建议分为四类处理：
+现有 15 个引擎不应因为接入 SonarQube 而整体替换，但也不代表 15 个都必须进入默认扫描。建议分为五类处理：
 
 | 决策 | 引擎 | 数量 | 结论 |
 | --- | --- | ---: | --- |
 | 验证后可下线 | PMD CPD | 1 | SonarQube 已提供重复代码块、重复行和重复率；完成同源验证后可取消独立 CPD Finding |
 | 保留但收缩规则 | PMD、Checkstyle、Semgrep、Trivy Repository | 4 | 关闭与 Sonar 重复的通用规则，保留组织规范、安全、框架和 IaC 增量 |
 | 保留为互补证据 | Gitleaks、SpotBugs、FindSecBugs、CodeQL | 4 | 与 Sonar 有类别交集，但在规则定制、字节码、安全或污点深度上不可替代 |
-| 必须保留 | Dependency-Check、OSV-Scanner、Maven Dependency Analysis、Maven Enforcer、CycloneDX、Trivy Artifact | 6 | Community Build 不具备对应的完整 SCA、SBOM 和 Maven 治理能力 |
+| 默认必须保留 | Dependency-Check、OSV-Scanner、CycloneDX、Trivy Artifact | 4 | Community Build 不具备对应的完整依赖漏洞和 SBOM 能力 |
+| 退出默认、按需启用 | Maven Dependency Analysis、Maven Enforcer | 2 | 依赖冲突、声明使用和构建约束不属于首版四大类；仅在组织有工程治理需求时启用 |
 
 按照该建议，近期目标不是从 15 个引擎一次性削减到很少，而是：
 
 ```text
 SonarQube Community
-  + 14 个外部逻辑引擎（CPD 验证下线后）
+  + 12 个默认外部逻辑引擎（CPD 验证下线，Maven 两项退出默认后）
+  + 2 个可选工程健康引擎
   + 精简后的规则包
   + 统一 Finding、Excel 和原始证据归档
 ```
 
-其中 14 是逻辑能力口径，不代表 14 个独立进程；SpotBugs/FindSecBugs、SBOM/Trivy 等仍可复用构建或产物。
+总共仍可安装 14 个外部逻辑引擎，默认四类的候选池只包含其中 12 个；实际每次运行还要受所选大类、项目形态和服务器深度策略约束。逻辑能力数量不代表独立进程数量；SpotBugs/FindSecBugs、SBOM/Trivy 等仍可复用构建或产物。
 
 ## 4. 逐引擎重合与处置矩阵
 
@@ -84,8 +86,8 @@ SonarQube Community
 | 8 | FindSecBugs | Java Web、框架和危险 API 安全 detector | 部分安全规则和 Hotspot | 中 | 保留 | Community 缺少完整 Injection Vulnerabilities Detection 和 Advanced SAST |
 | 9 | Dependency-Check | NVD/CPE 依赖漏洞 | 无完整 SCA | 低 | 必须保留 | 提供 CVE、CVSS、CPE 和本地 NVD 证据；Sonar 只能承载摘要问题 |
 | 10 | OSV-Scanner | OSV/GHSA/CVE、生态坐标和修复版本 | 无完整 SCA | 低 | 必须保留 | 补充 Maven 生态漏洞和修复版本；与 NVD 形成不同数据源证据 |
-| 11 | Maven Dependency Analysis | 使用未声明、声明未使用依赖 | 无 | 无 | 必须保留 | 属于 Maven 构建治理；Sonar Community 不执行该分析 |
-| 12 | Maven Enforcer | 依赖收敛、禁用依赖、版本约束 | 无 | 无 | 必须保留 | 属于构建和依赖政策；应与漏洞分开展示 |
+| 11 | Maven Dependency Analysis | 使用未声明、声明未使用依赖 | 无 | 无 | 退出默认、按需启用 | 属于工程健康而非代码漏洞；Spring、SPI 和反射场景还可能产生噪声 |
+| 12 | Maven Enforcer | 依赖收敛、禁用依赖、版本约束 | 无 | 无 | 退出默认、按需启用 | 只有组织已经定义 JDK、禁用组件或依赖收敛政策时才有明确业务依据 |
 | 13 | CycloneDX | 生成组件、版本、关系和许可证 SBOM | 无完整 SBOM 模型 | 无 | 必须保留 | 是供应链资产底账和 Trivy Artifact 的输入，不应按 Finding 计数 |
 | 14 | Trivy Artifact | 基于 SBOM/制品的依赖漏洞 | 无完整 SCA | 低 | 必须保留 | 提供独立漏洞库交叉验证和 Java DB；完整组件证据保留在 Excel/归档 |
 | 15 | CodeQL | 跨方法数据流、Source 到 Sink、高级安全查询 | 部分代码安全规则 | 中 | 保留 | Community 无法替代高级污点和路径证据；继续作为 Deep 档位 |
@@ -104,8 +106,8 @@ SonarQube Community
 | Secret | Gitleaks | Sonar Secret、Trivy Repository | Gitleaks 为主；同文件同凭据类型保守去重，明文统一脱敏 |
 | IaC/配置安全 | Trivy Repository | Semgrep、Sonar IaC | Trivy 为主；代码位置明确的问题导入 Sonar |
 | 依赖漏洞 | Dependency-Check、OSV、Trivy Artifact | 三数据源互证 | Sonar 只显示组件漏洞摘要；Excel 保留 PURL、路径和数据库证据 |
-| Maven 治理 | Maven Dependency Analysis、Enforcer | 无 | 映射到 `pom.xml` 的治理问题；不冒充安全漏洞 |
-| SBOM/供应链资产 | CycloneDX | Trivy Artifact | 不按普通 Issue 导入；进入 Excel、manifest 和归档 |
+| 工程健康（可选） | Maven Dependency Analysis、Enforcer | 无 | 默认不运行；启用时映射到 `pom.xml`，不冒充安全漏洞 |
+| SBOM 组件清单 | CycloneDX | Trivy Artifact | 作为依赖漏洞的后台输入和证据，不按普通 Issue 计数；进入 Excel、manifest 和归档 |
 
 ## 6. 可以去掉什么
 
@@ -150,7 +152,7 @@ java-alibaba-baseline（可选）
 
 纯格式结果默认进入 `CODE_STYLE / ADVISORY`，不与漏洞数量相加。
 
-## 7. 不能去掉什么
+## 7. 默认保留与按需能力
 
 ### 7.1 依赖漏洞三引擎不能由 SonarQube Community 替代
 
@@ -183,7 +185,7 @@ CycloneDX 输出的是本次构建的软件物料清单，不是普通问题列�
 
 SonarQube Community 没有等价的完整 SBOM 资产模型。
 
-### 7.3 Maven Dependency Analysis 和 Enforcer 不能去掉
+### 7.3 Maven Dependency Analysis 和 Enforcer 退出默认扫描
 
 两者负责构建治理而非源码规则：
 
@@ -192,7 +194,13 @@ SonarQube Community 没有等价的完整 SBOM 资产模型。
 - 依赖版本收敛；
 - 禁用组件和构建版本约束。
 
-这些问题应在 Excel 中单列“构建与依赖治理”，不能与 SQL 注入或 CVE 统计在一起。
+这些能力不是当前“上传代码、完成四类审计、下载报告”的必需项：
+
+- 依赖冲突主要是运行稳定性和工程质量问题，不等于已知漏洞；
+- 声明未使用依赖在 Spring、SPI、反射和插件机制中可能出现误报；
+- 构建约束必须先有组织自己的 JDK、禁用组件和版本政策，否则缺少判断依据。
+
+因此两者保留为未来可选的“工程健康检查”，不随四个默认大类执行，也不进入默认风险总数。只有管理员配置了组织规则后才启用，并在 Excel 中单独展示。
 
 ### 7.4 CodeQL 不能由 Community Build 替代
 
@@ -263,7 +271,7 @@ CodeQL 继续作为 Deep 能力。Sonar 中展示摘要，Excel 和原始 SARIF 
 - 代码规范和可维护性问题；
 - Secret 的脱敏位置；
 - Semgrep、FindSecBugs、CodeQL 的代码漏洞；
-- 能合理映射到 `pom.xml` 的依赖或 Maven 治理摘要。
+- 能合理映射到 `pom.xml` 的第三方依赖漏洞摘要；可选工程健康能力启用后，其结果必须与漏洞分开。
 
 官方直接支持的 Java 外部报告包括 SpotBugs、FindSecBugs、PMD 和 Checkstyle。其他结果优先使用 SARIF 2.1.0，其次转换为 Sonar Generic External Issues。
 
@@ -331,8 +339,8 @@ SonarQube 可以展示和处理外部问题，但外部规则不会进入 Sonar 
 | 代码安全 | Semgrep、FindSecBugs、CodeQL | 快速安全模式、Java detector、深度污点路径 |
 | Secret/IaC | Gitleaks、Trivy Repository | 凭据、Token、容器和基础设施配置 |
 | 依赖漏洞 | Dependency-Check、OSV、Trivy Artifact | NVD、OSV、Trivy 多数据源证据与修复版本 |
-| Maven 治理 | Dependency Analysis、Enforcer | 依赖声明、收敛和构建政策 |
-| 供应链资产 | CycloneDX | SBOM、组件、版本、关系和许可证底账 |
+| 工程健康（可选） | Dependency Analysis、Enforcer | 默认关闭；按组织需要检查依赖声明、收敛和构建政策 |
+| 依赖组件清单 | CycloneDX | 为漏洞识别提供 SBOM、组件、版本、关系和许可证底账，不产生问题等级 |
 | 正式交付 | 统一 Finding、Excel、原始归档 | 去重、定级、适用性、覆盖说明和完整证据 |
 
 ## 12. 最终决策
@@ -341,9 +349,10 @@ SonarQube 可以展示和处理外部问题，但外部规则不会进入 Sonar 
 
 1. **可以去掉**：PMD CPD，但必须经过同源项目、零散源码、单模块和多模块样本验证后再下线；
 2. **不能直接去掉但应精简**：PMD、Checkstyle、Semgrep、Trivy Repository；
-3. **不能去掉**：Gitleaks、SpotBugs、FindSecBugs、Dependency-Check、OSV、Maven Dependency Analysis、Maven Enforcer、CycloneDX、Trivy Artifact、CodeQL；
-4. **SonarQube 的定位**：日常代码质量、统一在线查看、趋势和 Quality Gate；
-5. **现有平台的保留价值**：外部引擎执行、漏洞数据、统一 Finding、跨工具去重、适用性治理、Excel 和证据归档。
+3. **默认不能去掉**：Gitleaks、SpotBugs、FindSecBugs、Dependency-Check、OSV、CycloneDX、Trivy Artifact、CodeQL；
+4. **退出默认、按需启用**：Maven Dependency Analysis、Maven Enforcer；
+5. **SonarQube 的定位**：日常代码质量、统一在线查看、趋势和 Quality Gate；
+6. **现有平台的保留价值**：外部引擎执行、漏洞数据、统一 Finding、跨工具去重、适用性治理、Excel 和证据归档。
 
 因此，SonarQube Community 与现有平台不是二选一。正确的收敛方向是减少重复规则和重复统计，同时保留不同分析层次、安全数据源和正式审计证据。
 
@@ -396,7 +405,7 @@ SonarSource 官方资料：
 | `RELIABILITY` | 缺陷与稳定性 | 查找可能导致程序出错、崩溃或行为异常的问题 | 空指针、资源泄漏、错误并发、错误返回值、异常处理缺陷 |
 | `SECURITY` | 安全与敏感信息 | 查找攻击者可能利用的代码漏洞和泄露风险 | SQL/命令注入、路径穿越、弱加密、硬编码密码、Token 泄露、危险配置 |
 | `QUALITY` | 质量与规范 | 查找影响可读性、可维护性和团队规范的问题 | 复杂代码、重复代码、命名和格式、无效代码、依赖使用不合理 |
-| `SUPPLY_CHAIN` | 依赖与供应链 | 查找第三方组件、构建配置和依赖关系风险 | CVE、已知漏洞版本、依赖冲突、未声明依赖、SBOM、构建约束失败 |
+| `DEPENDENCY_VULNERABILITY` | 第三方依赖漏洞 | 查找项目使用的第三方组件是否存在已知安全漏洞 | CVE、GHSA、OSV、受影响版本、修复版本和依赖路径 |
 
 页面另外提供“全部审计”快捷入口，它只是一次选中四个大类，不是第五个大类。默认建议选中全部；允许用户取消部分大类，但不允许提交空选择。
 
@@ -407,7 +416,7 @@ SonarSource 官方资料：
 
 选择检查类型（可多选）：
   ☑ 缺陷与稳定性     ☑ 安全与敏感信息
-  ☑ 质量与规范       ☑ 依赖与供应链
+  ☑ 质量与规范       ☑ 第三方依赖漏洞
   [全部审计]
 
                     [开始检查]
@@ -427,23 +436,37 @@ SonarSource 官方资料：
 
 建议映射如下。一个引擎可以服务多个大类；例如 PMD 同时包含缺陷规则和质量规则，执行时合并规则集，只启动一次 PMD：
 
-| 现有逻辑引擎 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 依赖与供应链 | 主要前置条件 |
+| 现有逻辑引擎 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 第三方依赖漏洞 | 主要前置条件或默认定位 |
 | --- | :---: | :---: | :---: | :---: | --- |
 | Semgrep | ✓ | ✓ | 可选 |  | Java 源码 |
 | Gitleaks |  | ✓ |  |  | 源文件或仓库快照 |
 | PMD | ✓ | 可选 | ✓ |  | Java 源码 |
 | PMD CPD |  |  | ✓ |  | 足够的源码；方案 A 验证后可由 Sonar 重复率替代 |
 | Checkstyle |  |  | ✓ |  | Java 源码和规则配置 |
-| Trivy Repository |  | ✓ | 可选 | ✓ | 仓库文件、配置和规则数据 |
+| Trivy Repository |  | ✓ | 可选 |  | 仓库文件、配置和规则数据；不负责 Maven 组件 CVE 主扫描 |
 | SpotBugs | ✓ | 可选 | ✓ |  | Maven 构建成功并产生字节码 |
 | FindSecBugs |  | ✓ |  |  | Maven 构建成功、字节码和 SpotBugs 插件 |
-| Maven Dependency Analysis |  |  | ✓ | ✓ | 唯一 Maven 根工程且 Maven 可运行 |
-| Maven Enforcer |  |  | 可选 | ✓ | Maven 工程和受控规则 |
+| Maven Dependency Analysis |  |  |  |  | 退出默认四类；仅作为可选工程健康检查 |
+| Maven Enforcer |  |  |  |  | 退出默认四类；仅在管理员提供组织构建政策后启用 |
 | Dependency-Check |  |  |  | ✓ | 构建产物和完整可用的 NVD 数据库 |
 | OSV-Scanner |  |  |  | ✓ | 可识别的依赖清单；在线或本地数据能力可用 |
-| CycloneDX |  |  |  | ✓ | Maven 工程和依赖解析成功 |
+| CycloneDX |  |  |  | 后台支撑 | 生成 SBOM 组件清单，不产生 Finding 和问题等级 |
 | Trivy Artifact |  |  |  | ✓ | SBOM、Trivy 通用库和 Java 漏洞库可用 |
 | CodeQL | ✓ | ✓ | 可选 |  | 完整项目、受控 CodeQL 安装和查询包 |
+
+“第三方依赖漏洞”不能在技术实现上只认 CVE 编号。页面使用一个简单名称，后台同时归并 CVE、GHSA 和 OSV Advisory，否则可能漏掉尚未分配 CVE 的生态漏洞。该大类内部流程为：
+
+```text
+CycloneDX 生成 SBOM 和依赖关系
+  → Dependency-Check 使用 NVD/CVE 数据
+  → OSV-Scanner 使用 OSV/GHSA/CVE 和修复版本
+  → Trivy Artifact 使用 Trivy 数据库交叉验证
+  → 按“组件 PURL + 当前版本 + 漏洞身份”归并为一个问题组
+```
+
+SBOM 回答“项目用了哪些组件”，漏洞扫描器回答“这些组件是否存在已知漏洞”。SBOM 自身不是问题，不设置严重性，也不计入问题总数，但应进入 Excel 组件清单和最终归档。
+
+依赖冲突、声明未使用、依赖收敛和构建约束不属于该大类。Maven Dependency Analysis 和 Maven Enforcer 默认不运行；以后需要时作为独立的“工程健康检查”高级能力启用。
 
 表中的“可选”表示该引擎存在少量相关规则，但不是该大类的主要执行者。规则治理层根据规则族决定是否启用，不能因为某个引擎被列入大类，就把它的全部规则都打开。
 
@@ -512,10 +535,10 @@ SonarSource 官方资料：
 
 典型输入下的预期行为如下，最终结果仍以实际工具和数据健康状态为准：
 
-| 输入情况 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 依赖与供应链 |
+| 输入情况 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 第三方依赖漏洞 |
 | --- | --- | --- | --- | --- |
-| 完整 Maven 且构建成功 | 源码 + 字节码能力 | 源码 + Secret + 字节码，Deep 可增强 | 源码规范 + 重复 + 构建治理 | SBOM + 多源漏洞 + 依赖治理 |
-| Maven 构建失败 | 源码能力完成，字节码能力被阻断 | 源码和 Secret 可运行，FindSecBugs 等被阻断 | 源码规范可运行，部分构建治理失败 | 能读 `pom.xml` 的能力可运行，其余明确部分完成或被阻断 |
+| 完整 Maven 且构建成功 | 源码 + 字节码能力 | 源码 + Secret + 字节码，Deep 可增强 | 源码规范 + 重复代码 | SBOM + NVD/OSV/Trivy 多源漏洞比对 |
+| Maven 构建失败 | 源码能力完成，字节码能力被阻断 | 源码和 Secret 可运行，FindSecBugs 等被阻断 | 源码规范可运行，字节码质量能力被阻断 | 能解析 `pom.xml` 或锁文件的能力可运行，依赖解析失败的能力明确被阻断 |
 | 只有 Java 源文件 | 运行源码缺陷规则 | 运行源码安全和 Secret 规则 | 运行源码质量和规范规则 | 没有依赖清单时通常无法做 SCA/SBOM，返回无法检查及原因 |
 | 漏洞数据库缺失或过期 | 不受影响 | 代码安全仍可运行 | 不受影响 | SBOM 可能成功，但漏洞比对部分完成或无法检查 |
 
@@ -537,7 +560,8 @@ SonarSource 官方资料：
 每个扫描器的原始格式先转换成统一 Finding，至少保存：
 
 - 引擎、规则、规则版本和原始严重性；
-- 统一分类、优先级、可信度和治理结论；
+- 审计大类、统一五级严重性、定级理由和严重性策略版本；
+- 可信度、确认状态、适用性和治理结论；
 - 文件、行列、代码片段和指纹；
 - CWE、CVE、GHSA、OSV、PURL 和依赖路径；
 - Source、Propagation、Sink 和完整数据流；
@@ -561,12 +585,13 @@ audit-report.zip
 ├── report.sarif
 ├── manifest.json
 ├── coverage/scope-status.json
+├── governance/policy-snapshot.json
 ├── sbom/bom.json
 ├── raw/<engine>/*
 └── logs/engine-status.json
 ```
 
-Excel 和 HTML 的首页必须先按四个大类展示：是否选择、检查状态、实际运行能力、无法执行能力、问题总数和严重性分布；然后再下钻到规则、问题和引擎证据。
+Excel 和 HTML 的首页必须先按四个大类展示：是否选择、检查状态、实际运行能力、无法执行能力、问题总数和五级严重性分布；然后再下钻到规则、问题和引擎证据。`ADVISORY` 提示数与 `CRITICAL/HIGH/MEDIUM/LOW` 风险问题数分栏展示，避免代码格式建议放大风险总数。
 
 即使 SonarQube 或某个外部工具不可用，只要仍有能力成功执行，平台也应输出标明缺失能力的部分报告，而不是丢失全部结果。只有当选中的所有大类都无法执行时，任务才应以“无法完成审计”结束。
 
@@ -585,7 +610,7 @@ ZIP 和 SVN 接口都增加稳定的 `auditScopes` 字段，客户端不传引�
     "RELIABILITY",
     "SECURITY",
     "QUALITY",
-    "SUPPLY_CHAIN"
+    "DEPENDENCY_VULNERABILITY"
   ]
 }
 ```
@@ -600,12 +625,20 @@ ZIP 使用 `multipart/form-data`，其中 `file` 保存压缩包，`auditScopes`
 {
   "scanId": "...",
   "scopePolicyVersion": "2026.08.1",
-  "requestedScopes": ["SECURITY", "SUPPLY_CHAIN"],
+  "severityPolicyVersion": "2026.08.1",
+  "requestedScopes": ["SECURITY", "DEPENDENCY_VULNERABILITY"],
   "scopeResults": [
     {
       "scope": "SECURITY",
       "status": "PARTIAL",
       "findingCount": 12,
+      "severityCounts": {
+        "CRITICAL": 0,
+        "HIGH": 2,
+        "MEDIUM": 5,
+        "LOW": 1,
+        "ADVISORY": 4
+      },
       "executedCapabilities": ["SECRET_SCAN", "SOURCE_SAST"],
       "missingCapabilities": [
         {
@@ -626,7 +659,119 @@ ZIP 使用 `multipart/form-data`，其中 `file` 保存压缩包，`auditScopes`
 3. 一条问题只设置一个 `primaryScope`，可以附带 `relatedScopes`，总数不重复计算；
 4. 如果工具无法按规则集关闭非选中大类，归一化层必须过滤非选中 Finding，并在原始证据中保留真实执行范围。
 
-每个任务必须固化 `scopePolicyVersion`、实际大类到能力/规则/引擎映射和服务器执行策略。以后规则发生变化，历史报告仍能解释当时为什么运行或没有运行某项能力。
+每个任务必须固化 `scopePolicyVersion`、`severityPolicyVersion`、实际大类到能力/规则/引擎映射和服务器执行策略。以后规则发生变化，历史报告仍能解释当时为什么运行、没有运行或如何定级。
+
+### 15.9 两套方案统一使用五个问题等级
+
+方案 A 和方案 B 的内部代码可以不同，但页面、API、Excel 和 Benchmark 都使用同样的五级含义：
+
+| 等级代码 | 页面名称 | 统一含义 |
+| --- | --- | --- |
+| `CRITICAL` | 严重 | 很可能造成系统失陷、大范围数据泄露、核心数据损坏或核心业务持续中断 |
+| `HIGH` | 高危 | 能造成明确的安全影响、生产故障或重要数据影响，应优先处理 |
+| `MEDIUM` | 中危 | 需要一定条件才能触发，或影响范围有限，需要进入整改计划 |
+| `LOW` | 低危 | 风险较小但问题成立，建议在常规维护中修复 |
+| `ADVISORY` | 提示 | 规范、可维护性或最佳实践建议，不代表代码一定会发生故障或漏洞 |
+
+五级严重性回答“如果问题成立，后果有多严重”，不能同时承担准确率、是否适用和是否执行成功的含义。
+
+#### 15.9.1 严重性、可信度、确认状态和覆盖状态必须分开
+
+| 维度 | 回答的问题 | 示例 |
+| --- | --- | --- |
+| `severity` | 如果问题成立，影响有多大 | `HIGH` |
+| `confidence` | 扫描结果有多大把握是真的 | `MEDIUM` |
+| `verificationStatus` | 人工如何处理了它 | `TO_REVIEW/CONFIRMED/FALSE_POSITIVE/ACCEPTED_RISK` |
+| `applicability` | 当前项目是否实际使用了受影响路径或组件 | `AFFECTED/POSSIBLY_AFFECTED/NOT_AFFECTED/UNKNOWN` |
+| `scopeStatus` | 该大类是否完成检查 | `COMPLETED/PARTIAL/UNAVAILABLE/FAILED/NOT_SELECTED` |
+
+一条结果可以是“高危 + 中可信度 + 待确认”，表示后果可能很严重，但证据还不足以直接认定。不能为了降低误报把它偷偷改成低危，也不能因为等级高就隐瞒可信度不足。
+
+可信度统一为：
+
+| 可信度 | 含义 |
+| --- | --- |
+| `CONFIRMED` | 已人工确认，或存在足以确定问题的直接证据 |
+| `HIGH` | 文件、位置、数据流、版本或触发条件比较明确 |
+| `MEDIUM` | 很可能存在，但需要结合业务上下文确认 |
+| `LOW` | 启发式命中，误报概率较高 |
+
+#### 15.9.2 四个大类分别如何定级
+
+| 大类 | 严重/高危的主要依据 | 中危 | 低危/提示 | 默认限制 |
+| --- | --- | --- | --- | --- |
+| 缺陷与稳定性 | 明确的数据损坏、全局死锁、核心路径必现崩溃、严重资源耗尽 | 特定条件下的空指针、资源泄漏、并发和异常处理错误 | 防御不足、低概率错误路径和设计建议 | `CRITICAL` 极少自动产生，通常要求高可信度或人工确认 |
+| 安全与敏感信息 | 可到达的远程命令/SQL 注入、认证绕过、危险反序列化、生产私钥或高权限凭据 | 需要登录、特定配置或有限权限才能利用的漏洞，弱加密和有限信息泄露 | 防御纵深不足、安全热点、测试示例 Secret | 可以使用全五级，但必须同时展示可达性和可信度 |
+| 质量与规范 | 默认不产生严重或高危 | 极高复杂度、大段重复和明显影响维护的核心代码 | 一般复杂度、无效代码、命名、格式、Import 和注释 | 自动等级默认最高为 `MEDIUM`，大多数规范是 `LOW/ADVISORY` |
+| 第三方依赖漏洞 | 主要依据 Advisory/CVSS、受影响版本和依赖范围 | CVSS 中危或影响条件受限的组件漏洞 | CVSS 低危；SBOM 本身没有等级 | 不因“暂未发现调用”就擅自降级；适用性单独记录 |
+
+Secret 需要按类型区分：明确私钥、云访问密钥和生产 Token 通常为高危；疑似普通密码可为中危；测试样例和明显占位符为低危或提示。平台默认不主动登录第三方系统验证密钥是否有效，只有证据确认仍有效且权限极高时才考虑提升为严重。
+
+#### 15.9.3 第三方依赖漏洞使用 CVSS，但不只认 CVE
+
+| CVSS 基础分 | 统一等级 |
+| ---: | --- |
+| 9.0～10.0 | `CRITICAL` |
+| 7.0～8.9 | `HIGH` |
+| 4.0～6.9 | `MEDIUM` |
+| 0.1～3.9 | `LOW` |
+
+如果 Advisory 没有 CVSS，优先使用权威数据源给出的严重性；如果仍然没有等级，暂按 `MEDIUM + LOW confidence + provisional=true` 展示并要求治理，不能误写为“提示”或静默放过。
+
+依赖漏洞还必须展示：当前版本、修复版本、直接/传递依赖、生产/测试范围、依赖路径、数据源和适用性。SBOM 只是这些判断的组件底账，不产生 Finding，不进入五级问题总数。
+
+#### 15.9.4 扫描器原始等级不能直接复制
+
+| 工具 | 原始等级主要代表什么 | 平台处理方式 |
+| --- | --- | --- |
+| SonarJava | Sonar 规则严重性、软件质量属性和问题类型 | 按 Sonar Rule Key 映射到四大类和五级，保留 Sonar 原始字段 |
+| SpotBugs | Bug Pattern 优先级和置信信息 | 按具体 Rule ID、影响和证据重新映射 |
+| PMD | 规则优先级 | 区分真实缺陷、可维护性和纯规范，不能把 P1 机械当高危 |
+| Checkstyle | 规则配置的 error/warning/info | 大多数映射为 `LOW/ADVISORY` |
+| Semgrep | 规则作者声明的严重性 | 结合 Source/Sink、框架和输入可控性校准 |
+| CodeQL | 规则严重性、安全严重性和精度 | 以查询元数据为起点，保留真实路径和精度 |
+| Gitleaks | 疑似 Secret 类型和匹配 | 按凭据类型、路径、示例/生产上下文和可信度映射 |
+| Dependency-Check/OSV/Trivy | Advisory、CVSS 和数据源等级 | 归并漏洞身份后按统一 CVSS/Advisory 政策定级 |
+
+两套方案都应维护版本化严重性目录，例如：
+
+```yaml
+engine: spotbugs
+ruleId: NP_NULL_ON_SOME_PATH
+auditScope: RELIABILITY
+severity: MEDIUM
+defaultConfidence: MEDIUM
+reason: 特定执行路径可能发生空指针
+severityPolicyVersion: 2026.08.1
+```
+
+规则未进入映射目录时使用保守的临时策略：缺陷/安全规则暂定 `MEDIUM + LOW confidence`，质量规则暂定 `ADVISORY`，依赖漏洞优先使用上游等级；同时标记 `provisional=true`，不得据此自动阻断发布。
+
+#### 15.9.5 跨引擎重复命中不简单取最高等级
+
+同一问题被多个引擎命中时：
+
+1. 先按规则族、文件位置、数据流或“PURL + 版本 + 漏洞身份”判断是否真是同一个问题；
+2. 最终严重性由统一规则目录、CVSS 和项目上下文决定，不能谁报得最高就听谁；
+3. 各引擎原始严重性全部保留在证据中；
+4. 独立引擎给出一致证据时可以提高可信度，但不自动抬高严重性；
+5. 无法证明相同的问题继续分开，避免错误合并。
+
+#### 15.9.6 默认门禁建议
+
+| 结果 | 默认处理 |
+| --- | --- |
+| 严重 + `CONFIRMED/HIGH` 可信度 | 阻断，需要修复或审批接受风险 |
+| 高危 + `CONFIRMED/HIGH`，且属于缺陷、安全或依赖漏洞 | 默认阻断 |
+| 中危 | 进入整改计划，首版不自动阻断 |
+| 低危 | 常规修复，不阻断 |
+| 提示 | 只统计建议，不进入风险问题总数和默认门禁 |
+| 某个已选择大类无法检查 | 触发独立的覆盖门禁，不能按“零问题”通过 |
+| 质量与规范 | 首版按新增数量、比例或总体阈值治理，不因单条规范问题阻断 |
+
+门禁策略可以由两套产品分别实现，但含义必须保持一致，并把 `severityPolicyVersion`、可信度要求和阈值写入任务快照及最终报告。
+
+方案 A 中要区分两个 Gate：Sonar Quality Gate 负责 Sonar 自己的质量指标和问题规则；统一 Audit Gate 负责四大类、五级严重性、可信度和覆盖状态。最终报告同时保存两者，但发布是否通过由产品明确配置，不能把 Sonar Gate 直接冒充完整代码审计结论。
 
 ## 16. 方案 A：自研扫描执行与报告层 + SonarQube Community
 
@@ -637,7 +782,7 @@ ZIP 使用 `multipart/form-data`，其中 `file` 保存压缩包，`auditScopes`
 | 层次 | 负责人 | 主要职责 |
 | --- | --- | --- |
 | 源码接入和任务执行 | 自研 Java 服务 | ZIP/SVN、审计大类、能力计划、Maven 构建、外部进程、并发、超时和取消 |
-| 专项审计 | 14 个外部逻辑引擎 | 字节码、安全、Secret、依赖漏洞、SBOM、Maven 治理和 CodeQL |
+| 专项审计 | 12 个默认 + 2 个可选外部逻辑引擎 | 字节码、安全、Secret、依赖漏洞、SBOM、可选工程健康和 CodeQL |
 | 通用质量中心 | SonarQube Community | SonarJava、复杂度、重复率、代码页面、问题状态、趋势和 Quality Gate |
 | 正式交付 | 自研报告层 | 统一 Finding、去重、适用性、Excel、HTML/JSON/SARIF 和原始证据 |
 | 数据持久化 | 文件存储 + PostgreSQL | 自研任务仍使用文件；PostgreSQL 仅服务 SonarQube |
@@ -740,11 +885,20 @@ audit-api
 - 同一引擎被多个大类选中时的规则并集和单次执行；
 - 大类覆盖率、部分完成和无法检查的汇总。
 
+`rule-governance` 建议负责：
+
+- `engine + ruleId` 到四大类、规则族和五级严重性的版本化映射；
+- 原始等级、统一等级、定级理由、可信度和适用性的保存；
+- 未映射规则的保守临时策略和治理告警；
+- 跨引擎证据合并时只提高可信度、不机械提高严重性；
+- 五级门禁、项目例外、误报、接受风险和到期抑制。
+
 `excel-report-service` 建议包含：
 
 - 报告数据聚合和统一统计；
 - 封面、概览、图表和风险矩阵；
 - 代码漏洞、依赖漏洞、Secret、质量、覆盖率和 SBOM 工作表；
+- 五级严重性、可信度、确认状态、适用性以及风险问题/提示分栏；
 - 审计大类选择、覆盖状态、未执行能力和补救建议工作表；
 - 引擎状态、未覆盖项、误报和抑制工作表；
 - Apache POI `SXSSF` 大数据量流式输出；
@@ -825,7 +979,7 @@ Linux x86_64
 
 ### 17.1 方案定位
 
-纯自研不是自己编写所有静态分析算法，而是继续使用现有 15 个开源引擎，由自研平台承担审计大类选择、能力计划、编排、治理、在线查询、报告和门禁逻辑，不部署 SonarQube。用户看到的是四个审计大类，15 个引擎属于后台实现细节。
+纯自研不是自己编写所有静态分析算法，而是继续维护现有 15 个开源逻辑引擎，由自研平台承担审计大类选择、能力计划、编排、治理、在线查询、报告和门禁逻辑，不部署 SonarQube。默认四类的候选池包含其中 13 个，Maven Dependency Analysis 和 Maven Enforcer 仅按需启用；实际任务再根据项目和深度策略缩小执行集合。用户看到的是四个审计大类，15 个引擎属于后台实现细节。
 
 ```text
 一个 Java 服务 JAR
@@ -900,9 +1054,10 @@ flowchart TB
 | 建设方式 | 可新建独立的 SonarQube 增强审计平台仓库 | 继续建设当前 `java-code-audit-platform` 仓库 |
 | 是否必须共用代码 | 不需要；只在确有收益时复用成熟模块 | 不需要依赖方案 A 的任何模块 |
 | 页面检查类型 | 四个审计大类，后台映射 SonarJava 和专项引擎 | 相同四个大类，后台映射现有 15 引擎 |
+| 问题等级 | 统一严重/高危/中危/低危/提示，并单列可信度 | 相同五级含义和独立可信度 |
 | 无法检查的反馈 | 自研能力计划综合 Sonar 和外部工具状态 | 自研能力计划综合项目、工具和数据状态 |
 | 最小常驻服务 | 3 个：审计服务、SonarQube、PostgreSQL | 1 个：审计服务 |
-| 外部扫描器 | 收敛为 14 个逻辑引擎，新增 SonarJava | 保持现有 15 个逻辑引擎 |
+| 外部扫描器 | 安装 14 个：12 个默认、2 个可选工程健康；另有 SonarJava | 安装 15 个：13 个默认、2 个可选工程健康 |
 | 数据库 | SonarQube 必须使用正式数据库；自研侧仍可文件存储 | 不需要数据库 |
 | ZIP/SVN 一次性扫描 | 需要为 ZIP 管理临时 Sonar 项目 | 原生适配，流程最短 |
 | 零散 Java 源码 | SonarJava 受字节码限制，依赖外部源码工具 | 直接使用 Quick/source-only 工具 |
@@ -928,7 +1083,7 @@ flowchart TB
 
 ```text
 上传 ZIP 或提供 SVN
-  → 选择缺陷、安全、质量、供应链中的一个或多个大类
+  → 选择缺陷、安全、质量、第三方依赖漏洞中的一个或多个大类
   → 执行 Java/Maven 审计
   → 查看哪些能检查、哪些不能检查及原因
   → 下载一份完整 Excel/ZIP 报告
@@ -956,6 +1111,7 @@ sonarqube-audit-platform/
 ├── external-scanner-adapters/  # SCA、Secret、SBOM、CodeQL 等专项适配器
 ├── sonar-integration/          # 项目、Token、分析、API、Gate 和清理
 ├── finding-contract/           # 方案 A 自己的统一结果模型
+├── rule-governance/            # 四大类、五级定级、可信度和门禁
 ├── excel-report-service/       # Excel 和正式归档
 └── distribution/               # 安装包、配置和部署脚本
 ```
@@ -1010,7 +1166,7 @@ java-code-audit-platform/
 | --- | --- | --- |
 | 真值 Benchmark | 比较召回率、准确率和误报率 | 否，使用同一输入和人工真值即可 |
 | Finding 字段规范 | 对齐规则、位置、严重性、证据和身份 | 否，各自实现 |
-| 风险分类和严重性映射 | 防止同一问题在两套报告中口径相反 | 否，各自加载或编码 |
+| 四大类和五级严重性映射 | 防止同一问题在两套报告中类别或等级相反 | 否，各自加载或编码，但含义必须一致 |
 | Excel 列和统计口径 | 让领导或用户可直接横向看报告 | 否，可以有不同模板实现 |
 | 规则取舍台账 | 记录重合、独有、关闭和误报原因 | 否，台账本身可以独立维护 |
 | 验收场景 | ZIP、SVN、构建失败、并发和故障恢复 | 否，两边分别执行 |
@@ -1026,19 +1182,20 @@ java-code-audit-platform/
 
 1. 单独部署 SonarQube Community 和 PostgreSQL；
 2. 固化四个审计大类、能力点和 Sonar/专项引擎映射；
-3. 用同一份完整 Maven、构建失败和零散 Java 样例验证 SonarJava 边界；
-4. 验证 ZIP 临时项目、SVN 持久项目和项目清理；
-5. 验证 Generic External Issues、SARIF、SpotBugs、FindSecBugs、PMD 和 Checkstyle 导入；
-6. 验证 Sonar 原生问题、外部问题、指标和 Gate 能否按大类稳定导出为 Excel；
-7. 形成“保留、导入、只放 Excel、删除”的最终引擎清单。
+3. 固化五级严重性、可信度和 Sonar/专项引擎的映射规则；
+4. 用同一份完整 Maven、构建失败和零散 Java 样例验证 SonarJava 边界；
+5. 验证 ZIP 临时项目、SVN 持久项目和项目清理；
+6. 验证 Generic External Issues、SARIF、SpotBugs、FindSecBugs、PMD 和 Checkstyle 导入；
+7. 验证 Sonar 原生问题、外部问题、指标和 Gate 能否按大类、五级和可信度稳定导出为 Excel；
+8. 形成“保留、导入、只放 Excel、删除”的最终引擎清单。
 
 #### A2：最小可用产品
 
 1. 建立独立仓库和发布流程；
 2. 实现四大类多选页面、`auditScopes` API 和能力计划；
 3. 实现 ZIP/SVN、任务 API、Maven 构建和 SonarScanner；
-4. 接入依赖漏洞、Secret、SBOM、Maven 治理和可选 CodeQL；
-5. 实现方案 A 自己的 Finding、去重、脱敏和按大类汇总的 Excel；
+4. 接入依赖漏洞、Secret、SBOM 和可选 CodeQL；Maven 工程健康保持默认关闭；
+5. 实现方案 A 自己的 Finding、五级定级、可信度、去重、脱敏和按大类汇总的 Excel；
 6. 实现临时 Sonar 项目、Token 和保留期管理；
 7. 提供一键部署、健康检查和备份恢复文档。
 
@@ -1055,11 +1212,12 @@ java-code-audit-platform/
 #### B1：正式报告闭环
 
 1. 固化四个审计大类以及 15 引擎到能力点和规则族的映射；
-2. 增加四大类多选页面、`auditScopes` API 和能力计划；
-3. 在当前仓库新增或完善 Excel 报告；
-4. 固化概览、风险、代码位置、依赖路径、引擎状态和未覆盖原因；
-5. 验证完整 Maven、构建失败、零散 Java、ZIP 和 SVN；
-6. 保持一个 JAR + tools + data 的发布和启动方式。
+2. 固化五级严重性、可信度、确认状态和适用性映射；
+3. 增加四大类多选页面、`auditScopes` API 和能力计划；
+4. 在当前仓库新增或完善 Excel 报告；
+5. 固化概览、风险、代码位置、依赖路径、引擎状态和未覆盖原因；
+6. 验证完整 Maven、构建失败、零散 Java、ZIP 和 SVN；
+7. 保持一个 JAR + tools + data 的发布和启动方式。
 
 #### B2：准确率和规则治理
 
@@ -1086,6 +1244,7 @@ java-code-audit-platform/
 | 检测能力 | 已知真问题召回率、确认问题准确率、误报率、独有问题数 |
 | 覆盖边界 | 完整 Maven、构建失败、源码片段、单模块和多模块 |
 | 类型选择 | 四类单选、任意组合、全部选择、未选择隔离和不能检查原因 |
+| 等级治理 | 四类五级含义、原始到统一映射、可信度、适用性、去重和门禁一致性 |
 | 报告能力 | Excel 完整度、证据链、去重、未执行原因和可复核性 |
 | 性能 | 总耗时、CPU、内存、磁盘、并发吞吐和排队时长 |
 | 稳定性 | 工具失败、网络失败、数据库不可用、取消和重启恢复 |
@@ -1121,8 +1280,10 @@ java-code-audit-platform/
 
 1. 方案 A 原型：SonarQube + 必要专项扫描器 + Excel；
 2. 方案 B 原型：当前 15 引擎 + Excel；
-3. 两个原型都实现四个审计大类选择和不能检查原因；
+3. 两个原型都实现四个审计大类、统一五级严重性、独立可信度和不能检查原因；
 4. 使用同一份独立真值数据和同一批真实项目进行盲测；
 5. 再根据准确率、报告、部署、性能和长期维护成本决定建设哪一个，或者将二者作为不同定位的产品分别保留。
 
 无论最终选择哪套方案，都不应把 SonarQube 的结果当作绝对真值，也不应以当前自研扫描器的结果反向证明自己准确。判断依据必须是独立真值 Benchmark、人工复核和真实生产样本。
+
+已经确认的共同产品契约是：用户只选择“缺陷与稳定性、安全与敏感信息、质量与规范、第三方依赖漏洞”四个大类；问题统一显示“严重、高危、中危、低危、提示”五个等级；可信度、人工确认、适用性和是否完成检查分别表达。两套方案可以使用不同代码实现，但不得改变这些对外含义。
