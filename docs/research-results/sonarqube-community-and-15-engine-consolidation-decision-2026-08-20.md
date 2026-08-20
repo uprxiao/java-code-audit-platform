@@ -376,9 +376,9 @@ SonarSource 官方资料：
 两种方案都需要满足相同的用户入口和交付目标：
 
 ```text
-输入：一个 ZIP 或一个 SVN 地址
-处理：识别项目形态、构建、扫描、归一化、去重和治理
-输出：在线状态、完整 Excel、HTML/JSON/SARIF、SBOM 和原始证据 ZIP
+输入：一个 ZIP 或一个 SVN 地址 + 用户选择的审计大类
+处理：识别项目形态、计算可检查能力、构建、扫描、归一化、去重和治理
+输出：各大类检查状态、不能检查的原因、完整 Excel、HTML/JSON/SARIF、SBOM 和原始证据 ZIP
 ```
 
 两种方案的差别不在是否使用外部扫描器，而在于谁负责通用代码质量、在线问题管理、趋势和 Quality Gate。
@@ -387,18 +387,152 @@ SonarSource 官方资料：
 
 两种方案可以由不同仓库、不同代码和不同部署体系实现，但应使用同一组输入分类、结果字段和验收指标。这样最终比较的是两套产品的真实能力，而不是两个无法对齐口径的演示结果。
 
-### 15.1 输入形态必须分类
+### 15.1 页面只展示四个审计大类
+
+用户不需要理解 SpotBugs、Semgrep、CodeQL 或 Trivy 的区别。页面建议使用四个可多选的卡片：
+
+| 大类代码 | 页面名称 | 用户容易理解的说明 | 典型问题 |
+| --- | --- | --- | --- |
+| `RELIABILITY` | 缺陷与稳定性 | 查找可能导致程序出错、崩溃或行为异常的问题 | 空指针、资源泄漏、错误并发、错误返回值、异常处理缺陷 |
+| `SECURITY` | 安全与敏感信息 | 查找攻击者可能利用的代码漏洞和泄露风险 | SQL/命令注入、路径穿越、弱加密、硬编码密码、Token 泄露、危险配置 |
+| `QUALITY` | 质量与规范 | 查找影响可读性、可维护性和团队规范的问题 | 复杂代码、重复代码、命名和格式、无效代码、依赖使用不合理 |
+| `SUPPLY_CHAIN` | 依赖与供应链 | 查找第三方组件、构建配置和依赖关系风险 | CVE、已知漏洞版本、依赖冲突、未声明依赖、SBOM、构建约束失败 |
+
+页面另外提供“全部审计”快捷入口，它只是一次选中四个大类，不是第五个大类。默认建议选中全部；允许用户取消部分大类，但不允许提交空选择。
+
+页面原型可以简化为：
+
+```text
+选择代码： [上传 ZIP] 或 [填写 SVN 地址]
+
+选择检查类型（可多选）：
+  ☑ 缺陷与稳定性     ☑ 安全与敏感信息
+  ☑ 质量与规范       ☑ 依赖与供应链
+  [全部审计]
+
+                    [开始检查]
+```
+
+### 15.2 四个大类与现有 15 个引擎的内部映射
+
+四个大类不是四个新扫描器，而是面向用户的“审计目标”。后台将大类继续拆成能力点和规则族，再选择实际引擎：
+
+```text
+用户大类
+  → 能力点/规则族
+  → 候选引擎
+  → 当前项目可执行的引擎和规则
+  → Finding 重新归入用户大类
+```
+
+建议映射如下。一个引擎可以服务多个大类；例如 PMD 同时包含缺陷规则和质量规则，执行时合并规则集，只启动一次 PMD：
+
+| 现有逻辑引擎 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 依赖与供应链 | 主要前置条件 |
+| --- | :---: | :---: | :---: | :---: | --- |
+| Semgrep | ✓ | ✓ | 可选 |  | Java 源码 |
+| Gitleaks |  | ✓ |  |  | 源文件或仓库快照 |
+| PMD | ✓ | 可选 | ✓ |  | Java 源码 |
+| PMD CPD |  |  | ✓ |  | 足够的源码；方案 A 验证后可由 Sonar 重复率替代 |
+| Checkstyle |  |  | ✓ |  | Java 源码和规则配置 |
+| Trivy Repository |  | ✓ | 可选 | ✓ | 仓库文件、配置和规则数据 |
+| SpotBugs | ✓ | 可选 | ✓ |  | Maven 构建成功并产生字节码 |
+| FindSecBugs |  | ✓ |  |  | Maven 构建成功、字节码和 SpotBugs 插件 |
+| Maven Dependency Analysis |  |  | ✓ | ✓ | 唯一 Maven 根工程且 Maven 可运行 |
+| Maven Enforcer |  |  | 可选 | ✓ | Maven 工程和受控规则 |
+| Dependency-Check |  |  |  | ✓ | 构建产物和完整可用的 NVD 数据库 |
+| OSV-Scanner |  |  |  | ✓ | 可识别的依赖清单；在线或本地数据能力可用 |
+| CycloneDX |  |  |  | ✓ | Maven 工程和依赖解析成功 |
+| Trivy Artifact |  |  |  | ✓ | SBOM、Trivy 通用库和 Java 漏洞库可用 |
+| CodeQL | ✓ | ✓ | 可选 |  | 完整项目、受控 CodeQL 安装和查询包 |
+
+表中的“可选”表示该引擎存在少量相关规则，但不是该大类的主要执行者。规则治理层根据规则族决定是否启用，不能因为某个引擎被列入大类，就把它的全部规则都打开。
+
+在方案 A 中，这张表还会加入 SonarJava：SonarJava 主要服务“缺陷与稳定性”和“质量与规范”，部分安全规则服务“安全与敏感信息”；依赖漏洞、SBOM 和 Secret 仍由专项引擎负责。
+
+大类状态必须按“能力点”计算，不能按“成功引擎数/总引擎数”计算。后台应给能力点定义角色：
+
+| 能力角色 | 含义 | 对大类状态的影响 |
+| --- | --- | --- |
+| `PRIMARY` | 该大类的主要能力 | 适用却没有任何实现成功时，大类不能标已完成 |
+| `CONDITIONAL` | 只有满足前置条件时才要求 | 例如字节码安全仅在能够构建时纳入 |
+| `ALTERNATIVE` | 多个引擎可替代地完成同一能力 | 任一合格实现成功即可，不能要求所有替代引擎都成功 |
+| `ENRICHMENT` | 提供更深路径或第二证据 | 缺失时记录覆盖差异，但默认不把主要能力判为失败 |
+
+例如 Semgrep 和 CodeQL 都可能发现注入问题，但二者并不完全等价。可以把 Semgrep 作为源码安全主能力，把 CodeQL 数据流作为增强能力；当管理员未启用 CodeQL 时，报告明确写“未执行深度数据流增强”，但不能把已经完成的源码安全扫描说成完全失败。
+
+### 15.3 用户选择和服务器策略是两个不同维度
+
+用户只选择“想检查什么”，不选择“使用哪个工具”。服务端保留自己的执行策略，例如是否允许 CodeQL、单任务资源上限、漏洞库是否允许联网更新等。
+
+```text
+最终执行计划 = 用户选择的大类
+             ∩ 当前产品允许的引擎/规则
+             ∩ 当前项目满足的前置条件
+             ∩ 当前机器健康且可用的工具和数据
+```
+
+当前的 `QUICK/STANDARD/DEEP` 可以继续作为服务器内部的“扫描深度上限”，但不再冒充用户大类：
+
+- 审计大类回答“检查什么”；
+- `QUICK/STANDARD/DEEP` 回答“最多使用多重的工具检查”；
+- 页面首版只展示审计大类，服务器默认策略由管理员配置；
+- 后续确需控制耗时，可以增加“普通/深度”高级选项，但不能让用户直接勾选 15 个引擎。
+
+例如，用户选择“安全与敏感信息”：
+
+- 上传几个 Java 文件时，可以运行 Semgrep、Gitleaks 和部分 Trivy Repository；FindSecBugs 因没有字节码不能运行；
+- 上传完整 Maven 项目且构建成功时，可以继续运行 FindSecBugs 和受控 CodeQL；
+- CodeQL 没有安装时，其他安全引擎仍然执行；如果当前服务器把 CodeQL 定义为增强能力，则大类可保持“已完成”并注明未做深度增强；只有在 `DEEP` 策略明确把它列为本次必需能力时才返回“部分完成”；
+- 所有安全引擎都不可用时，返回“无法检查”，绝不能返回“检查完成且零漏洞”。
+
+### 15.4 后台先生成能力计划，再执行扫描
+
+源码接入后，由 `CapabilityPlanner`（名称可由两套方案各自决定）为每个大类和引擎生成计划：
+
+| 计划结论 | 含义 | 示例 |
+| --- | --- | --- |
+| `RUNNABLE` | 当前输入和环境满足要求，应加入执行 DAG | 源码存在，Semgrep 可用 |
+| `NOT_APPLICABLE` | 当前输入不具备该能力所需材料 | 只有 Java 文件，无法做字节码分析 |
+| `BLOCKED` | 本来适用，但前置步骤失败 | Maven 构建失败，SpotBugs 被阻断 |
+| `UNAVAILABLE` | 工具、许可、规则包或数据缺失/过期 | NVD 数据库未初始化，Dependency-Check 不可用 |
+| `DISABLED_BY_POLICY` | 服务器策略明确禁用该能力 | 管理员关闭 CodeQL |
+| `NOT_SELECTED` | 用户没有选择关联的大类 | 用户只选择安全检查，没有选择质量规范 |
+
+执行结束后，页面和报告按大类聚合成五种用户状态：
+
+| 用户状态 | 判断 |
+| --- | --- |
+| 已完成 | 当前输入适用且服务器策略要求的主要/条件能力均成功；替代能力至少一个成功；增强能力缺失只作说明 |
+| 部分完成 | 至少一个主要能力成功，但另一个适用且本次策略要求的主要/条件能力被阻断、不可用或失败 |
+| 无法检查 | 没有任何适用的主要能力能够执行，必须展示具体原因和补救方法 |
+| 检查失败 | 能力原本可执行，但执行过程异常，不能解释为零问题 |
+| 未选择 | 用户未选择该大类，不参与总问题数和覆盖率分母 |
+
+“部分完成”和“无法检查”必须列出缺失能力，例如“缺少 Maven 字节码”“NVD 数据库未初始化”“CodeQL 被管理员禁用”，不能只显示一个模糊的黄色图标。
+
+典型输入下的预期行为如下，最终结果仍以实际工具和数据健康状态为准：
+
+| 输入情况 | 缺陷与稳定性 | 安全与敏感信息 | 质量与规范 | 依赖与供应链 |
+| --- | --- | --- | --- | --- |
+| 完整 Maven 且构建成功 | 源码 + 字节码能力 | 源码 + Secret + 字节码，Deep 可增强 | 源码规范 + 重复 + 构建治理 | SBOM + 多源漏洞 + 依赖治理 |
+| Maven 构建失败 | 源码能力完成，字节码能力被阻断 | 源码和 Secret 可运行，FindSecBugs 等被阻断 | 源码规范可运行，部分构建治理失败 | 能读 `pom.xml` 的能力可运行，其余明确部分完成或被阻断 |
+| 只有 Java 源文件 | 运行源码缺陷规则 | 运行源码安全和 Secret 规则 | 运行源码质量和规范规则 | 没有依赖清单时通常无法做 SCA/SBOM，返回无法检查及原因 |
+| 漏洞数据库缺失或过期 | 不受影响 | 代码安全仍可运行 | 不受影响 | SBOM 可能成功，但漏洞比对部分完成或无法检查 |
+
+因此，“无法检查”是某个大类或能力的正式业务结果，不一定等于整个任务发生系统故障。
+
+### 15.5 输入形态必须分类
 
 | 项目形态 | 判断 | 可承诺能力 |
 | --- | --- | --- |
-| `FULL_MAVEN` | 有唯一根 `pom.xml` 且 Maven 构建成功 | 源码、字节码、依赖、SBOM、SonarJava、JaCoCo 和可选 CodeQL |
+| `FULL_MAVEN` | 有唯一根 `pom.xml` 且 Maven 构建成功 | 源码、字节码、依赖、SBOM，以及方案支持时的 SonarJava、JaCoCo 和 CodeQL |
 | `PARTIAL_MAVEN` | 有 Maven 工程但构建失败或类路径不完整 | 源码和部分依赖扫描；字节码、覆盖率和深度结果明确降级 |
 | `SOURCE_ONLY` | 一个或若干 Java 文件，无可构建工程 | PMD、Checkstyle、Semgrep、Gitleaks、Trivy Repository 等源码能力 |
 | `INVALID` | 多个根工程、输入越界或没有可扫描文件 | 在预检阶段拒绝，不产生虚假的零问题报告 |
 
 报告必须区分“执行成功且零问题”和“未执行/不可用/失败”。
 
-### 15.2 建议保持一致的 Finding 数据契约
+### 15.6 建议保持一致的 Finding 数据契约
 
 每个扫描器的原始格式先转换成统一 Finding，至少保存：
 
@@ -411,9 +545,11 @@ SonarSource 官方资料：
 - 原始产物、工具版本、漏洞库版本和产物哈希；
 - 执行状态、耗时、失败原因和覆盖范围。
 
+Finding 还应保存 `auditScope` 和 `capabilityId`。同一条问题即使被多个引擎发现，只在统一报告中保留一个问题组，同时保存各引擎证据；大类统计按最终问题组计算，不能把引擎命中数简单相加。
+
 方案 A 和方案 B 可以分别实现自己的数据模型，不要求共享同一个 Java 类库；但对外报告应尽量遵守相同字段定义。SonarQube、Excel 和 HTML 不应各自随意改变严重性、数量和漏洞身份，否则两套方案无法公平对比。
 
-### 15.3 完整报告不能依赖某一个页面
+### 15.7 完整报告不能依赖某一个页面
 
 正式交付包统一为：
 
@@ -424,12 +560,73 @@ audit-report.zip
 ├── report.json
 ├── report.sarif
 ├── manifest.json
+├── coverage/scope-status.json
 ├── sbom/bom.json
 ├── raw/<engine>/*
 └── logs/engine-status.json
 ```
 
-即使 SonarQube 不可用，只要外部扫描任务已成功，平台也应能够输出标明缺失能力的部分报告，而不是丢失全部审计结果。
+Excel 和 HTML 的首页必须先按四个大类展示：是否选择、检查状态、实际运行能力、无法执行能力、问题总数和严重性分布；然后再下钻到规则、问题和引擎证据。
+
+即使 SonarQube 或某个外部工具不可用，只要仍有能力成功执行，平台也应输出标明缺失能力的部分报告，而不是丢失全部结果。只有当选中的所有大类都无法执行时，任务才应以“无法完成审计”结束。
+
+### 15.8 API 契约建议
+
+ZIP 和 SVN 接口都增加稳定的 `auditScopes` 字段，客户端不传引擎 ID：
+
+```json
+{
+  "source": {
+    "type": "SVN",
+    "repositoryUrl": "https://svn.example.org/project/trunk",
+    "revision": "HEAD"
+  },
+  "auditScopes": [
+    "RELIABILITY",
+    "SECURITY",
+    "QUALITY",
+    "SUPPLY_CHAIN"
+  ]
+}
+```
+
+页面可先调用 `GET /api/v1/audit-scopes` 获取四个大类的代码、名称、说明和服务器级健康提示。该提示只能说明工具/数据是否已安装，项目级是否能检查仍需等源码接入和 Maven 预检后判断。
+
+ZIP 使用 `multipart/form-data`，其中 `file` 保存压缩包，`auditScopes` 保存相同的代码数组或逗号分隔值。页面上的“全部审计”应在提交前展开为四个明确值，不建议把 `ALL` 持久化，否则以后新增大类会改变历史任务的真实含义。
+
+任务查询至少返回：
+
+```json
+{
+  "scanId": "...",
+  "scopePolicyVersion": "2026.08.1",
+  "requestedScopes": ["SECURITY", "SUPPLY_CHAIN"],
+  "scopeResults": [
+    {
+      "scope": "SECURITY",
+      "status": "PARTIAL",
+      "findingCount": 12,
+      "executedCapabilities": ["SECRET_SCAN", "SOURCE_SAST"],
+      "missingCapabilities": [
+        {
+          "capability": "BYTECODE_SECURITY",
+          "reasonCode": "MAVEN_BUILD_FAILED",
+          "message": "Maven 构建失败，无法执行 FindSecBugs"
+        }
+      ]
+    }
+  ]
+}
+```
+
+接口还应遵守四条规则：
+
+1. 用户未选择的大类不得偷偷进入报告总数；
+2. 同一引擎服务多个大类时只执行一次，命令使用所选规则的并集；
+3. 一条问题只设置一个 `primaryScope`，可以附带 `relatedScopes`，总数不重复计算；
+4. 如果工具无法按规则集关闭非选中大类，归一化层必须过滤非选中 Finding，并在原始证据中保留真实执行范围。
+
+每个任务必须固化 `scopePolicyVersion`、实际大类到能力/规则/引擎映射和服务器执行策略。以后规则发生变化，历史报告仍能解释当时为什么运行或没有运行某项能力。
 
 ## 16. 方案 A：自研扫描执行与报告层 + SonarQube Community
 
@@ -439,7 +636,7 @@ audit-report.zip
 
 | 层次 | 负责人 | 主要职责 |
 | --- | --- | --- |
-| 源码接入和任务执行 | 自研 Java 服务 | ZIP/SVN、项目分类、Maven 构建、外部进程、并发、超时和取消 |
+| 源码接入和任务执行 | 自研 Java 服务 | ZIP/SVN、审计大类、能力计划、Maven 构建、外部进程、并发、超时和取消 |
 | 专项审计 | 14 个外部逻辑引擎 | 字节码、安全、Secret、依赖漏洞、SBOM、Maven 治理和 CodeQL |
 | 通用质量中心 | SonarQube Community | SonarJava、复杂度、重复率、代码页面、问题状态、趋势和 Quality Gate |
 | 正式交付 | 自研报告层 | 统一 Finding、去重、适用性、Excel、HTML/JSON/SARIF 和原始证据 |
@@ -451,12 +648,14 @@ SonarQube 不是扫描任务的唯一事实源。外部问题导入 Sonar 后只
 
 ```mermaid
 flowchart TB
-    U["Web 用户"] --> API["审计 API / Web"]
+    U["Web 用户"] --> SELECT["选择 ZIP/SVN 和四个审计大类"]
+    SELECT --> API["审计 API / Web"]
     API --> INTAKE["ZIP/SVN 源码接入"]
     INTAKE --> CLASSIFY["项目分类与预检"]
-    CLASSIFY --> BUILD["受控 Maven 构建"]
-    CLASSIFY --> SOURCE["源码扫描器"]
-    BUILD --> BINARY["字节码/依赖/SBOM/Deep"]
+    CLASSIFY --> PLAN["能力计划：运行/部分/不能检查"]
+    PLAN --> BUILD["受控 Maven 构建"]
+    PLAN --> SOURCE["可执行的源码能力"]
+    BUILD --> BINARY["可执行的字节码/依赖/SBOM/Deep"]
     SOURCE --> NORMALIZE["统一 Finding"]
     BINARY --> NORMALIZE
     NORMALIZE --> SONARFMT["外部报告/SARIF 导出"]
@@ -464,26 +663,29 @@ flowchart TB
     SONARFMT --> SONARSCAN
     SONARSCAN --> SONAR["SonarQube Community"]
     SONAR --> SONARAPI["Sonar API：原生问题/指标/Gate"]
+    PLAN --> COVERAGE["大类覆盖状态与原因"]
     NORMALIZE --> REPORT["报告聚合器"]
     SONARAPI --> REPORT
+    COVERAGE --> REPORT
     REPORT --> XLSX["Excel"]
     REPORT --> ARCHIVE["HTML/JSON/SARIF/SBOM/原始证据"]
 ```
 
 ### 16.3 单次任务流程
 
-1. 接收 ZIP 或 SVN 地址，生成 `scanId` 和不可变源码哈希；
+1. 接收 ZIP/SVN 和用户选择的一个或多个审计大类，生成 `scanId` 和不可变源码哈希；
 2. 安全解压或固定 Revision 检出；
 3. 识别 `FULL_MAVEN`、`PARTIAL_MAVEN` 或 `SOURCE_ONLY`；
-4. 根据项目形态创建执行 DAG；
-5. Maven 构建成功后并行执行字节码、依赖和 SBOM 工具；
-6. 所有外部结果归一化、脱敏和初步去重；
-7. 生成 Sonar 外部报告或 SARIF；
-8. 对可进行 SonarJava 分析的项目运行一次 SonarScanner；
-9. 等待 Sonar Compute Engine 完成，读取 Sonar 原生问题、复杂度、重复率、覆盖率和 Quality Gate；
-10. 将 Sonar 原生问题转换成统一 Finding，与外部 Finding 保守去重；
-11. 生成 Excel 和完整审计归档；
-12. 按保留策略清理工作目录、临时 Sonar 项目和过期报告。
+4. 结合审计大类、项目形态、工具健康和数据状态生成初始能力计划；
+5. 根据能力计划创建执行 DAG，未选择的能力不启动进程；
+6. Maven 构建成功后并行执行可用的字节码、依赖和 SBOM 工具；构建失败则标记关联能力被阻断；
+7. 所有外部结果归一化、脱敏和初步去重；
+8. 生成 Sonar 外部报告或 SARIF；
+9. 对可进行 SonarJava 分析且用户选择了相关大类的项目运行一次 SonarScanner；
+10. 等待 Sonar Compute Engine 完成，读取 Sonar 原生问题、复杂度、重复率、覆盖率和 Quality Gate；
+11. 将 Sonar 原生问题转换成统一 Finding，与外部 Finding 保守去重；
+12. 按四个大类汇总“已完成/部分完成/无法检查/失败/未选择”，生成 Excel 和完整审计归档；
+13. 按保留策略清理工作目录、临时 Sonar 项目和过期报告。
 
 ### 16.4 Sonar 项目映射
 
@@ -502,6 +704,8 @@ flowchart TB
 ```text
 source-intake
 project-classifier
+audit-scope
+capability-planner
 scan-orchestrator
 local-process-runner
 scanner-adapters
@@ -527,11 +731,21 @@ audit-api
 - `SonarQualityGateClient`：Gate 结果和条件；
 - `SonarRetentionService`：临时项目过期清理。
 
+`audit-scope` 和 `capability-planner` 建议包含：
+
+- 四个大类的稳定代码、显示名称和说明；
+- 大类到能力点、规则族和候选引擎的版本化映射；
+- 项目形态、构建状态、工具健康和数据库状态判断；
+- `RUNNABLE/NOT_APPLICABLE/BLOCKED/UNAVAILABLE/DISABLED_BY_POLICY` 原因码；
+- 同一引擎被多个大类选中时的规则并集和单次执行；
+- 大类覆盖率、部分完成和无法检查的汇总。
+
 `excel-report-service` 建议包含：
 
 - 报告数据聚合和统一统计；
 - 封面、概览、图表和风险矩阵；
 - 代码漏洞、依赖漏洞、Secret、质量、覆盖率和 SBOM 工作表；
+- 审计大类选择、覆盖状态、未执行能力和补救建议工作表；
 - 引擎状态、未覆盖项、误报和抑制工作表；
 - Apache POI `SXSSF` 大数据量流式输出；
 - Secret 脱敏、超链接安全和 Excel 公式注入防护。
@@ -611,7 +825,7 @@ Linux x86_64
 
 ### 17.1 方案定位
 
-纯自研不是自己编写所有静态分析算法，而是继续使用现有 15 个开源引擎，由自研平台承担全部编排、治理、在线查询、报告和门禁逻辑，不部署 SonarQube。
+纯自研不是自己编写所有静态分析算法，而是继续使用现有 15 个开源引擎，由自研平台承担审计大类选择、能力计划、编排、治理、在线查询、报告和门禁逻辑，不部署 SonarQube。用户看到的是四个审计大类，15 个引擎属于后台实现细节。
 
 ```text
 一个 Java 服务 JAR
@@ -625,17 +839,21 @@ Linux x86_64
 
 ```mermaid
 flowchart TB
-    U["Web 用户"] --> API["审计 API / Web"]
+    U["Web 用户"] --> SELECT["选择 ZIP/SVN 和四个审计大类"]
+    SELECT --> API["审计 API / Web"]
     API --> INTAKE["ZIP/SVN 源码接入"]
     INTAKE --> CLASSIFY["项目分类与预检"]
-    CLASSIFY --> BUILD["受控 Maven 构建"]
-    CLASSIFY --> SOURCE["源码扫描器"]
-    BUILD --> BINARY["字节码/依赖/SBOM/CodeQL"]
+    CLASSIFY --> PLAN["能力计划与原因码"]
+    PLAN --> BUILD["受控 Maven 构建"]
+    PLAN --> SOURCE["可执行的源码能力"]
+    BUILD --> BINARY["可执行的字节码/依赖/SBOM/CodeQL"]
     SOURCE --> NORMALIZE["统一 Finding"]
     BINARY --> NORMALIZE
     NORMALIZE --> GOVERN["去重/定级/适用性/抑制"]
+    PLAN --> COVERAGE["大类覆盖状态"]
     GOVERN --> STORE["文件任务与历史快照"]
     GOVERN --> REPORT["统一报告服务"]
+    COVERAGE --> REPORT
     REPORT --> XLSX["Excel"]
     REPORT --> ARCHIVE["HTML/JSON/SARIF/SBOM/原始证据"]
 ```
@@ -659,6 +877,7 @@ flowchart TB
 - 部署最简单，保持一个 JAR + 工具包；
 - 不需要 PostgreSQL 和 SonarQube 运维；
 - ZIP、SVN、一次性扫描和零散 Java 源码天然是一等入口；
+- 四个审计大类、能力可用性和不能检查原因完全由自研 API 控制；
 - 报告模型、规则治理、脱敏、保留策略和 API 完全可控；
 - 适合离线、内网、单机和自用场景；
 - 依赖漏洞、SBOM、工具状态和原始证据无需迁就 Sonar Issue 模型；
@@ -680,6 +899,8 @@ flowchart TB
 | --- | --- | --- |
 | 建设方式 | 可新建独立的 SonarQube 增强审计平台仓库 | 继续建设当前 `java-code-audit-platform` 仓库 |
 | 是否必须共用代码 | 不需要；只在确有收益时复用成熟模块 | 不需要依赖方案 A 的任何模块 |
+| 页面检查类型 | 四个审计大类，后台映射 SonarJava 和专项引擎 | 相同四个大类，后台映射现有 15 引擎 |
+| 无法检查的反馈 | 自研能力计划综合 Sonar 和外部工具状态 | 自研能力计划综合项目、工具和数据状态 |
 | 最小常驻服务 | 3 个：审计服务、SonarQube、PostgreSQL | 1 个：审计服务 |
 | 外部扫描器 | 收敛为 14 个逻辑引擎，新增 SonarJava | 保持现有 15 个逻辑引擎 |
 | 数据库 | SonarQube 必须使用正式数据库；自研侧仍可文件存储 | 不需要数据库 |
@@ -707,7 +928,9 @@ flowchart TB
 
 ```text
 上传 ZIP 或提供 SVN
+  → 选择缺陷、安全、质量、供应链中的一个或多个大类
   → 执行 Java/Maven 审计
+  → 查看哪些能检查、哪些不能检查及原因
   → 下载一份完整 Excel/ZIP 报告
 ```
 
@@ -727,6 +950,8 @@ flowchart TB
 sonarqube-audit-platform/
 ├── audit-api/                  # ZIP/SVN 接口、任务查询和报告下载
 ├── source-intake/              # 安全解压、SVN 快照和项目分类
+├── audit-scope/                # 四个审计大类及规则族映射
+├── capability-planner/         # 项目、工具和数据可用性计算
 ├── scan-orchestrator/          # Maven、SonarScanner 和专项工具编排
 ├── external-scanner-adapters/  # SCA、Secret、SBOM、CodeQL 等专项适配器
 ├── sonar-integration/          # 项目、Token、分析、API、Gate 和清理
@@ -755,6 +980,8 @@ sonarqube-audit-platform/
 ```text
 java-code-audit-platform/
 ├── source-intake
+├── audit-scope
+├── capability-planner
 ├── scan-orchestrator
 ├── scanner-adapters
 ├── finding-core
@@ -787,6 +1014,7 @@ java-code-audit-platform/
 | Excel 列和统计口径 | 让领导或用户可直接横向看报告 | 否，可以有不同模板实现 |
 | 规则取舍台账 | 记录重合、独有、关闭和误报原因 | 否，台账本身可以独立维护 |
 | 验收场景 | ZIP、SVN、构建失败、并发和故障恢复 | 否，两边分别执行 |
+| 审计大类定义 | 对齐用户看到的四个大类和状态含义 | 否，两边可分别实现能力映射 |
 
 未来只有在两个产品长期并行且复制维护成本明显上升时，才考虑把稳定的数据契约或报告模板抽成公共库；当前不应为了代码复用提前制造耦合。
 
@@ -797,20 +1025,22 @@ java-code-audit-platform/
 #### A1：独立可行性原型
 
 1. 单独部署 SonarQube Community 和 PostgreSQL；
-2. 用同一份完整 Maven、构建失败和零散 Java 样例验证 SonarJava 边界；
-3. 验证 ZIP 临时项目、SVN 持久项目和项目清理；
-4. 验证 Generic External Issues、SARIF、SpotBugs、FindSecBugs、PMD 和 Checkstyle 导入；
-5. 验证 Sonar 原生问题、外部问题、指标和 Gate 能否稳定导出为 Excel；
-6. 形成“保留、导入、只放 Excel、删除”的最终引擎清单。
+2. 固化四个审计大类、能力点和 Sonar/专项引擎映射；
+3. 用同一份完整 Maven、构建失败和零散 Java 样例验证 SonarJava 边界；
+4. 验证 ZIP 临时项目、SVN 持久项目和项目清理；
+5. 验证 Generic External Issues、SARIF、SpotBugs、FindSecBugs、PMD 和 Checkstyle 导入；
+6. 验证 Sonar 原生问题、外部问题、指标和 Gate 能否按大类稳定导出为 Excel；
+7. 形成“保留、导入、只放 Excel、删除”的最终引擎清单。
 
 #### A2：最小可用产品
 
 1. 建立独立仓库和发布流程；
-2. 实现 ZIP/SVN、任务 API、Maven 构建和 SonarScanner；
-3. 接入依赖漏洞、Secret、SBOM、Maven 治理和可选 CodeQL；
-4. 实现方案 A 自己的 Finding、去重、脱敏和 Excel；
-5. 实现临时 Sonar 项目、Token 和保留期管理；
-6. 提供一键部署、健康检查和备份恢复文档。
+2. 实现四大类多选页面、`auditScopes` API 和能力计划；
+3. 实现 ZIP/SVN、任务 API、Maven 构建和 SonarScanner；
+4. 接入依赖漏洞、Secret、SBOM、Maven 治理和可选 CodeQL；
+5. 实现方案 A 自己的 Finding、去重、脱敏和按大类汇总的 Excel；
+6. 实现临时 Sonar 项目、Token 和保留期管理；
+7. 提供一键部署、健康检查和备份恢复文档。
 
 #### A3：生产化与持续集成
 
@@ -824,10 +1054,12 @@ java-code-audit-platform/
 
 #### B1：正式报告闭环
 
-1. 在当前仓库新增或完善 Excel 报告；
-2. 固化概览、风险、代码位置、依赖路径、引擎状态和未覆盖原因；
-3. 验证完整 Maven、构建失败、零散 Java、ZIP 和 SVN；
-4. 保持一个 JAR + tools + data 的发布和启动方式。
+1. 固化四个审计大类以及 15 引擎到能力点和规则族的映射；
+2. 增加四大类多选页面、`auditScopes` API 和能力计划；
+3. 在当前仓库新增或完善 Excel 报告；
+4. 固化概览、风险、代码位置、依赖路径、引擎状态和未覆盖原因；
+5. 验证完整 Maven、构建失败、零散 Java、ZIP 和 SVN；
+6. 保持一个 JAR + tools + data 的发布和启动方式。
 
 #### B2：准确率和规则治理
 
@@ -853,6 +1085,7 @@ java-code-audit-platform/
 | --- | --- |
 | 检测能力 | 已知真问题召回率、确认问题准确率、误报率、独有问题数 |
 | 覆盖边界 | 完整 Maven、构建失败、源码片段、单模块和多模块 |
+| 类型选择 | 四类单选、任意组合、全部选择、未选择隔离和不能检查原因 |
 | 报告能力 | Excel 完整度、证据链、去重、未执行原因和可复核性 |
 | 性能 | 总耗时、CPU、内存、磁盘、并发吞吐和排队时长 |
 | 稳定性 | 工具失败、网络失败、数据库不可用、取消和重启恢复 |
@@ -888,7 +1121,8 @@ java-code-audit-platform/
 
 1. 方案 A 原型：SonarQube + 必要专项扫描器 + Excel；
 2. 方案 B 原型：当前 15 引擎 + Excel；
-3. 使用同一份独立真值数据和同一批真实项目进行盲测；
-4. 再根据准确率、报告、部署、性能和长期维护成本决定建设哪一个，或者将二者作为不同定位的产品分别保留。
+3. 两个原型都实现四个审计大类选择和不能检查原因；
+4. 使用同一份独立真值数据和同一批真实项目进行盲测；
+5. 再根据准确率、报告、部署、性能和长期维护成本决定建设哪一个，或者将二者作为不同定位的产品分别保留。
 
 无论最终选择哪套方案，都不应把 SonarQube 的结果当作绝对真值，也不应以当前自研扫描器的结果反向证明自己准确。判断依据必须是独立真值 Benchmark、人工复核和真实生产样本。
